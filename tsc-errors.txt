@@ -1,0 +1,10 @@
+﻿prisma/seed.ts(1,10): error TS2305: Module '"@prisma/client"' has no exported member 'PrismaClient'.
+prisma/seed.ts(60,28): error TS7006: Parameter 'c' implicitly has an 'any' type.
+prisma/seed.ts(301,8): error TS7006: Parameter 'c' implicitly has an 'any' type.
+src/app/(store)/boys/page.tsx(13,8): error TS2307: Cannot find module '@/components/ui/dropdown-menu' or its corresponding type declarations.
+src/app/(store)/boys/page.tsx(278,43): error TS2740: Type '{ id: number; name: string; price: number; originalPrice: number; image: string; category: string; isNew: boolean; rating: number; sizes: string[]; colors: string[]; }' is missing the following properties from type 'Product': slug, basePrice, salePrice, averageRating, and 2 more.
+src/app/(store)/men/page.tsx(470,49): error TS2739: Type '{ id: string; name: string; slug: string; price: number; originalPrice: number; images: string[]; rating: number; reviewCount: number; category: string; isNew: boolean; isBestSeller: boolean; }' is missing the following properties from type 'Product': basePrice, salePrice, averageRating
+src/app/layout.tsx(3,10): error TS2614: Module '"@/components/layout/header"' has no exported member 'Header'. Did you mean to use 'import Header from "@/components/layout/header"' instead?
+src/lib/auth.ts(20,16): error TS2664: Invalid module name in augmentation, module 'next-auth/jwt' cannot be found.
+src/lib/auth.ts(32,5): error TS2353: Object literal may only specify known properties, and 'signUp' does not exist in type 'Partial<PagesOptions>'.
+src/lib/db.ts(1,10): error TS2305: Module '"@prisma/client"' has no exported member 'PrismaClient'.
