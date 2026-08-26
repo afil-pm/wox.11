@@ -82,6 +82,8 @@ export default function CheckoutPage() {
 
   const [currentUser, setCurrentUser] = useState<{ name: string; email: string } | null>(null);
   const [authChecked, setAuthChecked] = useState(false);
+  const [pincodeLoading, setPincodeLoading] = useState(false);
+  const [pincodeError, setPincodeError] = useState("");
 
   useEffect(() => {
     const stored = localStorage.getItem("wox-user");
@@ -333,6 +335,35 @@ export default function CheckoutPage() {
     setCurrentStep((s) => Math.max(s - 1, 1));
   }
 
+  async function handlePincodeLookup(pincode: string) {
+    setNewAddress((prev) => ({ ...prev, pincode, city: "", state: "" }));
+    setPincodeError("");
+
+    if (pincode.length !== 6) return;
+
+    setPincodeLoading(true);
+    try {
+      const res = await fetch(`https://api.postalpincode.in/pincode/${pincode}`);
+      const data = await res.json();
+
+      if (data[0]?.Status === "Success" && data[0]?.PostOffice?.length > 0) {
+        const postOffice = data[0].PostOffice[0];
+        const district = postOffice.District || "";
+        const state = postOffice.State || "";
+        const city = postOffice.Division || district;
+
+        setNewAddress((prev) => ({ ...prev, city, state }));
+        setPincodeError("");
+      } else {
+        setPincodeError("Invalid pincode");
+      }
+    } catch {
+      setPincodeError("Could not fetch pincode details");
+    } finally {
+      setPincodeLoading(false);
+    }
+  }
+
   if (!authChecked) {
     return (
       <div className="flex min-h-[60vh] items-center justify-center">
@@ -477,6 +508,44 @@ export default function CheckoutPage() {
                   <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
                     <div>
                       <label className="text-xs font-medium text-zinc-600">
+                        Pincode *
+                      </label>
+                      <div className="relative mt-1">
+                        <Input
+                          value={newAddress.pincode}
+                          onChange={(e) => {
+                            const val = e.target.value.replace(/\D/g, "").slice(0, 6);
+                            handlePincodeLookup(val);
+                          }}
+                          placeholder="6-digit pincode"
+                          maxLength={6}
+                        />
+                        {pincodeLoading && (
+                          <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                            <div className="h-4 w-4 animate-spin rounded-full border-2 border-zinc-400 border-t-transparent" />
+                          </div>
+                        )}
+                      </div>
+                      {pincodeError && (
+                        <p className="mt-1 text-xs text-red-500">{pincodeError}</p>
+                      )}
+                    </div>
+                    <div>
+                      <label className="text-xs font-medium text-zinc-600">
+                        Phone *
+                      </label>
+                      <Input
+                        value={newAddress.phone}
+                        onChange={(e) =>
+                          setNewAddress({ ...newAddress, phone: e.target.value.replace(/\D/g, "").slice(0, 10) })
+                        }
+                        placeholder="10-digit mobile number"
+                        className="mt-1"
+                        maxLength={10}
+                      />
+                    </div>
+                    <div className="sm:col-span-2">
+                      <label className="text-xs font-medium text-zinc-600">
                         Full Name *
                       </label>
                       <Input
@@ -488,42 +557,29 @@ export default function CheckoutPage() {
                         className="mt-1"
                       />
                     </div>
-                    <div>
-                      <label className="text-xs font-medium text-zinc-600">
-                        Phone *
-                      </label>
-                      <Input
-                        value={newAddress.phone}
-                        onChange={(e) =>
-                          setNewAddress({ ...newAddress, phone: e.target.value })
-                        }
-                        placeholder="10-digit mobile number"
-                        className="mt-1"
-                      />
-                    </div>
                     <div className="sm:col-span-2">
                       <label className="text-xs font-medium text-zinc-600">
-                        Address Line 1 *
+                        House / Flat / Building *
                       </label>
                       <Input
                         value={newAddress.line1}
                         onChange={(e) =>
                           setNewAddress({ ...newAddress, line1: e.target.value })
                         }
-                        placeholder="House/Flat no., Building name, Street"
+                        placeholder="House no., Flat no., Building name"
                         className="mt-1"
                       />
                     </div>
                     <div className="sm:col-span-2">
                       <label className="text-xs font-medium text-zinc-600">
-                        Address Line 2
+                        Street / Area / Landmark
                       </label>
                       <Input
                         value={newAddress.line2}
                         onChange={(e) =>
                           setNewAddress({ ...newAddress, line2: e.target.value })
                         }
-                        placeholder="Area, Colony, Sector (optional)"
+                        placeholder="Street, Area, Sector, Landmark (optional)"
                         className="mt-1"
                       />
                     </div>
@@ -536,8 +592,9 @@ export default function CheckoutPage() {
                         onChange={(e) =>
                           setNewAddress({ ...newAddress, city: e.target.value })
                         }
-                        placeholder="City"
+                        placeholder={pincodeLoading ? "Fetching..." : "City"}
                         className="mt-1"
+                        readOnly={pincodeLoading}
                       />
                     </div>
                     <div>
@@ -549,40 +606,9 @@ export default function CheckoutPage() {
                         onChange={(e) =>
                           setNewAddress({ ...newAddress, state: e.target.value })
                         }
-                        placeholder="State"
+                        placeholder={pincodeLoading ? "Fetching..." : "State"}
                         className="mt-1"
-                      />
-                    </div>
-                    <div>
-                      <label className="text-xs font-medium text-zinc-600">
-                        Pincode *
-                      </label>
-                      <Input
-                        value={newAddress.pincode}
-                        onChange={(e) =>
-                          setNewAddress({
-                            ...newAddress,
-                            pincode: e.target.value,
-                          })
-                        }
-                        placeholder="6-digit pincode"
-                        className="mt-1"
-                      />
-                    </div>
-                    <div>
-                      <label className="text-xs font-medium text-zinc-600">
-                        Landmark
-                      </label>
-                      <Input
-                        value={newAddress.landmark}
-                        onChange={(e) =>
-                          setNewAddress({
-                            ...newAddress,
-                            landmark: e.target.value,
-                          })
-                        }
-                        placeholder="Near (optional)"
-                        className="mt-1"
+                        readOnly={pincodeLoading}
                       />
                     </div>
                   </div>
