@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
+import Image from "next/image";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { cn, formatPrice } from "@/lib/utils";
@@ -22,7 +23,9 @@ interface Order {
   customerPhone: string;
   address: {
     name: string;
+    phone: string;
     line1: string;
+    line2: string;
     city: string;
     state: string;
     pincode: string;
@@ -264,94 +267,138 @@ export default function AdminOrdersPage() {
           onClick={() => setSelectedOrder(null)}
         >
           <div
-            className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-xl bg-white p-6 shadow-xl"
+            className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-xl bg-white p-6 shadow-xl"
             onClick={(e) => e.stopPropagation()}
           >
+            {/* Header */}
             <div className="flex items-center justify-between">
-              <h2 className="text-lg font-bold text-gray-900">
-                {selectedOrder.orderNumber}
-              </h2>
+              <div>
+                <h2 className="text-lg font-bold text-gray-900">
+                  {selectedOrder.orderNumber}
+                </h2>
+                <p className="text-xs text-gray-500">
+                  Placed on {new Date(selectedOrder.createdAt).toLocaleString("en-IN")}
+                </p>
+              </div>
               <button
                 onClick={() => setSelectedOrder(null)}
-                className="text-gray-400 hover:text-gray-600"
+                className="text-gray-400 hover:text-gray-600 text-xl"
               >
                 &times;
               </button>
             </div>
 
-            <div className="mt-4 space-y-3 text-sm">
-              <div>
-                <span className="font-medium text-gray-700">Customer:</span>{" "}
-                {selectedOrder.customerName} &middot; {selectedOrder.customerPhone}
-              </div>
-              <div>
-                <span className="font-medium text-gray-700">Address:</span>{" "}
-                {selectedOrder.address.line1}, {selectedOrder.address.city},{" "}
-                {selectedOrder.address.state} - {selectedOrder.address.pincode}
-              </div>
-              <div>
-                <span className="font-medium text-gray-700">Payment:</span>{" "}
-                {selectedOrder.paymentMethod.toUpperCase()} &middot;{" "}
-                <span
-                  className={cn(
-                    "font-medium",
-                    paymentStyles[selectedOrder.paymentStatus]
-                  )}
-                >
-                  {selectedOrder.paymentStatus}
-                </span>
-              </div>
-              <div>
-                <span className="font-medium text-gray-700">Placed:</span>{" "}
-                {new Date(selectedOrder.createdAt).toLocaleString("en-IN")}
+            {/* Customer Info */}
+            <div className="mt-4 rounded-lg bg-gray-50 p-4 text-sm">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <div>
+                  <span className="font-medium text-gray-700">Customer:</span>
+                  <p className="text-gray-900">{selectedOrder.customerName}</p>
+                </div>
+                <div>
+                  <span className="font-medium text-gray-700">Phone:</span>
+                  <p className="text-gray-900">{selectedOrder.customerPhone}</p>
+                </div>
+                <div className="sm:col-span-2">
+                  <span className="font-medium text-gray-700">Address:</span>
+                  <p className="text-gray-900">
+                    {selectedOrder.address.line1}
+                    {selectedOrder.address.line2 ? `, ${selectedOrder.address.line2}` : ""}
+                  </p>
+                  <p className="text-gray-900">
+                    {selectedOrder.address.city}, {selectedOrder.address.state} - {selectedOrder.address.pincode}
+                  </p>
+                </div>
               </div>
             </div>
 
-            <div className="mt-4 border-t pt-4">
-              <h3 className="font-medium text-gray-700">Items</h3>
-              <div className="mt-2 space-y-2">
+            {/* Items with Images */}
+            <div className="mt-4">
+              <h3 className="font-medium text-gray-700">
+                Items ({selectedOrder.items.length})
+              </h3>
+              <div className="mt-3 space-y-3">
                 {selectedOrder.items.map((item, i) => (
-                  <div key={i} className="flex justify-between text-sm">
-                    <span>
-                      {item.name} (Size: {item.size}) &times; {item.quantity}
+                  <div
+                    key={i}
+                    className="flex items-center gap-4 rounded-lg border border-gray-100 p-3"
+                  >
+                    {item.image ? (
+                      <div className="relative h-20 w-20 flex-shrink-0 overflow-hidden rounded-lg bg-gray-100">
+                        <Image
+                          src={item.image}
+                          alt={item.name}
+                          fill
+                          className="object-cover"
+                          sizes="80px"
+                        />
+                      </div>
+                    ) : (
+                      <div className="flex h-20 w-20 flex-shrink-0 items-center justify-center rounded-lg bg-gray-100 text-xs text-gray-400">
+                        No Image
+                      </div>
+                    )}
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-gray-900 line-clamp-1">
+                        {item.name}
+                      </p>
+                      <p className="mt-0.5 text-xs text-gray-500">
+                        Size: {item.size} &middot; Qty: {item.quantity}
+                      </p>
+                      <p className="mt-0.5 text-xs text-gray-500">
+                        {formatPrice(item.price)} each
+                      </p>
+                    </div>
+                    <span className="text-sm font-semibold text-gray-900">
+                      {formatPrice(item.price * item.quantity)}
                     </span>
-                    <span className="font-medium">{formatPrice(item.price * item.quantity)}</span>
                   </div>
                 ))}
               </div>
-              <div className="mt-3 space-y-1 border-t pt-3 text-sm">
-                <div className="flex justify-between">
-                  <span className="text-gray-500">Subtotal</span>
-                  <span>{formatPrice(selectedOrder.subtotal)}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-500">Shipping</span>
-                  <span>
-                    {selectedOrder.shippingCost === 0
-                      ? "Free"
-                      : formatPrice(selectedOrder.shippingCost)}
-                  </span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-500">Tax</span>
-                  <span>{formatPrice(selectedOrder.tax)}</span>
-                </div>
-                <div className="flex justify-between border-t pt-1 font-semibold">
-                  <span>Total</span>
-                  <span>{formatPrice(selectedOrder.total)}</span>
-                </div>
+            </div>
+
+            {/* Price Breakdown */}
+            <div className="mt-4 space-y-1 border-t pt-4 text-sm">
+              <div className="flex justify-between">
+                <span className="text-gray-500">Subtotal</span>
+                <span>{formatPrice(selectedOrder.subtotal)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-500">Shipping</span>
+                <span>{selectedOrder.shippingCost === 0 ? "Free" : formatPrice(selectedOrder.shippingCost)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-500">Tax (GST 18%)</span>
+                <span>{formatPrice(selectedOrder.tax)}</span>
+              </div>
+              <div className="flex justify-between border-t pt-2 font-semibold">
+                <span>Total</span>
+                <span>{formatPrice(selectedOrder.total)}</span>
               </div>
             </div>
 
-            {/* Status Update */}
+            {/* Status + Actions */}
+            <div className="mt-4 flex items-center justify-between border-t pt-4">
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-gray-500">Status:</span>
+                <Badge className={cn(statusStyles[selectedOrder.status] || "bg-gray-100 text-gray-800")}>
+                  {statusLabels[selectedOrder.status] || selectedOrder.status}
+                </Badge>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-gray-500">Payment:</span>
+                <span className={cn("text-sm font-medium", paymentStyles[selectedOrder.paymentStatus])}>
+                  {selectedOrder.paymentStatus}
+                </span>
+              </div>
+            </div>
+
+            {/* Action Buttons */}
             {nextStatuses[selectedOrder.status]?.length > 0 && (
               <div className="mt-4 border-t pt-4">
-                <h3 className="mb-2 font-medium text-gray-700">
-                  {selectedOrder.status === "PENDING" ? "Action Required" : "Update Status"}
-                </h3>
                 {selectedOrder.status === "PENDING" && (
                   <p className="mb-3 text-xs text-gray-500">
-                    Review the order details above, then approve or cancel.
+                    Review the order above, then approve or cancel.
                   </p>
                 )}
                 <div className="flex flex-wrap gap-2">

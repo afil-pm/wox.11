@@ -88,8 +88,12 @@ export default function CheckoutPage() {
   }
 
   function generateOrderNumber(): string {
-    const num = Math.floor(100000 + Math.random() * 900000);
-    return `WOX-${num}`;
+    const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+    let code = "";
+    for (let i = 0; i < 8; i++) {
+      code += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return `#WOX11${code}`;
   }
 
   async function handlePlaceOrder() {
