@@ -301,6 +301,32 @@ export default function Header() {
           <div className="mt-6 border-t border-zinc-200 pt-6">
             <ul className="space-y-1">
               <li>
+                <Link
+                  href="/wishlist"
+                  className="flex items-center gap-3 rounded-md px-3 py-2.5 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-50 hover:text-zinc-900"
+                  onClick={() => setMobileOpen(false)}
+                >
+                  <Heart className="h-4 w-4" strokeWidth={1.5} />
+                  Wishlist
+                </Link>
+              </li>
+              <li>
+                <Link
+                  href="/cart"
+                  className="flex items-center gap-3 rounded-md px-3 py-2.5 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-50 hover:text-zinc-900"
+                  onClick={() => setMobileOpen(false)}
+                >
+                  <ShoppingBag className="h-4 w-4" strokeWidth={1.5} />
+                  Cart
+                </Link>
+              </li>
+            </ul>
+          </div>
+
+          {/* Profile / Auth - LAST */}
+          <div className="mt-6 border-t border-zinc-200 pt-6">
+            <ul className="space-y-1">
+              <li>
                 {user ? (
                   <>
                     <Link
@@ -330,26 +356,6 @@ export default function Header() {
                     Sign In / Register
                   </Link>
                 )}
-              </li>
-              <li>
-                <Link
-                  href="/wishlist"
-                  className="flex items-center gap-3 rounded-md px-3 py-2.5 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-50 hover:text-zinc-900"
-                  onClick={() => setMobileOpen(false)}
-                >
-                  <Heart className="h-4 w-4" strokeWidth={1.5} />
-                  Wishlist
-                </Link>
-              </li>
-              <li>
-                <Link
-                  href="/cart"
-                  className="flex items-center gap-3 rounded-md px-3 py-2.5 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-50 hover:text-zinc-900"
-                  onClick={() => setMobileOpen(false)}
-                >
-                  <ShoppingBag className="h-4 w-4" strokeWidth={1.5} />
-                  Cart
-                </Link>
               </li>
             </ul>
           </div>

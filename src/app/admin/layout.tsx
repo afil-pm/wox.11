@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import {
   LayoutDashboard,
   Package,
@@ -10,11 +10,10 @@ import {
   ArrowLeft,
   Menu,
   X,
-  Bell,
-  ChevronDown,
   LogOut,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import WoxLoader from "@/components/ui/wox-loader";
 
 const navItems = [
   { label: "Dashboard", icon: LayoutDashboard, href: "/admin" },
@@ -28,32 +27,31 @@ export default function AdminLayout({
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
-  const router = useRouter();
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [authorized, setAuthorized] = useState(false);
+  const [authorized, setAuthorized] = useState<boolean | null>(null);
 
   useEffect(() => {
-    const raw = localStorage.getItem("wox-user");
-    if (!raw) {
-      router.replace("/admin/login");
-      return;
-    }
     try {
+      const raw = localStorage.getItem("wox-user");
+      if (!raw) {
+        window.location.href = "/admin/login";
+        return;
+      }
       const user = JSON.parse(raw);
       if (user.role !== "ADMIN") {
-        router.replace("/admin/login");
+        window.location.href = "/admin/login";
         return;
       }
       setAuthorized(true);
     } catch {
-      router.replace("/admin/login");
+      window.location.href = "/admin/login";
     }
-  }, [pathname, router]);
+  }, []);
 
-  if (!authorized) {
+  if (authorized === null) {
     return (
       <div className="flex h-screen items-center justify-center bg-gray-50">
-        <div className="h-8 w-8 animate-spin rounded-full border-4 border-zinc-900 border-t-transparent" />
+        <WoxLoader />
       </div>
     );
   }
@@ -61,7 +59,7 @@ export default function AdminLayout({
   function handleLogout() {
     localStorage.removeItem("wox-user");
     window.dispatchEvent(new Event("auth-change"));
-    router.replace("/admin/login");
+    window.location.href = "/admin/login";
   }
 
   return (
