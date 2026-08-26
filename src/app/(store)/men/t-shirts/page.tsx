@@ -23,7 +23,10 @@ const products: Product[] = [
     salePrice: 699,
     averageRating: 4.9,
     reviewCount: 203,
-    images: [{ url: "https://images.unsplash.com/photo-1583743814966-8936f5b7be1a?w=600&h=800&fit=crop&auto=format", alt: "WOX Essential Black Oversized T-Shirt" }],
+    images: [
+      { url: "/images/products/men/t-shirts/wox-essential-black-oversized-t-shirt-1.png", alt: "WOX Essential Black Oversized T-Shirt" },
+      { url: "/images/products/men/t-shirts/wox-essential-black-oversized-t-shirt-2.png", alt: "WOX Essential Black Oversized T-Shirt" },
+    ],
     category: { name: "T-Shirts", gender: "men" },
   },
   {
@@ -34,7 +37,10 @@ const products: Product[] = [
     salePrice: 799,
     averageRating: 4.6,
     reviewCount: 156,
-    images: [{ url: "https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?w=600&h=800&fit=crop&auto=format", alt: "WOX Minimal White Crew Neck" }],
+    images: [
+      { url: "/images/products/men/t-shirts/wox-minimal-white-crew-neck-1.png", alt: "WOX Minimal White Crew Neck" },
+      { url: "/images/products/men/t-shirts/wox-minimal-white-crew-neck-2.png", alt: "WOX Minimal White Crew Neck" },
+    ],
     category: { name: "T-Shirts", gender: "men" },
   },
   {
@@ -45,7 +51,10 @@ const products: Product[] = [
     salePrice: 1199,
     averageRating: 4.8,
     reviewCount: 92,
-    images: [{ url: "https://images.unsplash.com/photo-1602810320073-1230c46d89d4?w=600&h=800&fit=crop&auto=format", alt: "WOX Premium Pima Cotton Polo" }],
+    images: [
+      { url: "/images/products/men/t-shirts/wox-premium-pima-cotton-polo-1.png", alt: "WOX Premium Pima Cotton Polo" },
+      { url: "/images/products/men/t-shirts/wox-premium-pima-cotton-polo-2.png", alt: "WOX Premium Pima Cotton Polo" },
+    ],
     category: { name: "T-Shirts", gender: "men" },
   },
   {
@@ -56,7 +65,10 @@ const products: Product[] = [
     salePrice: 849,
     averageRating: 4.5,
     reviewCount: 78,
-    images: [{ url: "https://images.unsplash.com/photo-1602810318383-e386cc2a3ccf?w=600&h=800&fit=crop&auto=format", alt: "WOX Ribbed Henley" }],
+    images: [
+      { url: "/images/products/men/t-shirts/wox-ribbed-henley-1.png", alt: "WOX Ribbed Henley" },
+      { url: "/images/products/men/t-shirts/wox-ribbed-henley-2.png", alt: "WOX Ribbed Henley" },
+    ],
     category: { name: "T-Shirts", gender: "men" },
   },
   {
@@ -67,7 +79,10 @@ const products: Product[] = [
     salePrice: 699,
     averageRating: 4.4,
     reviewCount: 63,
-    images: [{ url: "https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?w=600&h=800&fit=crop&auto=format", alt: "WOX Color Block Tee" }],
+    images: [
+      { url: "/images/products/men/t-shirts/wox-color-block-tee-1.png", alt: "WOX Color Block Tee" },
+      { url: "/images/products/men/t-shirts/wox-color-block-tee-2.png", alt: "WOX Color Block Tee" },
+    ],
     category: { name: "T-Shirts", gender: "men" },
   },
 ];

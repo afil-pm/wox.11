@@ -23,7 +23,10 @@ const products: Product[] = [
     salePrice: 1699,
     averageRating: 4.4,
     reviewCount: 78,
-    images: [{ url: "https://images.unsplash.com/photo-1624378439575-d8705ad7ae80?w=600&h=800&fit=crop&auto=format", alt: "WOX Relaxed Fit Cargo Pants" }],
+    images: [
+      { url: "/images/products/men/pants/wox-relaxed-fit-cargo-pants-1.png", alt: "WOX Relaxed Fit Cargo Pants" },
+      { url: "/images/products/men/pants/wox-relaxed-fit-cargo-pants-2.png", alt: "WOX Relaxed Fit Cargo Pants" },
+    ],
     category: { name: "Pants", gender: "men" },
   },
   {
@@ -34,7 +37,10 @@ const products: Product[] = [
     salePrice: 1399,
     averageRating: 4.7,
     reviewCount: 134,
-    images: [{ url: "https://images.unsplash.com/photo-1542272604-787c3835535d?w=600&h=800&fit=crop&auto=format", alt: "WOX Slim Fit Chinos" }],
+    images: [
+      { url: "/images/products/men/pants/wox-slim-fit-chinos-1.png", alt: "WOX Slim Fit Chinos" },
+      { url: "/images/products/men/pants/wox-slim-fit-chinos-2.png", alt: "WOX Slim Fit Chinos" },
+    ],
     category: { name: "Pants", gender: "men" },
   },
   {
@@ -45,7 +51,10 @@ const products: Product[] = [
     salePrice: 999,
     averageRating: 4.6,
     reviewCount: 187,
-    images: [{ url: "https://images.unsplash.com/photo-1624378439575-d8705ad7ae80?w=600&h=800&fit=crop&auto=format", alt: "WOX Essential Jogger Pants" }],
+    images: [
+      { url: "/images/products/men/pants/wox-essential-jogger-pants-1.png", alt: "WOX Essential Jogger Pants" },
+      { url: "/images/products/men/pants/wox-essential-jogger-pants-2.png", alt: "WOX Essential Jogger Pants" },
+    ],
     category: { name: "Pants", gender: "men" },
   },
   {
@@ -56,7 +65,10 @@ const products: Product[] = [
     salePrice: 1499,
     averageRating: 4.8,
     reviewCount: 156,
-    images: [{ url: "https://images.unsplash.com/photo-1624378439575-d8705ad7ae80?w=600&h=800&fit=crop&auto=format", alt: "WOX Classic Denim Jeans" }],
+    images: [
+      { url: "/images/products/men/pants/wox-classic-denim-jeans-1.png", alt: "WOX Classic Denim Jeans" },
+      { url: "/images/products/men/pants/wox-classic-denim-jeans-2.png", alt: "WOX Classic Denim Jeans" },
+    ],
     category: { name: "Pants", gender: "men" },
   },
   {
@@ -67,7 +79,10 @@ const products: Product[] = [
     salePrice: 1199,
     averageRating: 4.5,
     reviewCount: 62,
-    images: [{ url: "https://images.unsplash.com/photo-1542272604-787c3835535d?w=600&h=800&fit=crop&auto=format", alt: "WOX Drawstring Linen Pants" }],
+    images: [
+      { url: "/images/products/men/pants/wox-drawstring-linen-pants-1.png", alt: "WOX Drawstring Linen Pants" },
+      { url: "/images/products/men/pants/wox-drawstring-linen-pants-2.png", alt: "WOX Drawstring Linen Pants" },
+    ],
     category: { name: "Pants", gender: "men" },
   },
 ];

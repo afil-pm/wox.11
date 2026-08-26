@@ -23,7 +23,10 @@ const products: Product[] = [
     salePrice: 1299,
     averageRating: 4.7,
     reviewCount: 91,
-    images: [{ url: "https://images.unsplash.com/photo-1624378439575-d8705ad7ae80?w=600&h=800&fit=crop&auto=format", alt: "WOX Young Slim Fit Jeans" }],
+    images: [
+      { url: "/images/products/boys/pants/wox-young-slim-fit-jeans-1.png", alt: "WOX Young Slim Fit Jeans" },
+      { url: "/images/products/boys/pants/wox-young-slim-fit-jeans-2.png", alt: "WOX Young Slim Fit Jeans" },
+    ],
     category: { name: "Pants", gender: "boys" },
   },
   {
@@ -34,7 +37,10 @@ const products: Product[] = [
     salePrice: 999,
     averageRating: 4.4,
     reviewCount: 113,
-    images: [{ url: "https://images.unsplash.com/photo-1542272604-787c3835535d?w=600&h=800&fit=crop&auto=format", alt: "WOX Kids Comfort Joggers" }],
+    images: [
+      { url: "/images/products/boys/pants/wox-kids-comfort-joggers-1.png", alt: "WOX Kids Comfort Joggers" },
+      { url: "/images/products/boys/pants/wox-kids-comfort-joggers-2.png", alt: "WOX Kids Comfort Joggers" },
+    ],
     category: { name: "Pants", gender: "boys" },
   },
   {
@@ -45,7 +51,10 @@ const products: Product[] = [
     salePrice: 1199,
     averageRating: 4.6,
     reviewCount: 78,
-    images: [{ url: "https://images.unsplash.com/photo-1624378439575-d8705ad7ae80?w=600&h=800&fit=crop&auto=format", alt: "WOX School Formal Pants" }],
+    images: [
+      { url: "/images/products/boys/pants/wox-school-formal-pants-1.png", alt: "WOX School Formal Pants" },
+      { url: "/images/products/boys/pants/wox-school-formal-pants-2.png", alt: "WOX School Formal Pants" },
+    ],
     category: { name: "Pants", gender: "boys" },
   },
   {
@@ -56,7 +65,10 @@ const products: Product[] = [
     salePrice: 799,
     averageRating: 4.5,
     reviewCount: 65,
-    images: [{ url: "https://images.unsplash.com/photo-1542272604-787c3835535d?w=600&h=800&fit=crop&auto=format", alt: "WOX Active Track Pants" }],
+    images: [
+      { url: "/images/products/boys/pants/wox-active-track-pants-1.png", alt: "WOX Active Track Pants" },
+      { url: "/images/products/boys/pants/wox-active-track-pants-2.png", alt: "WOX Active Track Pants" },
+    ],
     category: { name: "Pants", gender: "boys" },
   },
 ];

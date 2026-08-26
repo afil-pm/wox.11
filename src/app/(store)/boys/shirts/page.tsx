@@ -23,7 +23,10 @@ const products: Product[] = [
     salePrice: 999,
     averageRating: 4.5,
     reviewCount: 87,
-    images: [{ url: "https://images.unsplash.com/photo-1602810318383-e386cc2a3ccf?w=600&h=800&fit=crop&auto=format", alt: "WOX Young Classic Shirt" }],
+    images: [
+      { url: "/images/products/boys/shirts/wox-young-classic-shirt-1.png", alt: "WOX Young Classic Shirt" },
+      { url: "/images/products/boys/shirts/wox-young-classic-shirt-2.png", alt: "WOX Young Classic Shirt" },
+    ],
     category: { name: "Shirts", gender: "boys" },
   },
   {
@@ -34,7 +37,10 @@ const products: Product[] = [
     salePrice: 799,
     averageRating: 4.3,
     reviewCount: 64,
-    images: [{ url: "https://images.unsplash.com/photo-1624835567150-0c530a20d8cc?w=600&h=800&fit=crop&auto=format", alt: "WOX Kids Casual Shirt" }],
+    images: [
+      { url: "/images/products/boys/shirts/wox-kids-casual-shirt-1.png", alt: "WOX Kids Casual Shirt" },
+      { url: "/images/products/boys/shirts/wox-kids-casual-shirt-2.png", alt: "WOX Kids Casual Shirt" },
+    ],
     category: { name: "Shirts", gender: "boys" },
   },
   {
@@ -45,7 +51,10 @@ const products: Product[] = [
     salePrice: 899,
     averageRating: 4.6,
     reviewCount: 102,
-    images: [{ url: "https://images.unsplash.com/photo-1594938291221-94f18cbb5660?w=600&h=800&fit=crop&auto=format", alt: "WOX School Formal Shirt" }],
+    images: [
+      { url: "/images/products/boys/shirts/wox-school-formal-shirt-1.png", alt: "WOX School Formal Shirt" },
+      { url: "/images/products/boys/shirts/wox-school-formal-shirt-2.png", alt: "WOX School Formal Shirt" },
+    ],
     category: { name: "Shirts", gender: "boys" },
   },
   {
@@ -56,7 +65,10 @@ const products: Product[] = [
     salePrice: 699,
     averageRating: 4.4,
     reviewCount: 45,
-    images: [{ url: "https://images.unsplash.com/photo-1624378439575-d8705ad7ae80?w=600&h=800&fit=crop&auto=format", alt: "WOX Play Print Shirt" }],
+    images: [
+      { url: "/images/products/boys/shirts/wox-play-print-shirt-1.png", alt: "WOX Play Print Shirt" },
+      { url: "/images/products/boys/shirts/wox-play-print-shirt-2.png", alt: "WOX Play Print Shirt" },
+    ],
     category: { name: "Shirts", gender: "boys" },
   },
 ];

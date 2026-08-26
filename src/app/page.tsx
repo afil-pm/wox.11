@@ -6,12 +6,12 @@ const newArrivals: Product[] = [
   {
     id: "1",
     name: "WOX Essential Black Oversized T-Shirt",
-    slug: "wox-essential-black-oversized-t-shirt",
+    slug: "wox-essential-black-oversized-tshirt",
     basePrice: 999,
     salePrice: null,
     averageRating: 4.5,
     reviewCount: 128,
-    images: [{ url: "https://images.unsplash.com/photo-1583743814966-8936f5b7be1a?w=600&h=800&fit=crop&auto=format", alt: "Black Oversized T-Shirt" }],
+    images: [{ url: "/images/products/men/t-shirts/wox-essential-black-oversized-tshirt-1.png", alt: "Black Oversized T-Shirt" }],
     category: { name: "T-Shirts", gender: "men" },
   },
   {
@@ -22,29 +22,29 @@ const newArrivals: Product[] = [
     salePrice: 1199,
     averageRating: 4.8,
     reviewCount: 256,
-    images: [{ url: "https://images.unsplash.com/photo-1602810318383-e386cc2a3ccf?w=600&h=800&fit=crop&auto=format", alt: "White Oxford Shirt" }],
+    images: [{ url: "/images/products/men/shirts/wox-classic-white-oxford-shirt-1.png", alt: "White Oxford Shirt" }],
     category: { name: "Shirts", gender: "men" },
   },
   {
     id: "3",
     name: "WOX Relaxed Fit Cargo Pants",
-    slug: "wox-relaxed-fit-cargo-pants",
+    slug: "wox-utility-cargo-pants",
     basePrice: 1799,
     salePrice: null,
     averageRating: 4.3,
     reviewCount: 89,
-    images: [{ url: "https://images.unsplash.com/photo-1624378439575-d8705ad7ae80?w=600&h=800&fit=crop&auto=format", alt: "Relaxed Fit Cargo Pants" }],
+    images: [{ url: "/images/products/men/pants/wox-utility-cargo-pants-1.png", alt: "Relaxed Fit Cargo Pants" }],
     category: { name: "Pants", gender: "men" },
   },
   {
     id: "4",
     name: "WOX Everyday Polo",
-    slug: "wox-everyday-polo",
+    slug: "wox-sport-polo-shirt",
     basePrice: 899,
     salePrice: 699,
     averageRating: 4.6,
     reviewCount: 167,
-    images: [{ url: "https://images.unsplash.com/photo-1602810320073-1230c46d89d4?w=600&h=800&fit=crop&auto=format", alt: "Everyday Polo" }],
+    images: [{ url: "/images/products/men/t-shirts/wox-sport-polo-shirt-1.png", alt: "Everyday Polo" }],
     category: { name: "T-Shirts", gender: "men" },
   },
 ];
@@ -53,56 +53,56 @@ const bestSellers: Product[] = [
   {
     id: "5",
     name: "WOX Premium Linen Shirt",
-    slug: "wox-premium-linen-shirt",
+    slug: "wox-casual-linen-check-shirt",
     basePrice: 1699,
     salePrice: null,
     averageRating: 4.7,
     reviewCount: 312,
-    images: [{ url: "https://images.unsplash.com/photo-1624835567150-0c530a20d8cc?w=600&h=800&fit=crop&auto=format", alt: "Premium Linen Shirt" }],
+    images: [{ url: "/images/products/men/shirts/wox-casual-linen-check-shirt-1.png", alt: "Premium Linen Shirt" }],
     category: { name: "Shirts", gender: "men" },
   },
   {
     id: "6",
     name: "WOX Urban Slim Fit Jeans",
-    slug: "wox-urban-slim-fit-jeans",
+    slug: "wox-classic-blue-denim-jeans",
     basePrice: 1999,
     salePrice: 1599,
     averageRating: 4.4,
     reviewCount: 201,
-    images: [{ url: "https://images.unsplash.com/photo-1624378439575-d8705ad7ae80?w=600&h=800&fit=crop&auto=format", alt: "Urban Slim Fit Jeans" }],
+    images: [{ url: "/images/products/men/pants/wox-classic-blue-denim-jeans-1.png", alt: "Urban Slim Fit Jeans" }],
     category: { name: "Pants", gender: "men" },
   },
   {
     id: "7",
     name: "WOX Graphic Print Tee",
-    slug: "wox-graphic-print-tee",
+    slug: "wox-essential-white-crew-neck-tshirt",
     basePrice: 799,
     salePrice: null,
     averageRating: 4.2,
     reviewCount: 95,
-    images: [{ url: "https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?w=600&h=800&fit=crop&auto=format", alt: "Graphic Print Tee" }],
+    images: [{ url: "/images/products/men/t-shirts/wox-essential-white-crew-neck-tshirt-1.png", alt: "Graphic Print Tee" }],
     category: { name: "T-Shirts", gender: "men" },
   },
   {
     id: "8",
     name: "WOX Corduroy Overshirt",
-    slug: "wox-corduroy-overshirt",
+    slug: "wox-nautical-striped-shirt",
     basePrice: 2199,
     salePrice: 1799,
     averageRating: 4.9,
     reviewCount: 178,
-    images: [{ url: "https://images.unsplash.com/photo-1594938291221-94f18cbb5660?w=600&h=800&fit=crop&auto=format", alt: "Corduroy Overshirt" }],
+    images: [{ url: "/images/products/men/shirts/wox-nautical-striped-shirt-1.png", alt: "Corduroy Overshirt" }],
     category: { name: "Shirts", gender: "men" },
   },
 ];
 
 const categories = [
-  { name: "Men's Shirts", href: "/men/shirts", gender: "Men", image: "https://images.unsplash.com/photo-1602810318383-e386cc2a3ccf?w=600&h=600&fit=crop&auto=format" },
-  { name: "Men's T-Shirts", href: "/men/t-shirts", gender: "Men", image: "https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?w=600&h=600&fit=crop&auto=format" },
-  { name: "Men's Pants", href: "/men/pants", gender: "Men", image: "https://images.unsplash.com/photo-1624378439575-d8705ad7ae80?w=600&h=600&fit=crop&auto=format" },
-  { name: "Boys' Shirts", href: "/boys/shirts", gender: "Boys", image: "https://images.unsplash.com/photo-1503944583220-79d8926ad5e2?w=600&h=600&fit=crop&auto=format" },
-  { name: "Boys' T-Shirts", href: "/boys/t-shirts", gender: "Boys", image: "https://images.unsplash.com/photo-1519238263530-99bdd11df2ea?w=600&h=600&fit=crop&auto=format" },
-  { name: "Boys' Pants", href: "/boys/pants", gender: "Boys", image: "https://images.unsplash.com/photo-1519238263530-99bdd11df2ea?w=600&h=600&fit=crop&auto=format" },
+  { name: "Men's Shirts", href: "/men/shirts", gender: "Men", image: "/images/products/men/shirts/wox-classic-white-oxford-shirt-1.png" },
+  { name: "Men's T-Shirts", href: "/men/t-shirts", gender: "Men", image: "/images/products/men/t-shirts/wox-essential-white-crew-neck-tshirt-1.png" },
+  { name: "Men's Pants", href: "/men/pants", gender: "Men", image: "/images/products/men/pants/wox-classic-blue-denim-jeans-1.png" },
+  { name: "Boys' Shirts", href: "/boys/shirts", gender: "Boys", image: "/images/products/boys/shirts/wox-boys-classic-white-shirt-1.png" },
+  { name: "Boys' T-Shirts", href: "/boys/t-shirts", gender: "Boys", image: "/images/products/boys/t-shirts/wox-boys-colorful-crew-neck-tee-1.png" },
+  { name: "Boys' Pants", href: "/boys/pants", gender: "Boys", image: "/images/products/boys/pants/wox-boys-classic-denim-jeans-1.png" },
 ];
 
 const trustItems = [
@@ -118,7 +118,7 @@ export default function Home() {
       {/* Hero Section */}
       <section className="relative flex min-h-[80vh] items-center justify-center overflow-hidden px-4 py-20 text-center">
         <img
-          src="https://images.unsplash.com/photo-1507680434567-5739c80be1ac?w=1600&h=900&fit=crop&auto=format"
+          src="/images/hero.jpg"
           alt="Men's Fashion"
           className="absolute inset-0 h-full w-full object-cover"
         />

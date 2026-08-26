@@ -23,7 +23,10 @@ const products: Product[] = [
     salePrice: 599,
     averageRating: 4.4,
     reviewCount: 98,
-    images: [{ url: "https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?w=600&h=800&fit=crop&auto=format", alt: "WOX Young Essential Tee" }],
+    images: [
+      { url: "/images/products/boys/t-shirts/wox-young-essential-tee-1.png", alt: "WOX Young Essential Tee" },
+      { url: "/images/products/boys/t-shirts/wox-young-essential-tee-2.png", alt: "WOX Young Essential Tee" },
+    ],
     category: { name: "T-Shirts", gender: "boys" },
   },
   {
@@ -34,7 +37,10 @@ const products: Product[] = [
     salePrice: 499,
     averageRating: 4.2,
     reviewCount: 76,
-    images: [{ url: "https://images.unsplash.com/photo-1583743814966-8936f5b7be1a?w=600&h=800&fit=crop&auto=format", alt: "WOX Kids Graphic Tee" }],
+    images: [
+      { url: "/images/products/boys/t-shirts/wox-kids-graphic-tee-1.png", alt: "WOX Kids Graphic Tee" },
+      { url: "/images/products/boys/t-shirts/wox-kids-graphic-tee-2.png", alt: "WOX Kids Graphic Tee" },
+    ],
     category: { name: "T-Shirts", gender: "boys" },
   },
   {
@@ -45,7 +51,10 @@ const products: Product[] = [
     salePrice: 699,
     averageRating: 4.5,
     reviewCount: 54,
-    images: [{ url: "https://images.unsplash.com/photo-1602810320073-1230c46d89d4?w=600&h=800&fit=crop&auto=format", alt: "WOX Sports Active Tee" }],
+    images: [
+      { url: "/images/products/boys/t-shirts/wox-sports-active-tee-1.png", alt: "WOX Sports Active Tee" },
+      { url: "/images/products/boys/t-shirts/wox-sports-active-tee-2.png", alt: "WOX Sports Active Tee" },
+    ],
     category: { name: "T-Shirts", gender: "boys" },
   },
   {
@@ -56,7 +65,10 @@ const products: Product[] = [
     salePrice: 799,
     averageRating: 4.6,
     reviewCount: 67,
-    images: [{ url: "https://images.unsplash.com/photo-1602810318383-e386cc2a3ccf?w=600&h=800&fit=crop&auto=format", alt: "WOX Piqué Polo" }],
+    images: [
+      { url: "/images/products/boys/t-shirts/wox-pique-polo-1.png", alt: "WOX Piqué Polo" },
+      { url: "/images/products/boys/t-shirts/wox-pique-polo-2.png", alt: "WOX Piqué Polo" },
+    ],
     category: { name: "T-Shirts", gender: "boys" },
   },
 ];

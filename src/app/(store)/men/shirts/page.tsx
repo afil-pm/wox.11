@@ -23,7 +23,10 @@ const products: Product[] = [
     salePrice: 1499,
     averageRating: 4.8,
     reviewCount: 124,
-    images: [{ url: "https://images.unsplash.com/photo-1602810318383-e386cc2a3ccf?w=600&h=800&fit=crop&auto=format", alt: "WOX Classic White Oxford Shirt" }],
+    images: [
+      { url: "/images/products/men/shirts/wox-classic-white-oxford-shirt-1.png", alt: "WOX Classic White Oxford Shirt" },
+      { url: "/images/products/men/shirts/wox-classic-white-oxford-shirt-2.png", alt: "WOX Classic White Oxford Shirt" },
+    ],
     category: { name: "Shirts", gender: "men" },
   },
   {
@@ -34,7 +37,10 @@ const products: Product[] = [
     salePrice: 1799,
     averageRating: 4.7,
     reviewCount: 89,
-    images: [{ url: "https://images.unsplash.com/photo-1583743814966-8936f5b7be1a?w=600&h=800&fit=crop&auto=format", alt: "WOX Premium Black Formal Shirt" }],
+    images: [
+      { url: "/images/products/men/shirts/wox-premium-black-formal-shirt-1.png", alt: "WOX Premium Black Formal Shirt" },
+      { url: "/images/products/men/shirts/wox-premium-black-formal-shirt-2.png", alt: "WOX Premium Black Formal Shirt" },
+    ],
     category: { name: "Shirts", gender: "men" },
   },
   {
@@ -45,7 +51,10 @@ const products: Product[] = [
     salePrice: 1299,
     averageRating: 4.5,
     reviewCount: 67,
-    images: [{ url: "https://images.unsplash.com/photo-1624835567150-0c530a20d8cc?w=600&h=800&fit=crop&auto=format", alt: "WOX Casual Linen Blend Shirt" }],
+    images: [
+      { url: "/images/products/men/shirts/wox-casual-linen-blend-shirt-1.png", alt: "WOX Casual Linen Blend Shirt" },
+      { url: "/images/products/men/shirts/wox-casual-linen-blend-shirt-2.png", alt: "WOX Casual Linen Blend Shirt" },
+    ],
     category: { name: "Shirts", gender: "men" },
   },
   {
@@ -56,7 +65,10 @@ const products: Product[] = [
     salePrice: 1399,
     averageRating: 4.6,
     reviewCount: 54,
-    images: [{ url: "https://images.unsplash.com/photo-1624378439575-d8705ad7ae80?w=600&h=800&fit=crop&auto=format", alt: "WOX Chambray Day Shirt" }],
+    images: [
+      { url: "/images/products/men/shirts/wox-chambray-day-shirt-1.png", alt: "WOX Chambray Day Shirt" },
+      { url: "/images/products/men/shirts/wox-chambray-day-shirt-2.png", alt: "WOX Chambray Day Shirt" },
+    ],
     category: { name: "Shirts", gender: "men" },
   },
   {
@@ -67,7 +79,10 @@ const products: Product[] = [
     salePrice: 1199,
     averageRating: 4.4,
     reviewCount: 41,
-    images: [{ url: "https://images.unsplash.com/photo-1594938291221-94f18cbb5660?w=600&h=800&fit=crop&auto=format", alt: "WOX Print Camp Collar Shirt" }],
+    images: [
+      { url: "/images/products/men/shirts/wox-print-camp-collar-shirt-1.png", alt: "WOX Print Camp Collar Shirt" },
+      { url: "/images/products/men/shirts/wox-print-camp-collar-shirt-2.png", alt: "WOX Print Camp Collar Shirt" },
+    ],
     category: { name: "Shirts", gender: "men" },
   },
 ];
