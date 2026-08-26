@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { products as staticProducts } from "@/lib/data/products";
 import { connectMongoDB } from "@/lib/mongodb";
 import Product from "@/lib/models/product";
+import Review from "@/lib/models/review";
 
 export async function GET(
   _request: NextRequest,
@@ -60,6 +61,19 @@ export async function GET(
 
     const p = mongoProduct.toObject();
     const cat = p.categoryId as unknown as { name: string; slug: string; gender: string } | null;
+
+    const reviews = await Review.find({ productId: p._id })
+      .sort({ createdAt: -1 })
+      .lean() as unknown as { _id: string; rating: number; comment: string; createdAt: string; userName: string }[];
+
+    const formattedReviews = reviews.map((r) => ({
+      id: String(r._id),
+      rating: r.rating,
+      comment: r.comment,
+      createdAt: String(r.createdAt),
+      user: { name: r.userName },
+    }));
+
     const product = {
       id: String(p._id),
       name: p.name,
@@ -67,8 +81,8 @@ export async function GET(
       description: p.description || "",
       basePrice: p.basePrice,
       salePrice: p.salePrice || null,
-      averageRating: 0,
-      reviewCount: 0,
+      averageRating: (p.averageRating as number) || 0,
+      reviewCount: (p.reviewCount as number) || 0,
       category: cat
         ? { name: cat.name, slug: cat.slug, gender: cat.gender }
         : { name: "Uncategorized", slug: "uncategorized", gender: "men" },
@@ -91,7 +105,7 @@ export async function GET(
           inventory: { quantity: s.quantity ?? 0 },
         })),
       })),
-      reviews: [],
+      reviews: formattedReviews,
     };
 
     return NextResponse.json({ product }, { status: 200 });

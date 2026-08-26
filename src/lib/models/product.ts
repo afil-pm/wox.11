@@ -28,6 +28,8 @@ export interface IProduct extends Document {
   categoryId: mongoose.Types.ObjectId;
   images: IProductImage[];
   variants: IProductVariant[];
+  averageRating: number;
+  reviewCount: number;
   isFeatured: boolean;
   isActive: boolean;
   createdAt: Date;
@@ -72,6 +74,8 @@ const ProductSchema = new Schema<IProduct>(
     categoryId: { type: Schema.Types.ObjectId, ref: "Category", required: true },
     images: { type: [ProductImageSchema], default: [] },
     variants: { type: [ProductVariantSchema], default: [] },
+    averageRating: { type: Number, default: 0, min: 0, max: 5 },
+    reviewCount: { type: Number, default: 0, min: 0 },
     isFeatured: { type: Boolean, default: false },
     isActive: { type: Boolean, default: true },
   },

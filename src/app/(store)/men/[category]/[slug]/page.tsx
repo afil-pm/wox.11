@@ -82,6 +82,12 @@ export default function ProductDetailPage({ params }: { params: Promise<{ catego
   const [showBuyNow, setShowBuyNow] = useState(false);
   const [pincode, setPincode] = useState("");
   const [activeTab, setActiveTab] = useState<"description" | "specifications" | "reviews">("description");
+  const [reviewRating, setReviewRating] = useState(0);
+  const [reviewComment, setReviewComment] = useState("");
+  const [reviewSubmitting, setReviewSubmitting] = useState(false);
+  const [reviewError, setReviewError] = useState<string | null>(null);
+  const [reviewSuccess, setReviewSuccess] = useState(false);
+  const [reviews, setReviews] = useState<Review[]>([]);
 
   useEffect(() => {
     async function fetchProduct() {
@@ -92,6 +98,7 @@ export default function ProductDetailPage({ params }: { params: Promise<{ catego
         const data = await res.json();
         const p: ApiProduct = data.product;
         setProduct(p);
+        setReviews(p.reviews || []);
         if (p.variants.length > 0) {
           const firstAvailable = p.variants[0]?.sizes.find((s) => (s.inventory?.quantity ?? 0) > 0);
           if (firstAvailable) setSelectedSize(firstAvailable.id);
@@ -181,6 +188,51 @@ export default function ProductDetailPage({ params }: { params: Promise<{ catego
       setTimeout(() => setShowShareToast(false), 2000);
     }
   };
+
+  async function handleSubmitReview(e: React.FormEvent) {
+    e.preventDefault();
+    setReviewError(null);
+    setReviewSuccess(false);
+
+    const stored = localStorage.getItem("wox-user");
+    if (!stored) {
+      setReviewError("Please sign in to write a review");
+      return;
+    }
+    const user = JSON.parse(stored);
+
+    if (reviewRating === 0) {
+      setReviewError("Please select a rating");
+      return;
+    }
+
+    setReviewSubmitting(true);
+    try {
+      const res = await fetch(`/api/products/${slug}/reviews`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          rating: reviewRating,
+          comment: reviewComment,
+          userName: user.name,
+          userEmail: user.email,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to submit review");
+      setReviews(data.reviews);
+      setReviewRating(0);
+      setReviewComment("");
+      setReviewSuccess(true);
+      if (product) {
+        setProduct({ ...product, averageRating: data.averageRating, reviewCount: data.reviewCount });
+      }
+    } catch (err) {
+      setReviewError(err instanceof Error ? err.message : "Failed to submit review");
+    } finally {
+      setReviewSubmitting(false);
+    }
+  }
 
   const highlights = [
     `Premium ${product.category.name.toLowerCase().includes("shirt") ? "cotton" : "blend"} fabric`,
@@ -424,11 +476,57 @@ export default function ProductDetailPage({ params }: { params: Promise<{ catego
                     <p className="mt-1 text-xs text-zinc-500">{product.reviewCount} ratings</p>
                   </div>
                 </div>
-                {product.reviews.length === 0 ? (
-                  <p className="text-sm text-zinc-500">No reviews yet.</p>
+
+                {/* Review Form */}
+                <div className="mb-8 rounded-lg border border-zinc-200 p-6">
+                  <h3 className="mb-4 text-sm font-semibold text-zinc-900">WRITE A REVIEW</h3>
+                  {reviewSuccess && (
+                    <div className="mb-4 rounded-lg bg-green-50 p-3 text-sm text-green-700">Review submitted successfully!</div>
+                  )}
+                  {reviewError && (
+                    <div className="mb-4 rounded-lg bg-red-50 p-3 text-sm text-red-600">{reviewError}</div>
+                  )}
+                  <form onSubmit={handleSubmitReview} className="space-y-4">
+                    <div>
+                      <label className="mb-2 block text-sm text-zinc-600">Your Rating</label>
+                      <div className="flex gap-1">
+                        {[1, 2, 3, 4, 5].map((star) => (
+                          <button
+                            key={star}
+                            type="button"
+                            onClick={() => setReviewRating(star)}
+                            className="text-zinc-300 transition-colors hover:text-amber-400"
+                          >
+                            <Star
+                              className="h-7 w-7"
+                              fill={reviewRating >= star ? "currentColor" : "none"}
+                            />
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                    <div>
+                      <label className="mb-2 block text-sm text-zinc-600">Your Review</label>
+                      <textarea
+                        value={reviewComment}
+                        onChange={(e) => setReviewComment(e.target.value)}
+                        placeholder="What did you like or dislike about this product?"
+                        rows={4}
+                        className="w-full rounded-lg border border-zinc-200 bg-white px-3 py-2.5 text-sm placeholder:text-zinc-400 outline-none transition-colors focus:border-zinc-900 focus:ring-1 focus:ring-zinc-900"
+                      />
+                    </div>
+                    <Button type="submit" disabled={reviewSubmitting} className="bg-zinc-900 text-white hover:bg-zinc-800">
+                      {reviewSubmitting ? "Submitting..." : "Submit Review"}
+                    </Button>
+                  </form>
+                </div>
+
+                {/* Reviews List */}
+                {reviews.length === 0 ? (
+                  <p className="text-sm text-zinc-500">No reviews yet. Be the first to review this product!</p>
                 ) : (
                   <div className="space-y-6">
-                    {product.reviews.map((review) => (
+                    {reviews.map((review) => (
                       <div key={review.id} className="border-b border-zinc-100 pb-6 last:border-0">
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-3">

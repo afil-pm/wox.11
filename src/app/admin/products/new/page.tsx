@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Save, X, ImagePlus, Plus, Trash2 } from "lucide-react";
+import { Save, X, ImagePlus, Plus, Trash2, Star } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { adminFetch } from "@/lib/admin-api";
@@ -48,6 +48,8 @@ export default function NewProductPage() {
     salePrice: "",
     sku: "",
     categoryId: "",
+    averageRating: "0",
+    reviewCount: "0",
     isFeatured: false,
     isActive: true,
   });
@@ -117,6 +119,8 @@ export default function NewProductPage() {
         salePrice: formData.salePrice ? Number(formData.salePrice) : undefined,
         sku: formData.sku,
         categoryId: formData.categoryId,
+        averageRating: Number(formData.averageRating) || 0,
+        reviewCount: Number(formData.reviewCount) || 0,
         isFeatured: formData.isFeatured,
         isActive: formData.isActive,
         images: imageUrls,
@@ -278,6 +282,53 @@ export default function NewProductPage() {
               {imagePreviews.length > 0 ? "Add More Images" : "Upload Images"}
             </Button>
             <p className="mt-1 text-xs text-gray-400">Images are stored as data URLs. Max 2MB per image.</p>
+          </div>
+
+          {/* Rating */}
+          <div className="rounded-lg border border-zinc-200 p-4">
+            <label className="mb-3 block text-sm font-medium text-gray-700">Rating</label>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="mb-1 block text-xs text-gray-500">Average Rating (0–5)</label>
+                <div className="flex items-center gap-2">
+                  <Input
+                    type="number"
+                    min="0"
+                    max="5"
+                    step="0.1"
+                    value={formData.averageRating}
+                    onChange={(e) => setFormData((prev) => ({ ...prev, averageRating: e.target.value }))}
+                    placeholder="0"
+                    className="w-24"
+                  />
+                  <div className="flex gap-0.5">
+                    {[1, 2, 3, 4, 5].map((star) => (
+                      <button
+                        key={star}
+                        type="button"
+                        onClick={() => setFormData((prev) => ({ ...prev, averageRating: String(star) }))}
+                        className="text-gray-300 hover:text-yellow-400 transition-colors"
+                      >
+                        <Star
+                          className="h-5 w-5"
+                          fill={Number(formData.averageRating) >= star ? "currentColor" : "none"}
+                        />
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+              <div>
+                <label className="mb-1 block text-xs text-gray-500">Review Count</label>
+                <Input
+                  type="number"
+                  min="0"
+                  value={formData.reviewCount}
+                  onChange={(e) => setFormData((prev) => ({ ...prev, reviewCount: e.target.value }))}
+                  placeholder="0"
+                />
+              </div>
+            </div>
           </div>
 
           <div className="flex items-center gap-6">
