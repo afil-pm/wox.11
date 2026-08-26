@@ -4,7 +4,6 @@ import { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import {
-  MapPin,
   Truck,
   CreditCard,
   Check,
@@ -20,36 +19,20 @@ import useCartStore from "@/lib/stores/cart";
 
 const steps = ["Address", "Delivery", "Payment", "Review", "Confirmation"];
 
-const savedAddresses = [
-  {
-    id: "addr-1",
-    name: "Rahul Sharma",
-    phone: "9876543210",
-    line1: "42, Lakeview Apartments",
-    line2: "Sector 15, Koramangala",
-    city: "Bengaluru",
-    state: "Karnataka",
-    pincode: "560034",
-    landmark: "Near Jyoti Nivas College",
-    isDefault: true,
-  },
-  {
-    id: "addr-2",
-    name: "Rahul Sharma",
-    phone: "9876543210",
-    line1: "103, Sunrise Tower",
-    line2: "MG Road, Near Metro Station",
-    city: "Mumbai",
-    state: "Maharashtra",
-    pincode: "400001",
-    landmark: "Opposite McDonalds",
-    isDefault: false,
-  },
-];
+type Address = {
+  id: string;
+  name: string;
+  phone: string;
+  line1: string;
+  line2: string;
+  city: string;
+  state: string;
+  pincode: string;
+  landmark: string;
+};
 
-type Address = (typeof savedAddresses)[number];
-
-const emptyAddress: Omit<Address, "id" | "isDefault"> = {
+const emptyAddress: Address = {
+  id: "",
   name: "",
   phone: "",
   line1: "",
@@ -64,10 +47,6 @@ export default function CheckoutPage() {
   const { items, subtotal, clearCart } = useCartStore();
 
   const [currentStep, setCurrentStep] = useState(1);
-  const [selectedAddressId, setSelectedAddressId] = useState<string | null>(
-    savedAddresses.find((a) => a.isDefault)?.id ?? null
-  );
-  const [showNewAddressForm, setShowNewAddressForm] = useState(false);
   const [newAddress, setNewAddress] = useState(emptyAddress);
   const [deliveryMethod, setDeliveryMethod] = useState<"standard" | "express">(
     "standard"
@@ -90,7 +69,9 @@ export default function CheckoutPage() {
   const total = subtotal + shippingCost + tax;
 
   const selectedAddress =
-    savedAddresses.find((a) => a.id === selectedAddressId) ?? null;
+    newAddress.name && newAddress.phone && newAddress.line1 && newAddress.city && newAddress.state && newAddress.pincode
+      ? { ...newAddress, id: "new" }
+      : null;
 
   function getEstimatedDelivery(): string {
     const days = deliveryMethod === "express" ? 2 : 6;
@@ -108,8 +89,48 @@ export default function CheckoutPage() {
     return `WOX-${num}`;
   }
 
-  function handlePlaceOrder() {
-    setOrderNumber(generateOrderNumber());
+  async function handlePlaceOrder() {
+    const orderNum = generateOrderNumber();
+    setOrderNumber(orderNum);
+
+    try {
+      await fetch("/api/mongo/orders", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          orderNumber: orderNum,
+          customerName: newAddress.name,
+          customerPhone: newAddress.phone,
+          address: {
+            name: newAddress.name,
+            phone: newAddress.phone,
+            line1: newAddress.line1,
+            line2: newAddress.line2,
+            city: newAddress.city,
+            state: newAddress.state,
+            pincode: newAddress.pincode,
+            landmark: newAddress.landmark,
+          },
+          items: items.map((item) => ({
+            name: item.name,
+            price: item.price,
+            quantity: item.quantity,
+            size: item.size,
+            image: item.image,
+            slug: item.slug,
+          })),
+          subtotal,
+          shippingCost,
+          tax,
+          total,
+          paymentMethod,
+        }),
+      });
+    } catch (e) {
+      console.error("Failed to save order:", e);
+    }
+
+    clearCart();
     setCurrentStep(5);
   }
 
@@ -209,195 +230,125 @@ export default function CheckoutPage() {
                   Delivery Address
                 </h2>
 
-                {/* Saved Addresses */}
-                <div className="space-y-3">
-                  {savedAddresses.map((addr) => (
-                    <label
-                      key={addr.id}
-                      className={cn(
-                        "flex cursor-pointer items-start gap-4 rounded-lg border p-4 transition-all",
-                        selectedAddressId === addr.id
-                          ? "border-zinc-900 bg-zinc-50"
-                          : "border-zinc-200 hover:border-zinc-300"
-                      )}
-                    >
-                      <input
-                        type="radio"
-                        name="address"
-                        value={addr.id}
-                        checked={selectedAddressId === addr.id}
-                        onChange={() => {
-                          setSelectedAddressId(addr.id);
-                          setShowNewAddressForm(false);
-                        }}
-                        className="mt-1 h-4 w-4 accent-zinc-900"
+                <div className="rounded-lg border border-zinc-200 p-5">
+                  <h3 className="text-sm font-semibold text-zinc-900">
+                    Enter your delivery address
+                  </h3>
+                  <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
+                    <div>
+                      <label className="text-xs font-medium text-zinc-600">
+                        Full Name *
+                      </label>
+                      <Input
+                        value={newAddress.name}
+                        onChange={(e) =>
+                          setNewAddress({ ...newAddress, name: e.target.value })
+                        }
+                        placeholder="Full name"
+                        className="mt-1"
                       />
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2">
-                          <span className="text-sm font-medium text-zinc-900">
-                            {addr.name}
-                          </span>
-                          {addr.isDefault && (
-                            <Badge variant="secondary" className="text-[10px]">
-                              Default
-                            </Badge>
-                          )}
-                        </div>
-                        <p className="mt-1 text-sm text-zinc-500">
-                          {addr.line1}
-                          {addr.line2 ? `, ${addr.line2}` : ""}
-                        </p>
-                        <p className="text-sm text-zinc-500">
-                          {addr.city}, {addr.state} - {addr.pincode}
-                        </p>
-                        <p className="text-sm text-zinc-500">
-                          Phone: {addr.phone}
-                        </p>
-                        {addr.landmark && (
-                          <p className="text-xs text-zinc-400">
-                            Landmark: {addr.landmark}
-                          </p>
-                        )}
-                      </div>
-                    </label>
-                  ))}
-                </div>
-
-                {/* Add New Address Toggle */}
-                <button
-                  onClick={() => setShowNewAddressForm(!showNewAddressForm)}
-                  className="flex items-center gap-2 text-sm font-medium text-zinc-900 underline-offset-4 hover:underline"
-                >
-                  <MapPin className="h-4 w-4" />
-                  Add New Address
-                </button>
-
-                {/* New Address Form */}
-                {showNewAddressForm && (
-                  <div className="rounded-lg border border-zinc-200 p-5">
-                    <h3 className="text-sm font-semibold text-zinc-900">
-                      New Address
-                    </h3>
-                    <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
-                      <div>
-                        <label className="text-xs font-medium text-zinc-600">
-                          Full Name
-                        </label>
-                        <Input
-                          value={newAddress.name}
-                          onChange={(e) =>
-                            setNewAddress({ ...newAddress, name: e.target.value })
-                          }
-                          placeholder="Full name"
-                          className="mt-1"
-                        />
-                      </div>
-                      <div>
-                        <label className="text-xs font-medium text-zinc-600">
-                          Phone
-                        </label>
-                        <Input
-                          value={newAddress.phone}
-                          onChange={(e) =>
-                            setNewAddress({ ...newAddress, phone: e.target.value })
-                          }
-                          placeholder="10-digit mobile number"
-                          className="mt-1"
-                        />
-                      </div>
-                      <div className="sm:col-span-2">
-                        <label className="text-xs font-medium text-zinc-600">
-                          Address Line 1
-                        </label>
-                        <Input
-                          value={newAddress.line1}
-                          onChange={(e) =>
-                            setNewAddress({ ...newAddress, line1: e.target.value })
-                          }
-                          placeholder="House/Flat no., Building name, Street"
-                          className="mt-1"
-                        />
-                      </div>
-                      <div className="sm:col-span-2">
-                        <label className="text-xs font-medium text-zinc-600">
-                          Address Line 2
-                        </label>
-                        <Input
-                          value={newAddress.line2}
-                          onChange={(e) =>
-                            setNewAddress({ ...newAddress, line2: e.target.value })
-                          }
-                          placeholder="Area, Colony, Sector (optional)"
-                          className="mt-1"
-                        />
-                      </div>
-                      <div>
-                        <label className="text-xs font-medium text-zinc-600">
-                          City
-                        </label>
-                        <Input
-                          value={newAddress.city}
-                          onChange={(e) =>
-                            setNewAddress({ ...newAddress, city: e.target.value })
-                          }
-                          placeholder="City"
-                          className="mt-1"
-                        />
-                      </div>
-                      <div>
-                        <label className="text-xs font-medium text-zinc-600">
-                          State
-                        </label>
-                        <Input
-                          value={newAddress.state}
-                          onChange={(e) =>
-                            setNewAddress({ ...newAddress, state: e.target.value })
-                          }
-                          placeholder="State"
-                          className="mt-1"
-                        />
-                      </div>
-                      <div>
-                        <label className="text-xs font-medium text-zinc-600">
-                          Pincode
-                        </label>
-                        <Input
-                          value={newAddress.pincode}
-                          onChange={(e) =>
-                            setNewAddress({ ...newAddress, pincode: e.target.value })
-                          }
-                          placeholder="6-digit pincode"
-                          className="mt-1"
-                        />
-                      </div>
-                      <div>
-                        <label className="text-xs font-medium text-zinc-600">
-                          Landmark
-                        </label>
-                        <Input
-                          value={newAddress.landmark}
-                          onChange={(e) =>
-                            setNewAddress({
-                              ...newAddress,
-                              landmark: e.target.value,
-                            })
-                          }
-                          placeholder="Near (optional)"
-                          className="mt-1"
-                        />
-                      </div>
                     </div>
-                    <label className="mt-4 flex items-center gap-2 text-sm text-zinc-600">
-                      <input type="checkbox" className="h-4 w-4 accent-zinc-900" />
-                      Set as default address
-                    </label>
+                    <div>
+                      <label className="text-xs font-medium text-zinc-600">
+                        Phone *
+                      </label>
+                      <Input
+                        value={newAddress.phone}
+                        onChange={(e) =>
+                          setNewAddress({ ...newAddress, phone: e.target.value })
+                        }
+                        placeholder="10-digit mobile number"
+                        className="mt-1"
+                      />
+                    </div>
+                    <div className="sm:col-span-2">
+                      <label className="text-xs font-medium text-zinc-600">
+                        Address Line 1 *
+                      </label>
+                      <Input
+                        value={newAddress.line1}
+                        onChange={(e) =>
+                          setNewAddress({ ...newAddress, line1: e.target.value })
+                        }
+                        placeholder="House/Flat no., Building name, Street"
+                        className="mt-1"
+                      />
+                    </div>
+                    <div className="sm:col-span-2">
+                      <label className="text-xs font-medium text-zinc-600">
+                        Address Line 2
+                      </label>
+                      <Input
+                        value={newAddress.line2}
+                        onChange={(e) =>
+                          setNewAddress({ ...newAddress, line2: e.target.value })
+                        }
+                        placeholder="Area, Colony, Sector (optional)"
+                        className="mt-1"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-xs font-medium text-zinc-600">
+                        City *
+                      </label>
+                      <Input
+                        value={newAddress.city}
+                        onChange={(e) =>
+                          setNewAddress({ ...newAddress, city: e.target.value })
+                        }
+                        placeholder="City"
+                        className="mt-1"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-xs font-medium text-zinc-600">
+                        State *
+                      </label>
+                      <Input
+                        value={newAddress.state}
+                        onChange={(e) =>
+                          setNewAddress({ ...newAddress, state: e.target.value })
+                        }
+                        placeholder="State"
+                        className="mt-1"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-xs font-medium text-zinc-600">
+                        Pincode *
+                      </label>
+                      <Input
+                        value={newAddress.pincode}
+                        onChange={(e) =>
+                          setNewAddress({ ...newAddress, pincode: e.target.value })
+                        }
+                        placeholder="6-digit pincode"
+                        className="mt-1"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-xs font-medium text-zinc-600">
+                        Landmark
+                      </label>
+                      <Input
+                        value={newAddress.landmark}
+                        onChange={(e) =>
+                          setNewAddress({
+                            ...newAddress,
+                            landmark: e.target.value,
+                          })
+                        }
+                        placeholder="Near (optional)"
+                        className="mt-1"
+                      />
+                    </div>
                   </div>
-                )}
+                </div>
 
                 <div className="flex justify-end">
                   <Button
                     onClick={handleNextStep}
-                    disabled={!selectedAddressId && !showNewAddressForm}
+                    disabled={!selectedAddress}
                     className="bg-zinc-900 text-white hover:bg-zinc-800"
                   >
                     Continue to Delivery

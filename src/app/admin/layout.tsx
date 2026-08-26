@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import {
   LayoutDashboard,
   Package,
@@ -12,6 +12,7 @@ import {
   X,
   Bell,
   ChevronDown,
+  LogOut,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -27,7 +28,41 @@ export default function AdminLayout({
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
+  const router = useRouter();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [authorized, setAuthorized] = useState(false);
+
+  useEffect(() => {
+    const raw = localStorage.getItem("wox-user");
+    if (!raw) {
+      router.replace("/admin/login");
+      return;
+    }
+    try {
+      const user = JSON.parse(raw);
+      if (user.role !== "ADMIN") {
+        router.replace("/admin/login");
+        return;
+      }
+      setAuthorized(true);
+    } catch {
+      router.replace("/admin/login");
+    }
+  }, [pathname, router]);
+
+  if (!authorized) {
+    return (
+      <div className="flex h-screen items-center justify-center bg-gray-50">
+        <div className="h-8 w-8 animate-spin rounded-full border-4 border-zinc-900 border-t-transparent" />
+      </div>
+    );
+  }
+
+  function handleLogout() {
+    localStorage.removeItem("wox-user");
+    window.dispatchEvent(new Event("auth-change"));
+    router.replace("/admin/login");
+  }
 
   return (
     <div className="flex h-screen bg-gray-50">
@@ -96,18 +131,20 @@ export default function AdminLayout({
           </button>
           <div className="ml-4 flex-1 lg:ml-0" />
           <div className="flex items-center gap-3">
-            <button className="relative rounded-lg p-2 text-gray-500 hover:bg-gray-100">
-              <Bell className="h-5 w-5" />
-              <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-red-500" />
-            </button>
-            <button className="flex items-center gap-2 rounded-lg p-1.5 hover:bg-gray-100">
+            <div className="flex items-center gap-2 rounded-lg p-1.5">
               <div className="flex h-8 w-8 items-center justify-center rounded-full bg-zinc-900 text-xs font-medium text-white">
                 A
               </div>
               <span className="hidden text-sm font-medium md:block">
                 Admin
               </span>
-              <ChevronDown className="hidden h-4 w-4 text-gray-500 md:block" />
+            </div>
+            <button
+              onClick={handleLogout}
+              className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm text-gray-500 hover:bg-red-50 hover:text-red-600"
+            >
+              <LogOut className="h-4 w-4" />
+              <span className="hidden md:block">Logout</span>
             </button>
           </div>
         </header>
