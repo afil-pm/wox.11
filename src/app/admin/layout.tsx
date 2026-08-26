@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import {
   LayoutDashboard,
   Package,
@@ -27,26 +27,38 @@ export default function AdminLayout({
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
+  const router = useRouter();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [authorized, setAuthorized] = useState<boolean | null>(null);
+  const checked = useRef(false);
+
+  const isLoginPage = pathname === "/admin/login";
 
   useEffect(() => {
+    if (isLoginPage) {
+      setAuthorized(true);
+      return;
+    }
+
+    if (checked.current) return;
+    checked.current = true;
+
     try {
       const raw = localStorage.getItem("wox-user");
       if (!raw) {
-        window.location.href = "/admin/login";
+        router.replace("/admin/login");
         return;
       }
       const user = JSON.parse(raw);
       if (user.role !== "ADMIN") {
-        window.location.href = "/admin/login";
+        router.replace("/admin/login");
         return;
       }
       setAuthorized(true);
     } catch {
-      window.location.href = "/admin/login";
+      router.replace("/admin/login");
     }
-  }, []);
+  }, [isLoginPage, router]);
 
   if (authorized === null) {
     return (
@@ -60,6 +72,11 @@ export default function AdminLayout({
     localStorage.removeItem("wox-user");
     window.dispatchEvent(new Event("auth-change"));
     window.location.href = "/admin/login";
+  }
+
+  // Login page — minimal layout, no sidebar
+  if (isLoginPage) {
+    return <>{children}</>;
   }
 
   return (
