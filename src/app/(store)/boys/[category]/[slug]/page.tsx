@@ -22,6 +22,7 @@ import {
 import { cn, formatPrice, calculateDiscount } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import WoxLoader from "@/components/ui/wox-loader";
 import useCartStore from "@/lib/stores/cart";
 import { useWishlistStore } from "@/lib/stores/wishlist";
 
@@ -104,10 +105,7 @@ export default function ProductDetailPage({ params }: { params: Promise<{ catego
   if (loading) {
     return (
       <div className="flex min-h-[60vh] items-center justify-center">
-        <div className="text-center">
-          <div className="mx-auto h-8 w-8 animate-spin rounded-full border-4 border-zinc-200 border-t-zinc-900" />
-          <p className="mt-4 text-sm text-zinc-500">Loading product...</p>
-        </div>
+        <WoxLoader />
       </div>
     );
   }

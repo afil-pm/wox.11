@@ -49,9 +49,9 @@ const companyLinks = [
 ];
 
 const socialLinks = [
-  { label: "Instagram", href: "https://instagram.com", icon: InstagramIcon },
-  { label: "Facebook", href: "https://facebook.com", icon: FacebookIcon },
-  { label: "YouTube", href: "https://youtube.com", icon: YoutubeIcon },
+  { label: "Instagram", href: "https://instagram.com/_wox.11", icon: InstagramIcon },
+  { label: "Facebook", href: "https://facebook.com/_wox.11", icon: FacebookIcon },
+  { label: "YouTube", href: "https://youtube.com/@_wox.11", icon: YoutubeIcon },
 ];
 
 export function Footer() {

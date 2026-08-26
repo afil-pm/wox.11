@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { User, LogOut, Package, Heart, MapPin, Settings } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import WoxLoader from "@/components/ui/wox-loader";
 
 type UserData = {
   id: string;
@@ -40,7 +41,7 @@ export default function AccountPage() {
   if (loading) {
     return (
       <div className="flex min-h-[60vh] items-center justify-center">
-        <div className="h-8 w-8 animate-spin rounded-full border-4 border-zinc-200 border-t-zinc-900" />
+        <WoxLoader />
       </div>
     );
   }

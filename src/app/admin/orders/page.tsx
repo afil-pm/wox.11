@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { cn, formatPrice } from "@/lib/utils";
 import { RefreshCw, Eye } from "lucide-react";
+import WoxLoader from "@/components/ui/wox-loader";
 
 interface OrderItem {
   name: string;
@@ -171,7 +172,7 @@ export default function AdminOrdersPage() {
 
       {loading ? (
         <div className="flex items-center justify-center py-20">
-          <div className="h-8 w-8 animate-spin rounded-full border-4 border-zinc-900 border-t-transparent" />
+          <WoxLoader />
         </div>
       ) : orders.length === 0 ? (
         <div className="rounded-xl border bg-white p-10 text-center shadow-sm">

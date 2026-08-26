@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import Link from "next/link";
+import Image from "next/image";
 
 import { Search, X, Clock, TrendingUp } from "lucide-react";
 import { cn, formatPrice } from "@/lib/utils";
@@ -292,11 +293,13 @@ export default function SearchModal({ isOpen, onClose }: SearchModalProps) {
                     className="group flex flex-col overflow-hidden rounded-xl border border-zinc-200 transition-all hover:border-zinc-300 hover:shadow-md"
                   >
                     <div className="relative aspect-[3/4] overflow-hidden bg-zinc-100">
-                      <div className="flex h-full w-full items-center justify-center bg-zinc-200 text-zinc-500">
-                        <span className="text-[10px] font-medium uppercase tracking-wider">
-                          {product.category}
-                        </span>
-                      </div>
+                      <Image
+                        src={product.image}
+                        alt={product.name}
+                        fill
+                        className="object-cover transition-transform duration-300 group-hover:scale-105"
+                        sizes="(max-width: 640px) 50vw, 33vw"
+                      />
                     </div>
                     <div className="flex flex-col gap-1 p-3">
                       <p className="text-[10px] font-medium uppercase tracking-wider text-zinc-500">

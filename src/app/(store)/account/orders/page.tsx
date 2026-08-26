@@ -6,6 +6,7 @@ import { Package, ArrowLeft, Eye } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { cn, formatPrice } from "@/lib/utils";
+import WoxLoader from "@/components/ui/wox-loader";
 
 interface OrderItem {
   name: string;
@@ -75,7 +76,7 @@ export default function AccountOrdersPage() {
   if (loading) {
     return (
       <div className="flex min-h-[60vh] items-center justify-center">
-        <div className="h-8 w-8 animate-spin rounded-full border-4 border-zinc-200 border-t-zinc-900" />
+        <WoxLoader />
       </div>
     );
   }
