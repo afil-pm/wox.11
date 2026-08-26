@@ -27,6 +27,7 @@ import useCartStore from "@/lib/stores/cart";
 import { useWishlistStore } from "@/lib/stores/wishlist";
 import { useRecentlyViewed } from "@/lib/hooks/use-recently-viewed";
 import BuyNowModal from "@/components/product/buy-now-modal";
+import RelatedProducts from "@/components/product/related-products";
 
 type ProductImage = { url: string; alt: string | null };
 type ColorVariant = { id: string; name: string; color: string | null; colorCode: string | null; images: ProductImage[] };
@@ -493,6 +494,15 @@ export default function ProductDetailPage({ params }: { params: Promise<{ catego
             <Button onClick={() => setShowSizeGuide(false)} variant="outline" className="mt-6 w-full">Close</Button>
           </div>
         </div>
+      )}
+
+      {/* Related Products */}
+      {product && (
+        <RelatedProducts
+          category={product.category.name}
+          gender={product.category.gender}
+          excludeSlug={product.slug}
+        />
       )}
 
       {/* Buy Now Modal */}

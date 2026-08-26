@@ -3,7 +3,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { Clock, X } from "lucide-react";
-import { cn, formatPrice, calculateDiscount } from "@/lib/utils";
+import { formatPrice } from "@/lib/utils";
 import { useRecentlyViewed } from "@/lib/hooks/use-recently-viewed";
 
 export default function RecentlyViewed() {
@@ -32,16 +32,19 @@ export default function RecentlyViewed() {
 
         <div className="mt-8 flex gap-4 overflow-x-auto pb-4 scrollbar-hide">
           {items.map((item) => {
-            const discount = calculateDiscount(item.price, item.salePrice);
-            const href = `/${item.gender.toLowerCase()}/${item.category.toLowerCase().replace(/['\s]+/g, "-")}/${item.slug}`;
+            const hasDiscount = item.salePrice != null && item.salePrice > 0 && item.salePrice < item.price;
+            const discount = hasDiscount ? Math.round(((item.price - item.salePrice!) / item.price) * 100) : 0;
+            const displayPrice = hasDiscount ? item.salePrice! : item.price;
+            const categorySlug = item.category.toLowerCase().replace(/['\s]+/g, "-");
+            const href = `/${item.gender.toLowerCase()}/${categorySlug}/${item.slug}`;
 
             return (
               <Link
                 key={item.slug}
                 href={href}
-                className="group flex-shrink-0 w-44 sm:w-52"
+                className="group flex-shrink-0 w-40 sm:w-52"
               >
-                <div className="relative aspect-[3/4] overflow-hidden bg-zinc-100">
+                <div className="relative aspect-[3/4] overflow-hidden bg-zinc-100 rounded-lg">
                   <Image
                     src={item.image}
                     alt={item.name}
@@ -62,9 +65,9 @@ export default function RecentlyViewed() {
                   </p>
                   <div className="mt-1 flex items-center gap-2">
                     <span className="text-sm font-bold text-zinc-900">
-                      {formatPrice(item.salePrice || item.price)}
+                      {formatPrice(displayPrice)}
                     </span>
-                    {item.salePrice && (
+                    {hasDiscount && (
                       <span className="text-xs text-zinc-400 line-through">
                         {formatPrice(item.price)}
                       </span>
