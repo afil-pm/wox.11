@@ -51,6 +51,7 @@ export default function AdminProductsPage() {
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<FilterStatus>("all");
   const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [apiError, setApiError] = useState<string | null>(null);
 
   useEffect(() => {
     fetchProducts();
@@ -59,10 +60,17 @@ export default function AdminProductsPage() {
   async function fetchProducts() {
     try {
       const res = await adminFetch("/api/admin/products");
-      const data = await res.json();
+      if (!res.ok) {
+        setApiError(`API error: ${res.status}`);
+        return;
+      }
+      const text = await res.text();
+      const data = JSON.parse(text);
       setProducts(data.products ?? []);
-    } catch {
-      // silently fail
+      setApiError(null);
+    } catch (e) {
+      setApiError("Failed to load products. Retrying...");
+      setTimeout(() => fetchProducts(), 3000);
     } finally {
       setLoading(false);
     }
@@ -146,6 +154,13 @@ export default function AdminProductsPage() {
 
       {loading ? (
         <p className="text-sm text-gray-500">Loading products...</p>
+      ) : apiError ? (
+        <div className="rounded-xl border border-red-200 bg-red-50 p-6 text-center">
+          <p className="text-sm text-red-600">{apiError}</p>
+          <Button variant="outline" size="sm" className="mt-3" onClick={() => { setLoading(true); setApiError(null); fetchProducts(); }}>
+            Retry
+          </Button>
+        </div>
       ) : filtered.length === 0 ? (
         <p className="text-sm text-gray-500">No products found.</p>
       ) : (

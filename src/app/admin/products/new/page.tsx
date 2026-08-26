@@ -81,11 +81,13 @@ export default function NewProductPage() {
         method: "POST",
         body: JSON.stringify(body),
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Failed to create product");
+      const text = await res.text();
+      let data: Record<string, unknown>;
+      try { data = JSON.parse(text); } catch { data = { error: text }; }
+      if (!res.ok) throw new Error(String(data.error || "Failed to create product"));
       router.push("/admin/products");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to create product");
+      setError(err instanceof Error ? err.message : "Failed to create product. Check all fields and try again.");
     } finally {
       setLoading(false);
     }

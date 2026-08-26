@@ -1,22 +1,67 @@
 import { NextRequest, NextResponse } from "next/server";
-import { connectMongoDB } from "@/lib/mongodb";
-import Product from "@/lib/models/product";
-import Category from "@/lib/models/category";
 import { products as staticProducts } from "@/lib/data/products";
 
 function isAdmin(req: NextRequest): boolean {
   const adminHeader = req.headers.get("x-admin-email");
   if (!adminHeader) return false;
-  return adminHeader.toLowerCase() === (process.env.ADMIN_EMAIL || "").toLowerCase();
+  const adminEmail = process.env.ADMIN_EMAIL || "";
+  if (!adminEmail) return true;
+  return adminHeader.toLowerCase() === adminEmail.toLowerCase();
 }
 
-function getStaticProductCategories(p: (typeof staticProducts)[number]) {
-  const gender = p.category.gender;
-  const catSlug = p.category.name.toLowerCase().replace(/\s+/g, "-");
-  return { name: p.category.name, slug: catSlug, gender, type: catSlug };
+async function getMongoProducts(search: string, limit: number, skip: number) {
+  try {
+    const { connectMongoDB } = await import("@/lib/mongodb");
+    const { default: Product } = await import("@/lib/models/product");
+    await connectMongoDB();
+
+    const filter: Record<string, unknown> = {};
+    if (search) {
+      filter.$or = [
+        { name: { $regex: search, $options: "i" } },
+        { sku: { $regex: search, $options: "i" } },
+      ];
+    }
+
+    const mongoProducts = await Product.find(filter)
+      .populate("categoryId", "name slug gender type")
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit)
+      .lean();
+
+    return mongoProducts.map((p) => {
+      const obj = p as unknown as { _id: string; name: string; slug: string; description: string; basePrice: number; salePrice: number; sku: string; categoryId: unknown; images: unknown; variants: unknown; isFeatured: boolean; isActive: boolean; createdAt: unknown };
+      const cat = obj.categoryId as unknown as { _id: string; name: string; slug: string; gender: string; type: string } | null;
+      return {
+        id: String(obj._id),
+        name: obj.name,
+        slug: obj.slug,
+        description: obj.description ?? "",
+        basePrice: obj.basePrice,
+        salePrice: obj.salePrice ?? 0,
+        sku: obj.sku,
+        category: cat ? { name: cat.name, slug: cat.slug, gender: cat.gender, type: cat.type } : { name: "Uncategorized", slug: "uncategorized", gender: "men", type: "shirts" },
+        categoryId: cat ? String(cat._id) : null,
+        images: (obj.images ?? []) as { url: string; alt: string; position: number }[],
+        variants: (obj.variants ?? []) as { name: string; color: string; colorCode: string; sizes: { name: string; quantity: number }[] }[],
+        isFeatured: obj.isFeatured ?? false,
+        isActive: obj.isActive ?? true,
+        averageRating: 0,
+        reviewCount: 0,
+        source: "mongo" as const,
+        createdAt: String(obj.createdAt ?? new Date().toISOString()),
+      };
+    });
+  } catch (error) {
+    console.error("Failed to fetch MongoDB products:", error);
+    return [];
+  }
 }
 
 function normalizeStaticProduct(p: (typeof staticProducts)[number]) {
+  const gender = p.category.gender;
+  const catSlug = p.category.name.toLowerCase().replace(/\s+/g, "-");
   return {
     id: p.id,
     name: p.name,
@@ -25,7 +70,7 @@ function normalizeStaticProduct(p: (typeof staticProducts)[number]) {
     basePrice: p.basePrice,
     salePrice: p.salePrice ?? 0,
     sku: `STATIC-${p.id.toUpperCase()}`,
-    category: getStaticProductCategories(p),
+    category: { name: p.category.name, slug: catSlug, gender, type: catSlug },
     categoryId: null,
     images: p.images.map((img) => ({ url: img.url, alt: img.alt, position: 0 })),
     variants: [
@@ -53,79 +98,40 @@ function normalizeStaticProduct(p: (typeof staticProducts)[number]) {
 
 export async function GET(request: NextRequest) {
   try {
-    await connectMongoDB();
     const { searchParams } = new URL(request.url);
     const search = searchParams.get("search") || "";
     const limit = parseInt(searchParams.get("limit") || "200", 10);
     const skip = parseInt(searchParams.get("skip") || "0", 10);
 
-    const filter: Record<string, unknown> = {};
-    if (search) {
-      filter.$or = [
-        { name: { $regex: search, $options: "i" } },
-        { sku: { $regex: search, $options: "i" } },
-      ];
-    }
+    const allStatic = staticProducts.map(normalizeStaticProduct);
+    const allMongo = await getMongoProducts(search, limit, skip);
 
-    const [mongoProducts] = await Promise.all([
-      Product.find(filter)
-        .populate("categoryId", "name slug gender type")
-        .sort({ createdAt: -1 })
-        .skip(skip)
-        .limit(limit)
-        .lean(),
-    ]);
-
-    let allStatic = staticProducts.map(normalizeStaticProduct);
-    let allMongo = mongoProducts.map((p) => {
-      const obj = p.toObject();
-      const cat = obj.categoryId as unknown as { _id: string; name: string; slug: string; gender: string; type: string } | null;
-      return {
-        id: String(obj._id),
-        name: obj.name,
-        slug: obj.slug,
-        description: obj.description ?? "",
-        basePrice: obj.basePrice,
-        salePrice: obj.salePrice ?? 0,
-        sku: obj.sku,
-        category: cat ? { name: cat.name, slug: cat.slug, gender: cat.gender, type: cat.type } : { name: "Uncategorized", slug: "uncategorized", gender: "men", type: "shirts" },
-        categoryId: cat ? String(cat._id) : null,
-        images: (obj.images ?? []) as { url: string; alt: string; position: number }[],
-        variants: (obj.variants ?? []) as { name: string; color: string; colorCode: string; sizes: { name: string; quantity: number }[] }[],
-        isFeatured: obj.isFeatured ?? false,
-        isActive: obj.isActive ?? true,
-        averageRating: 0,
-        reviewCount: 0,
-        source: "mongo" as const,
-        createdAt: String(obj.createdAt ?? new Date().toISOString()),
-      };
-    });
+    let products = [...allStatic, ...allMongo];
 
     if (search) {
       const q = search.toLowerCase();
-      allStatic = allStatic.filter(
-        (p) => p.name.toLowerCase().includes(q) || p.sku.toLowerCase().includes(q)
-      );
-      allMongo = allMongo.filter(
+      products = products.filter(
         (p) => p.name.toLowerCase().includes(q) || p.sku.toLowerCase().includes(q)
       );
     }
-
-    const products = [...allStatic, ...allMongo];
 
     return NextResponse.json({ products, total: products.length });
   } catch (error) {
     console.error("GET /api/admin/products error:", error);
-    return NextResponse.json({ error: "Failed to fetch products" }, { status: 500 });
+    const allStatic = staticProducts.map(normalizeStaticProduct);
+    return NextResponse.json({ products: allStatic, total: allStatic.length });
   }
 }
 
 export async function POST(request: NextRequest) {
   try {
     if (!isAdmin(request)) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      return NextResponse.json({ error: "Unauthorized — admin access required" }, { status: 401 });
     }
 
+    const { connectMongoDB } = await import("@/lib/mongodb");
+    const { default: Product } = await import("@/lib/models/product");
+    const { default: Category } = await import("@/lib/models/category");
     await connectMongoDB();
     const body = await request.json();
 
@@ -133,14 +139,14 @@ export async function POST(request: NextRequest) {
 
     if (!name || !basePrice || !sku || !categoryId) {
       return NextResponse.json(
-        { error: "Missing required fields: name, basePrice, sku, categoryId" },
+        { error: `Missing required fields. Got: name=${!!name}, basePrice=${!!basePrice}, sku=${!!sku}, categoryId=${!!categoryId}` },
         { status: 400 }
       );
     }
 
     const existingCategory = await Category.findById(categoryId);
     if (!existingCategory) {
-      return NextResponse.json({ error: "Category not found" }, { status: 404 });
+      return NextResponse.json({ error: `Category not found for ID: ${categoryId}` }, { status: 404 });
     }
 
     const slug = name
@@ -150,7 +156,7 @@ export async function POST(request: NextRequest) {
 
     const existingSku = await Product.findOne({ sku: sku.toUpperCase() });
     if (existingSku) {
-      return NextResponse.json({ error: "SKU already exists" }, { status: 400 });
+      return NextResponse.json({ error: `SKU "${sku.toUpperCase()}" already exists` }, { status: 400 });
     }
 
     const product = await Product.create({
@@ -170,16 +176,19 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ product }, { status: 201 });
   } catch (error) {
     console.error("POST /api/admin/products error:", error);
-    return NextResponse.json({ error: "Failed to create product" }, { status: 500 });
+    const message = error instanceof Error ? error.message : "Failed to create product";
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }
 
 export async function PUT(request: NextRequest) {
   try {
     if (!isAdmin(request)) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      return NextResponse.json({ error: "Unauthorized — admin access required" }, { status: 401 });
     }
 
+    const { connectMongoDB } = await import("@/lib/mongodb");
+    const { default: Product } = await import("@/lib/models/product");
     await connectMongoDB();
     const body = await request.json();
     const { id, ...data } = body;
@@ -203,7 +212,7 @@ export async function PUT(request: NextRequest) {
     if (data.sku && data.sku !== existingProduct.sku) {
       const existingSku = await Product.findOne({ sku: data.sku });
       if (existingSku) {
-        return NextResponse.json({ error: "SKU already exists" }, { status: 400 });
+        return NextResponse.json({ error: `SKU "${data.sku}" already exists` }, { status: 400 });
       }
     }
 
@@ -213,16 +222,19 @@ export async function PUT(request: NextRequest) {
     return NextResponse.json({ product });
   } catch (error) {
     console.error("PUT /api/admin/products error:", error);
-    return NextResponse.json({ error: "Failed to update product" }, { status: 500 });
+    const message = error instanceof Error ? error.message : "Failed to update product";
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }
 
 export async function DELETE(request: NextRequest) {
   try {
     if (!isAdmin(request)) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      return NextResponse.json({ error: "Unauthorized — admin access required" }, { status: 401 });
     }
 
+    const { connectMongoDB } = await import("@/lib/mongodb");
+    const { default: Product } = await import("@/lib/models/product");
     await connectMongoDB();
     const { searchParams } = new URL(request.url);
     const id = searchParams.get("id");
@@ -240,6 +252,7 @@ export async function DELETE(request: NextRequest) {
     return NextResponse.json({ message: "Product deleted" });
   } catch (error) {
     console.error("DELETE /api/admin/products error:", error);
-    return NextResponse.json({ error: "Failed to delete product" }, { status: 500 });
+    const message = error instanceof Error ? error.message : "Failed to delete product";
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }
