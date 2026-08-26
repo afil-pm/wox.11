@@ -1,287 +1,123 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useSearchParams } from "next/navigation";
-import {
-  User,
-  Package,
-  Shield,
-  LogOut,
-  ChevronRight,
-  Edit2,
-} from "lucide-react";
-import { cn, formatPrice } from "@/lib/utils";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { User, LogOut, Package, Heart, MapPin, Settings } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
 
-type Section = "profile" | "orders" | "security" | "logout";
-
-interface Order {
+type UserData = {
   id: string;
-  date: string;
-  status: string;
-  statusVariant: "default" | "success" | "secondary";
-  items: number;
-  total: number;
-}
-
-const orders: Order[] = [
-  {
-    id: "WOX-784521",
-    date: "Aug 20, 2026",
-    status: "Shipped",
-    statusVariant: "default",
-    items: 3,
-    total: 3497,
-  },
-  {
-    id: "WOX-784520",
-    date: "Aug 15, 2026",
-    status: "Delivered",
-    statusVariant: "success",
-    items: 1,
-    total: 1199,
-  },
-  {
-    id: "WOX-784519",
-    date: "Aug 10, 2026",
-    status: "Delivered",
-    statusVariant: "success",
-    items: 2,
-    total: 2398,
-  },
-];
-
-const navItems = [
-  { key: "profile" as Section, label: "Profile", icon: User },
-  { key: "orders" as Section, label: "Orders", icon: Package },
-  { key: "security" as Section, label: "Security", icon: Shield },
-  { key: "logout" as Section, label: "Logout", icon: LogOut },
-];
+  name: string;
+  email: string;
+  role: string;
+  phone?: string;
+};
 
 export default function AccountPage() {
-  const searchParams = useSearchParams();
-  const tabParam = searchParams.get("tab");
-
-  const getInitialSection = (): Section => {
-    if (tabParam === "orders") return "orders";
-    if (tabParam === "security") return "security";
-    return "profile";
-  };
-
-  const [activeSection, setActiveSection] = useState<Section>(getInitialSection);
+  const router = useRouter();
+  const [user, setUser] = useState<UserData | null>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (tabParam === "orders") setActiveSection("orders");
-    else if (tabParam === "security") setActiveSection("security");
-    else setActiveSection("profile");
-  }, [tabParam]);
+    const stored = localStorage.getItem("wox-user");
+    if (stored) {
+      try {
+        setUser(JSON.parse(stored));
+      } catch {
+        localStorage.removeItem("wox-user");
+      }
+    }
+    setLoading(false);
+  }, []);
+
+  const handleLogout = () => {
+    localStorage.removeItem("wox-user");
+    window.dispatchEvent(new Event("auth-change"));
+    router.push("/");
+  };
+
+  if (loading) {
+    return (
+      <div className="flex min-h-[60vh] items-center justify-center">
+        <div className="h-8 w-8 animate-spin rounded-full border-4 border-zinc-200 border-t-zinc-900" />
+      </div>
+    );
+  }
+
+  if (!user) {
+    return (
+      <div className="flex min-h-[60vh] items-center justify-center px-4">
+        <div className="text-center">
+          <User className="mx-auto h-16 w-16 text-zinc-300" />
+          <h1 className="mt-4 text-2xl font-bold text-zinc-900">Sign In Required</h1>
+          <p className="mt-2 text-sm text-zinc-500">Please sign in to view your account</p>
+          <div className="mt-6 flex justify-center gap-3">
+            <Link href="/auth/login">
+              <Button className="bg-zinc-900 text-white hover:bg-zinc-800">Sign In</Button>
+            </Link>
+            <Link href="/auth/register">
+              <Button variant="outline">Create Account</Button>
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6">
-      <h1 className="mb-8 text-2xl font-bold tracking-tight text-zinc-900">
-        My Account
-      </h1>
+    <div className="mx-auto max-w-4xl px-4 py-8 sm:px-6 lg:px-8">
+      <h1 className="mb-8 text-3xl font-bold tracking-tight text-zinc-900">My Account</h1>
 
-      <div className="flex flex-col gap-8 md:flex-row">
-        {/* Sidebar */}
-        <nav className="w-full shrink-0 md:w-56">
-          <div className="flex flex-row gap-1 overflow-x-auto rounded-lg border border-zinc-200 p-1 md:flex-col md:overflow-visible">
-            {navItems.map((item) => (
-              <button
-                key={item.key}
-                onClick={() => setActiveSection(item.key)}
-                className={cn(
-                  "flex items-center gap-3 whitespace-nowrap rounded-md px-3 py-2.5 text-sm font-medium transition-colors",
-                  activeSection === item.key
-                    ? "bg-zinc-900 text-white"
-                    : "text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900"
-                )}
+      <div className="grid gap-6 md:grid-cols-3">
+        {/* Profile Card */}
+        <div className="md:col-span-1">
+          <div className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm">
+            <div className="flex h-16 w-16 items-center justify-center rounded-full bg-zinc-900 text-xl font-bold text-white">
+              {user.name?.charAt(0)?.toUpperCase() || "U"}
+            </div>
+            <h2 className="mt-4 text-lg font-semibold text-zinc-900">{user.name}</h2>
+            <p className="text-sm text-zinc-500">{user.email}</p>
+            <span className="mt-2 inline-block rounded-full bg-zinc-100 px-3 py-1 text-xs font-medium text-zinc-600">
+              {user.role}
+            </span>
+
+            <Button
+              onClick={handleLogout}
+              variant="outline"
+              className="mt-6 w-full text-red-600 hover:bg-red-50 hover:text-red-700"
+            >
+              <LogOut className="mr-2 h-4 w-4" /> Sign Out
+            </Button>
+          </div>
+        </div>
+
+        {/* Quick Links */}
+        <div className="md:col-span-2">
+          <div className="grid gap-4 sm:grid-cols-2">
+            {[
+              { icon: Package, label: "My Orders", desc: "Track your orders", href: "/account" },
+              { icon: Heart, label: "Wishlist", desc: "Your saved items", href: "/wishlist" },
+              { icon: MapPin, label: "Addresses", desc: "Manage addresses", href: "/account" },
+              { icon: Settings, label: "Settings", desc: "Account preferences", href: "/account" },
+            ].map((item) => (
+              <Link
+                key={item.label}
+                href={item.href}
+                className="flex items-center gap-4 rounded-xl border border-zinc-200 bg-white p-5 shadow-sm transition-all hover:border-zinc-300 hover:shadow-md"
               >
-                <item.icon className="h-4 w-4" />
-                {item.label}
-              </button>
+                <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-zinc-100">
+                  <item.icon className="h-5 w-5 text-zinc-700" />
+                </div>
+                <div>
+                  <p className="text-sm font-semibold text-zinc-900">{item.label}</p>
+                  <p className="text-xs text-zinc-500">{item.desc}</p>
+                </div>
+              </Link>
             ))}
           </div>
-        </nav>
-
-        {/* Content */}
-        <div className="min-w-0 flex-1">
-          {activeSection === "profile" && <ProfileSection />}
-          {activeSection === "orders" && <OrdersSection />}
-          {activeSection === "security" && <SecuritySection />}
-          {activeSection === "logout" && <LogoutSection />}
         </div>
       </div>
-    </div>
-  );
-}
-
-function ProfileSection() {
-  const [editing, setEditing] = useState(false);
-  const [name, setName] = useState("Rahul Sharma");
-  const [email, setEmail] = useState("rahul@example.com");
-  const [phone, setPhone] = useState("+91 98765 43210");
-
-  return (
-    <div className="rounded-lg border border-zinc-200 bg-white p-6">
-      <div className="mb-6 flex items-center justify-between">
-        <h2 className="text-lg font-semibold text-zinc-900">Profile</h2>
-        {!editing && (
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setEditing(true)}
-            className="gap-1.5"
-          >
-            <Edit2 className="h-3.5 w-3.5" />
-            Edit
-          </Button>
-        )}
-      </div>
-
-      <div className="space-y-5">
-        <div className="space-y-1.5">
-          <label className="text-sm font-medium text-zinc-700">Name</label>
-          {editing ? (
-            <Input value={name} onChange={(e) => setName(e.target.value)} />
-          ) : (
-            <p className="text-sm text-zinc-900">{name}</p>
-          )}
-        </div>
-
-        <div className="space-y-1.5">
-          <label className="text-sm font-medium text-zinc-700">Email</label>
-          {editing ? (
-            <Input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-            />
-          ) : (
-            <p className="text-sm text-zinc-900">{email}</p>
-          )}
-        </div>
-
-        <div className="space-y-1.5">
-          <label className="text-sm font-medium text-zinc-700">Phone</label>
-          {editing ? (
-            <Input
-              type="tel"
-              value={phone}
-              onChange={(e) => setPhone(e.target.value)}
-            />
-          ) : (
-            <p className="text-sm text-zinc-900">{phone}</p>
-          )}
-        </div>
-      </div>
-
-      {editing && (
-        <div className="mt-6 flex gap-3">
-          <Button
-            onClick={() => setEditing(false)}
-            className="bg-zinc-900 text-white hover:bg-zinc-800"
-          >
-            Save Changes
-          </Button>
-          <Button variant="outline" onClick={() => setEditing(false)}>
-            Cancel
-          </Button>
-        </div>
-      )}
-    </div>
-  );
-}
-
-function OrdersSection() {
-  return (
-    <div className="rounded-lg border border-zinc-200 bg-white p-6">
-      <h2 className="mb-6 text-lg font-semibold text-zinc-900">Orders</h2>
-
-      <div className="space-y-3">
-        {orders.map((order) => (
-          <div
-            key={order.id}
-            className="flex items-center justify-between rounded-lg border border-zinc-100 p-4 transition-colors hover:bg-zinc-50"
-          >
-            <div className="min-w-0 flex-1">
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="text-sm font-semibold text-zinc-900">
-                  {order.id}
-                </span>
-                <Badge variant={order.statusVariant}>{order.status}</Badge>
-              </div>
-              <div className="mt-1 flex flex-wrap gap-x-4 gap-y-0.5 text-xs text-zinc-500">
-                <span>{order.date}</span>
-                <span>
-                  {order.items} {order.items === 1 ? "item" : "items"}
-                </span>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-3">
-              <span className="text-sm font-semibold text-zinc-900">
-                {formatPrice(order.total)}
-              </span>
-              <ChevronRight className="h-4 w-4 text-zinc-400" />
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function SecuritySection() {
-  return (
-    <div className="rounded-lg border border-zinc-200 bg-white p-6">
-      <h2 className="mb-6 text-lg font-semibold text-zinc-900">
-        Change Password
-      </h2>
-
-      <div className="max-w-md space-y-4">
-        <div className="space-y-1.5">
-          <label className="text-sm font-medium text-zinc-700">
-            Current Password
-          </label>
-          <Input type="password" placeholder="Enter current password" />
-        </div>
-
-        <div className="space-y-1.5">
-          <label className="text-sm font-medium text-zinc-700">
-            New Password
-          </label>
-          <Input type="password" placeholder="Enter new password" />
-        </div>
-
-        <div className="space-y-1.5">
-          <label className="text-sm font-medium text-zinc-700">
-            Confirm Password
-          </label>
-          <Input type="password" placeholder="Confirm new password" />
-        </div>
-
-        <Button className="bg-zinc-900 text-white hover:bg-zinc-800">
-          Update Password
-        </Button>
-      </div>
-    </div>
-  );
-}
-
-function LogoutSection() {
-  return (
-    <div className="rounded-lg border border-zinc-200 bg-white p-6">
-      <h2 className="mb-2 text-lg font-semibold text-zinc-900">Logout</h2>
-      <p className="mb-6 text-sm text-zinc-500">
-        Are you sure you want to logout?
-      </p>
-      <Button variant="destructive" className="gap-1.5">
-        <LogOut className="h-4 w-4" />
-        Logout
-      </Button>
     </div>
   );
 }

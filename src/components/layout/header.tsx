@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import dynamic from "next/dynamic";
-import { Search, User, Heart, ShoppingBag, Menu, X } from "lucide-react";
+import { Search, User, Heart, ShoppingBag, Menu, X, LogOut } from "lucide-react";
 import { cn } from "@/lib/utils";
 import SearchModal from "@/components/search/search-modal";
 
@@ -52,6 +52,31 @@ export default function Header() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
+  const [user, setUser] = useState<{ name: string; email: string; role: string } | null>(null);
+
+  useEffect(() => {
+    const checkAuth = () => {
+      try {
+        const stored = localStorage.getItem("wox-user");
+        setUser(stored ? JSON.parse(stored) : null);
+      } catch {
+        setUser(null);
+      }
+    };
+    checkAuth();
+    window.addEventListener("storage", checkAuth);
+    window.addEventListener("auth-change", checkAuth);
+    return () => {
+      window.removeEventListener("storage", checkAuth);
+      window.removeEventListener("auth-change", checkAuth);
+    };
+  }, []);
+
+  const handleLogout = () => {
+    localStorage.removeItem("wox-user");
+    window.dispatchEvent(new Event("auth-change"));
+    window.location.href = "/";
+  };
 
   const handleScroll = useCallback(() => {
     setScrolled(window.scrollY > 0);
@@ -133,14 +158,36 @@ export default function Header() {
               <Search className="h-5 w-5" strokeWidth={1.5} />
             </button>
 
-            {/* Account */}
-            <Link
-              href="/account"
-              className="flex h-10 w-10 items-center justify-center text-zinc-900 transition-colors hover:text-zinc-600"
-              aria-label="Account"
-            >
-              <User className="h-5 w-5" strokeWidth={1.5} />
-            </Link>
+            {/* Account / Auth */}
+            {user ? (
+              <div className="flex items-center gap-2">
+                <Link
+                  href={user.role === "ADMIN" ? "/admin" : "/account"}
+                  className="flex items-center gap-2 rounded-full bg-zinc-100 px-3 py-1.5 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-200"
+                >
+                  <span className="flex h-6 w-6 items-center justify-center rounded-full bg-zinc-900 text-[10px] font-bold text-white">
+                    {user.name?.charAt(0)?.toUpperCase() || "U"}
+                  </span>
+                  <span className="hidden xl:inline">{user.name}</span>
+                </Link>
+                <button
+                  type="button"
+                  onClick={handleLogout}
+                  className="flex h-10 w-10 items-center justify-center text-zinc-500 transition-colors hover:text-red-600"
+                  aria-label="Logout"
+                >
+                  <LogOut className="h-5 w-5" strokeWidth={1.5} />
+                </button>
+              </div>
+            ) : (
+              <Link
+                href="/auth/login"
+                className="flex h-10 w-10 items-center justify-center text-zinc-900 transition-colors hover:text-zinc-600"
+                aria-label="Account"
+              >
+                <User className="h-5 w-5" strokeWidth={1.5} />
+              </Link>
+            )}
 
             {/* Wishlist */}
             <Link
@@ -244,14 +291,35 @@ export default function Header() {
           <div className="mt-6 border-t border-zinc-200 pt-6">
             <ul className="space-y-1">
               <li>
-                <Link
-                  href="/account"
-                  className="flex items-center gap-3 rounded-md px-3 py-2.5 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-50 hover:text-zinc-900"
-                  onClick={() => setMobileOpen(false)}
-                >
-                  <User className="h-4 w-4" strokeWidth={1.5} />
-                  Account
-                </Link>
+                {user ? (
+                  <>
+                    <Link
+                      href={user.role === "ADMIN" ? "/admin" : "/account"}
+                      className="flex items-center gap-3 rounded-md px-3 py-2.5 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-50 hover:text-zinc-900"
+                      onClick={() => setMobileOpen(false)}
+                    >
+                      <User className="h-4 w-4" strokeWidth={1.5} />
+                      {user.name}
+                    </Link>
+                    <button
+                      type="button"
+                      onClick={() => { handleLogout(); setMobileOpen(false); }}
+                      className="flex w-full items-center gap-3 rounded-md px-3 py-2.5 text-sm font-medium text-red-600 transition-colors hover:bg-red-50"
+                    >
+                      <LogOut className="h-4 w-4" strokeWidth={1.5} />
+                      Sign Out
+                    </button>
+                  </>
+                ) : (
+                  <Link
+                    href="/auth/login"
+                    className="flex items-center gap-3 rounded-md px-3 py-2.5 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-50 hover:text-zinc-900"
+                    onClick={() => setMobileOpen(false)}
+                  >
+                    <User className="h-4 w-4" strokeWidth={1.5} />
+                    Sign In / Register
+                  </Link>
+                )}
               </li>
               <li>
                 <Link
