@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Shield, Truck, RotateCcw, Headphones } from "lucide-react";
 import { ProductCard, type Product } from "@/components/product/product-card";
 import RecentlyViewed from "@/components/product/recently-viewed";
+import CategorySection from "@/components/category/CategorySection";
 
 const newArrivals: Product[] = [
   {
@@ -97,15 +98,6 @@ const bestSellers: Product[] = [
   },
 ];
 
-const categories = [
-  { name: "Men's Shirts", href: "/men/shirts", gender: "Men", image: "/images/products/men/shirts/wox-green-plaid-flannel-shirt-1.png" },
-  { name: "Men's T-Shirts", href: "/men/t-shirts", gender: "Men", image: "/images/products/men/t-shirts/wox-peach-polo-shirt-1.png" },
-  { name: "Men's Pants", href: "/men/pants", gender: "Men", image: "/images/products/men/pants/wox-khaki-cargo-pants-1.png" },
-  { name: "Boys' Shirts", href: "/boys/shirts", gender: "Boys", image: "/images/products/boys/shirts/wox-boys-denim-shirt-1.png" },
-  { name: "Boys' T-Shirts", href: "/boys/t-shirts", gender: "Boys", image: "/images/products/boys/t-shirts/wox-boys-grey-sweatshirt-1.png" },
-  { name: "Boys' Pants", href: "/boys/pants", gender: "Boys", image: "/images/products/boys/pants/wox-boys-black-wide-leg-jeans-1.png" },
-];
-
 const trustItems = [
   { icon: Shield, title: "Secure Payments", description: "100% secure payment methods" },
   { icon: Truck, title: "Fast Delivery", description: "Free shipping on orders above ₹999" },
@@ -149,33 +141,7 @@ export default function Home() {
       </section>
 
       {/* Category Section */}
-      <section className="bg-white py-16 sm:py-20">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <h2 className="text-center text-2xl font-bold uppercase tracking-wider text-zinc-900 sm:text-3xl">
-            Shop by Category
-          </h2>
-          <div className="mt-10 grid grid-cols-2 gap-4 sm:grid-cols-3 sm:gap-6">
-            {categories.map((category) => (
-              <Link
-                key={category.href}
-                href={category.href}
-                className="group relative flex aspect-square items-end overflow-hidden bg-zinc-100 p-4 transition-all hover:shadow-lg sm:p-6"
-              >
-                <img
-                  src={category.image}
-                  alt={category.name}
-                  className="absolute inset-0 h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
-                  loading="lazy"
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
-                <span className="relative text-sm font-semibold uppercase tracking-wider text-white sm:text-base">
-                  {category.name}
-                </span>
-              </Link>
-            ))}
-          </div>
-        </div>
-      </section>
+      <CategorySection />
 
       {/* New Arrivals Section */}
       <section className="bg-zinc-50 py-16 sm:py-20">
