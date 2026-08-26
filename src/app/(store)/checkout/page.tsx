@@ -77,13 +77,37 @@ const emptyAddress: Address = {
 };
 
 export default function CheckoutPage() {
-  const { items, subtotal, clearCart } = useCartStore();
+  const { items: cartItems, subtotal: cartSubtotal, clearCart } = useCartStore();
   const router = useRouter();
+  const searchParams = new URLSearchParams(typeof window !== "undefined" ? window.location.search : "");
+  const isBuyNow = searchParams.get("buyNow") === "true";
+
+  const [buyNowItem, setBuyNowItem] = useState<{
+    name: string; slug: string; image: string; price: number;
+    size: string; quantity: number; category: string; gender: string;
+  } | null>(null);
+
+  const items = isBuyNow && buyNowItem
+    ? [{ id: "buy-now", name: buyNowItem.name, slug: buyNowItem.slug, image: buyNowItem.image, price: buyNowItem.price, size: buyNowItem.size, quantity: buyNowItem.quantity, sizeId: buyNowItem.size, maxQuantity: 10, category: buyNowItem.category, gender: buyNowItem.gender }]
+    : cartItems;
+
+  const subtotal = isBuyNow && buyNowItem
+    ? buyNowItem.price * buyNowItem.quantity
+    : cartSubtotal;
 
   const [currentUser, setCurrentUser] = useState<{ name: string; email: string } | null>(null);
   const [authChecked, setAuthChecked] = useState(false);
   const [pincodeLoading, setPincodeLoading] = useState(false);
   const [pincodeError, setPincodeError] = useState("");
+
+  useEffect(() => {
+    if (isBuyNow) {
+      const stored = sessionStorage.getItem("wox-buy-now");
+      if (stored) {
+        setBuyNowItem(JSON.parse(stored));
+      }
+    }
+  }, [isBuyNow]);
 
   useEffect(() => {
     const stored = localStorage.getItem("wox-user");
@@ -231,7 +255,11 @@ export default function CheckoutPage() {
       tax,
       total,
     });
-    clearCart();
+    if (isBuyNow) {
+      sessionStorage.removeItem("wox-buy-now");
+    } else {
+      clearCart();
+    }
     setCurrentStep(5);
   }
 

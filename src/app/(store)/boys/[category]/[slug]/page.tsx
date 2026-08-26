@@ -26,6 +26,7 @@ import WoxLoader from "@/components/ui/wox-loader";
 import useCartStore from "@/lib/stores/cart";
 import { useWishlistStore } from "@/lib/stores/wishlist";
 import { useRecentlyViewed } from "@/lib/hooks/use-recently-viewed";
+import BuyNowModal from "@/components/product/buy-now-modal";
 
 type ProductImage = { url: string; alt: string | null };
 type ColorVariant = { id: string; name: string; color: string | null; colorCode: string | null; images: ProductImage[] };
@@ -77,6 +78,7 @@ export default function ProductDetailPage({ params }: { params: Promise<{ catego
   const [quantity, setQuantity] = useState(1);
   const [showSizeGuide, setShowSizeGuide] = useState(false);
   const [showShareToast, setShowShareToast] = useState(false);
+  const [showBuyNow, setShowBuyNow] = useState(false);
   const [pincode, setPincode] = useState("");
   const [activeTab, setActiveTab] = useState<"description" | "specifications" | "reviews">("description");
 
@@ -166,8 +168,7 @@ export default function ProductDetailPage({ params }: { params: Promise<{ catego
       router.push("/auth/login");
       return;
     }
-    handleAddToCart();
-    router.push("/checkout");
+    setShowBuyNow(true);
   };
 
   const handleShare = async () => {
@@ -492,6 +493,27 @@ export default function ProductDetailPage({ params }: { params: Promise<{ catego
             <Button onClick={() => setShowSizeGuide(false)} variant="outline" className="mt-6 w-full">Close</Button>
           </div>
         </div>
+      )}
+
+      {/* Buy Now Modal */}
+      {product && (
+        <BuyNowModal
+          open={showBuyNow}
+          onClose={() => setShowBuyNow(false)}
+          product={{
+            name: product.name,
+            slug: product.slug,
+            image: allImages[0]?.url || "/images/placeholder.png",
+            price: product.basePrice,
+            salePrice: product.salePrice,
+            category: product.category.name,
+            gender: product.category.gender,
+            sizes: currentVariant.sizes.map((s) => ({
+              name: s.name,
+              quantity: s.inventory?.quantity ?? 0,
+            })),
+          }}
+        />
       )}
     </div>
   );
