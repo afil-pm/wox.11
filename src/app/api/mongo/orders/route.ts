@@ -44,6 +44,8 @@ export async function POST(request: NextRequest) {
       tax,
       total,
       paymentMethod,
+      paymentId,
+      paymentStatus,
       notes,
     } = body;
 
@@ -85,7 +87,8 @@ export async function POST(request: NextRequest) {
       tax: tax || 0,
       total: total || 0,
       paymentMethod: paymentMethod || "cod",
-      paymentStatus: paymentMethod === "cod" ? "PENDING" : "PENDING",
+      paymentId: paymentId || "",
+      paymentStatus: paymentStatus || (paymentMethod === "cod" ? "PENDING" : "PENDING"),
       status: "PENDING",
       notes: notes || "",
     });

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import {
@@ -10,12 +10,43 @@ import {
   ChevronRight,
   ChevronLeft,
   CheckCircle2,
+  Shield,
 } from "lucide-react";
 import { cn, formatPrice } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import useCartStore from "@/lib/stores/cart";
+
+declare global {
+  interface Window {
+    Razorpay: new (options: RazorpayOptions) => RazorpayInstance;
+  }
+}
+
+interface RazorpayOptions {
+  key: string;
+  amount: number;
+  currency: string;
+  name: string;
+  description: string;
+  order_id: string;
+  handler: (response: RazorpayResponse) => void;
+  prefill: { name: string; email: string; contact: string };
+  theme: { color: string };
+  modal?: { ondismiss?: () => void };
+}
+
+interface RazorpayInstance {
+  open: () => void;
+  on: (event: string, handler: (response: { error: { description: string } }) => void) => void;
+}
+
+interface RazorpayResponse {
+  razorpay_payment_id: string;
+  razorpay_order_id: string;
+  razorpay_signature: string;
+}
 
 const steps = ["Address", "Delivery", "Payment", "Review", "Confirmation"];
 
@@ -58,6 +89,26 @@ export default function CheckoutPage() {
   const [orderNumber, setOrderNumber] = useState<string | null>(null);
   const [orderError, setOrderError] = useState<string | null>(null);
   const [orderSaving, setOrderSaving] = useState(false);
+  const [confirmedOrder, setConfirmedOrder] = useState<{
+    items: typeof items;
+    subtotal: number;
+    shippingCost: number;
+    tax: number;
+    total: number;
+  } | null>(null);
+  const [razorpayLoaded, setRazorpayLoaded] = useState(false);
+
+  useEffect(() => {
+    if (document.getElementById("razorpay-script")) {
+      setRazorpayLoaded(true);
+      return;
+    }
+    const script = document.createElement("script");
+    script.id = "razorpay-script";
+    script.src = "https://checkout.razorpay.com/v1/checkout.js";
+    script.onload = () => setRazorpayLoaded(true);
+    document.body.appendChild(script);
+  }, []);
 
   const shippingCost =
     paymentMethod === "cod"
@@ -69,10 +120,16 @@ export default function CheckoutPage() {
         : 0;
   const tax = Math.round(subtotal * 0.18);
   const total = subtotal + shippingCost + tax;
-  const hasValidItems = items.length > 0 && items.every((item) => item.price > 0 && item.quantity > 0);
+  const hasValidItems =
+    items.length > 0 && items.every((item) => item.price > 0 && item.quantity > 0);
 
   const selectedAddress =
-    newAddress.name && newAddress.phone && newAddress.line1 && newAddress.city && newAddress.state && newAddress.pincode
+    newAddress.name &&
+    newAddress.phone &&
+    newAddress.line1 &&
+    newAddress.city &&
+    newAddress.state &&
+    newAddress.pincode
       ? { ...newAddress, id: "new" }
       : null;
 
@@ -98,64 +155,151 @@ export default function CheckoutPage() {
     return `#WOX11${code}`;
   }
 
+  async function saveOrderToDB(orderNum: string, paymentId?: string) {
+    const stored = localStorage.getItem("wox-user");
+    const user = stored ? JSON.parse(stored) : null;
+
+    const res = await fetch("/api/mongo/orders", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        orderNumber: orderNum,
+        customerName: newAddress.name,
+        customerPhone: newAddress.phone,
+        customerEmail: user?.email || "",
+        address: {
+          name: newAddress.name,
+          phone: newAddress.phone,
+          line1: newAddress.line1,
+          line2: newAddress.line2,
+          city: newAddress.city,
+          state: newAddress.state,
+          pincode: newAddress.pincode,
+          landmark: newAddress.landmark,
+        },
+        items: items.map((item) => ({
+          name: item.name,
+          price: item.price,
+          quantity: item.quantity,
+          size: item.size,
+          image: item.image,
+          slug: item.slug,
+        })),
+        subtotal,
+        shippingCost,
+        tax,
+        total,
+        paymentMethod,
+        paymentId: paymentId || "",
+        paymentStatus: paymentId ? "PAID" : "PENDING",
+      }),
+    });
+
+    if (!res.ok) {
+      const data = await res.json();
+      throw new Error(data.error || "Failed to save order");
+    }
+  }
+
+  function finalizeOrder(orderNum: string) {
+    setOrderNumber(orderNum);
+    setConfirmedOrder({
+      items: [...items],
+      subtotal,
+      shippingCost,
+      tax,
+      total,
+    });
+    clearCart();
+    setCurrentStep(5);
+  }
+
   async function handlePlaceOrder() {
     const orderNum = generateOrderNumber();
-    setOrderNumber(orderNum);
     setOrderSaving(true);
     setOrderError(null);
 
-    try {
-      const stored = localStorage.getItem("wox-user");
-      const user = stored ? JSON.parse(stored) : null;
-
-      const res = await fetch("/api/mongo/orders", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          orderNumber: orderNum,
-          customerName: newAddress.name,
-          customerPhone: newAddress.phone,
-          customerEmail: user?.email || "",
-          address: {
-            name: newAddress.name,
-            phone: newAddress.phone,
-            line1: newAddress.line1,
-            line2: newAddress.line2,
-            city: newAddress.city,
-            state: newAddress.state,
-            pincode: newAddress.pincode,
-            landmark: newAddress.landmark,
-          },
-          items: items.map((item) => ({
-            name: item.name,
-            price: item.price,
-            quantity: item.quantity,
-            size: item.size,
-            image: item.image,
-            slug: item.slug,
-          })),
-          subtotal,
-          shippingCost,
-          tax,
-          total,
-          paymentMethod,
-        }),
-      });
-
-      if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.error || "Failed to save order");
+    if (paymentMethod === "cod") {
+      try {
+        await saveOrderToDB(orderNum);
+        finalizeOrder(orderNum);
+      } catch (e) {
+        console.error("Failed to save order:", e);
+        setOrderError(
+          e instanceof Error ? e.message : "Failed to save order. Please try again."
+        );
+      } finally {
+        setOrderSaving(false);
       }
-    } catch (e) {
-      console.error("Failed to save order:", e);
-      setOrderError(e instanceof Error ? e.message : "Failed to save order. Please try again.");
-      setOrderSaving(false);
       return;
     }
 
-    setOrderSaving(false);
-    clearCart();
-    setCurrentStep(5);
+    // Razorpay flow
+    try {
+      const payRes = await fetch("/api/payments/create-order", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ amount: total, currency: "INR" }),
+      });
+
+      if (!payRes.ok) {
+        const payData = await payRes.json();
+        throw new Error(payData.error || "Payment gateway unavailable");
+      }
+
+      const payData = await payRes.json();
+
+      const stored = localStorage.getItem("wox-user");
+      const user = stored ? JSON.parse(stored) : null;
+
+      const razorpay = new window.Razorpay({
+        key: payData.keyId,
+        amount: payData.amount,
+        currency: payData.currency,
+        name: "WOX.11",
+        description: `Order ${orderNum}`,
+        order_id: payData.orderId,
+        prefill: {
+          name: newAddress.name,
+          email: user?.email || "",
+          contact: newAddress.phone,
+        },
+        theme: { color: "#18181b" },
+        handler: async (response: RazorpayResponse) => {
+          try {
+            await saveOrderToDB(orderNum, response.razorpay_payment_id);
+            finalizeOrder(orderNum);
+          } catch (e) {
+            console.error("Order save after payment failed:", e);
+            setOrderError(
+              "Payment successful but order save failed. Please contact support with payment ID: " +
+                response.razorpay_payment_id
+            );
+          } finally {
+            setOrderSaving(false);
+          }
+        },
+        modal: {
+          ondismiss: () => {
+            setOrderSaving(false);
+            setOrderError("Payment cancelled. Your order was not placed.");
+          },
+        },
+      });
+
+      razorpay.on("payment.failed", (response: { error: { description: string } }) => {
+        setOrderSaving(false);
+        setOrderError("Payment failed: " + response.error.description);
+      });
+
+      razorpay.open();
+    } catch (e) {
+      console.error("Payment error:", e);
+      setOrderError(
+        e instanceof Error ? e.message : "Payment service unavailable. Please try again."
+      );
+      setOrderSaving(false);
+    }
   }
 
   function handleNextStep() {
@@ -344,7 +488,10 @@ export default function CheckoutPage() {
                       <Input
                         value={newAddress.pincode}
                         onChange={(e) =>
-                          setNewAddress({ ...newAddress, pincode: e.target.value })
+                          setNewAddress({
+                            ...newAddress,
+                            pincode: e.target.value,
+                          })
                         }
                         placeholder="6-digit pincode"
                         className="mt-1"
@@ -511,11 +658,15 @@ export default function CheckoutPage() {
                     <CreditCard className="h-5 w-5 text-zinc-600" />
                     <div className="flex-1">
                       <span className="text-sm font-medium text-zinc-900">
-                        Razorpay
+                        Pay Online
                       </span>
                       <p className="mt-0.5 text-xs text-zinc-500">
                         Cards, UPI, Net Banking, Wallets
                       </p>
+                    </div>
+                    <div className="flex items-center gap-1 text-xs text-green-600 font-medium">
+                      <Shield className="h-3.5 w-3.5" />
+                      Secure
                     </div>
                   </label>
 
@@ -564,11 +715,11 @@ export default function CheckoutPage() {
                     <div className="flex flex-col items-center justify-center text-center">
                       <CreditCard className="h-10 w-10 text-zinc-300" />
                       <p className="mt-3 text-sm font-medium text-zinc-900">
-                        Razorpay Payment Gateway
+                        Secure Online Payment
                       </p>
                       <p className="mt-1 text-xs text-zinc-500">
-                        You will be redirected to Razorpay after reviewing your
-                        order to complete the payment securely.
+                        You will be redirected to Razorpay to complete the
+                        payment securely. Order is placed only after payment.
                       </p>
                     </div>
                   </div>
@@ -713,7 +864,7 @@ export default function CheckoutPage() {
                   <div className="mt-3">
                     <p className="text-sm text-zinc-700">
                       {paymentMethod === "razorpay"
-                        ? "Razorpay - Online Payment"
+                        ? "Pay Online (Razorpay)"
                         : "Cash on Delivery"}
                     </p>
                   </div>
@@ -771,12 +922,23 @@ export default function CheckoutPage() {
                     {orderSaving ? (
                       <span className="flex items-center gap-2">
                         <span className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
-                        Placing Order...
+                        {paymentMethod === "razorpay"
+                          ? "Processing Payment..."
+                          : "Placing Order..."}
                       </span>
                     ) : (
                       <>
-                        <Check className="mr-2 h-4 w-4" />
-                        Place Order
+                        {paymentMethod === "razorpay" ? (
+                          <>
+                            <CreditCard className="mr-2 h-4 w-4" />
+                            Pay {formatPrice(total)}
+                          </>
+                        ) : (
+                          <>
+                            <Check className="mr-2 h-4 w-4" />
+                            Place Order
+                          </>
+                        )}
                       </>
                     )}
                   </Button>
@@ -785,14 +947,19 @@ export default function CheckoutPage() {
             )}
 
             {/* Step 5: Confirmation */}
-            {currentStep === 5 && (
+            {currentStep === 5 && confirmedOrder && (
               <div className="flex flex-col items-center py-12 text-center">
-                <CheckCircle2 className="h-20 w-20 text-green-500" />
+                <div className="relative">
+                  <CheckCircle2 className="h-20 w-20 text-green-500 animate-bounce" />
+                  <div className="absolute -top-2 -right-2 h-6 w-6 rounded-full bg-green-100 flex items-center justify-center">
+                    <Check className="h-4 w-4 text-green-600" />
+                  </div>
+                </div>
                 <h2 className="mt-6 text-2xl font-semibold text-zinc-900">
-                  Thank you for your order!
+                  Order Placed Successfully!
                 </h2>
                 <p className="mt-2 text-sm text-zinc-500">
-                  Your order has been placed successfully.
+                  Thank you for shopping with WOX.11
                 </p>
                 {orderNumber && (
                   <Badge
@@ -805,45 +972,80 @@ export default function CheckoutPage() {
 
                 <div className="mt-8 w-full max-w-md rounded-lg border border-zinc-200 p-5 text-left">
                   <h3 className="text-sm font-semibold text-zinc-900">
-                    Order Details
+                    Order Summary
                   </h3>
-                  <div className="mt-4 space-y-3 text-sm">
-                    <div className="flex justify-between">
-                      <span className="text-zinc-500">Items</span>
-                      <span className="text-zinc-900">{items.length}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-zinc-500">Subtotal</span>
-                      <span className="text-zinc-900">
-                        {formatPrice(subtotal)}
-                      </span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-zinc-500">Shipping</span>
-                      <span className="text-zinc-900">
-                        {shippingCost === 0 ? "Free" : formatPrice(shippingCost)}
-                      </span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-zinc-500">Tax (GST 18%)</span>
-                      <span className="text-zinc-900">{formatPrice(tax)}</span>
-                    </div>
-                    <div className="border-t border-zinc-100 pt-3">
-                      <div className="flex justify-between">
-                        <span className="font-semibold text-zinc-900">Total</span>
-                        <span className="font-semibold text-zinc-900">
-                          {formatPrice(total)}
+                  <div className="mt-4 max-h-48 space-y-3 overflow-y-auto">
+                    {confirmedOrder.items.map((item, i) => (
+                      <div key={i} className="flex items-center gap-3">
+                        <div className="relative h-12 w-12 flex-shrink-0 overflow-hidden bg-zinc-100 rounded">
+                          <Image
+                            src={item.image}
+                            alt={item.name}
+                            fill
+                            className="object-cover"
+                            sizes="48px"
+                          />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs font-medium text-zinc-900 line-clamp-1">
+                            {item.name}
+                          </p>
+                          <p className="text-[11px] text-zinc-500">
+                            {item.size} | Qty: {item.quantity}
+                          </p>
+                        </div>
+                        <span className="text-xs font-semibold text-zinc-900">
+                          {formatPrice(item.price * item.quantity)}
                         </span>
                       </div>
+                    ))}
+                  </div>
+                  <div className="mt-5 space-y-2 border-t border-zinc-100 pt-4">
+                    <div className="flex justify-between text-sm">
+                      <span className="text-zinc-500">
+                        Items ({confirmedOrder.items.length})
+                      </span>
+                      <span className="text-zinc-900">
+                        {formatPrice(confirmedOrder.subtotal)}
+                      </span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-zinc-500">Shipping</span>
+                      <span className="text-zinc-900">
+                        {confirmedOrder.shippingCost === 0
+                          ? "Free"
+                          : formatPrice(confirmedOrder.shippingCost)}
+                      </span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-zinc-500">Tax (GST 18%)</span>
+                      <span className="text-zinc-900">
+                        {formatPrice(confirmedOrder.tax)}
+                      </span>
+                    </div>
+                    <div className="flex justify-between border-t border-zinc-100 pt-2 text-sm">
+                      <span className="font-semibold text-zinc-900">
+                        Total Paid
+                      </span>
+                      <span className="font-semibold text-zinc-900">
+                        {formatPrice(confirmedOrder.total)}
+                      </span>
                     </div>
                   </div>
                 </div>
 
                 <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-                  <Button asChild variant="outline" className="border-zinc-300">
+                  <Button
+                    asChild
+                    variant="outline"
+                    className="border-zinc-300"
+                  >
                     <Link href="/">Continue Shopping</Link>
                   </Button>
-                  <Button asChild className="bg-zinc-900 text-white hover:bg-zinc-800">
+                  <Button
+                    asChild
+                    className="bg-zinc-900 text-white hover:bg-zinc-800"
+                  >
                     <Link href="/account/orders">View Orders</Link>
                   </Button>
                 </div>
@@ -889,12 +1091,16 @@ export default function CheckoutPage() {
                 <div className="mt-5 space-y-2 border-t border-zinc-100 pt-4">
                   <div className="flex justify-between text-sm">
                     <span className="text-zinc-500">Subtotal</span>
-                    <span className="text-zinc-900">{formatPrice(subtotal)}</span>
+                    <span className="text-zinc-900">
+                      {formatPrice(subtotal)}
+                    </span>
                   </div>
                   <div className="flex justify-between text-sm">
                     <span className="text-zinc-500">Shipping</span>
                     <span className="text-zinc-900">
-                      {shippingCost === 0 ? "Free" : formatPrice(shippingCost)}
+                      {shippingCost === 0
+                        ? "Free"
+                        : formatPrice(shippingCost)}
                     </span>
                   </div>
                   <div className="flex justify-between text-sm">
@@ -950,12 +1156,16 @@ export default function CheckoutPage() {
                 <div className="mt-4 space-y-2 border-t border-zinc-100 pt-4">
                   <div className="flex justify-between text-sm">
                     <span className="text-zinc-500">Subtotal</span>
-                    <span className="text-zinc-900">{formatPrice(subtotal)}</span>
+                    <span className="text-zinc-900">
+                      {formatPrice(subtotal)}
+                    </span>
                   </div>
                   <div className="flex justify-between text-sm">
                     <span className="text-zinc-500">Shipping</span>
                     <span className="text-zinc-900">
-                      {shippingCost === 0 ? "Free" : formatPrice(shippingCost)}
+                      {shippingCost === 0
+                        ? "Free"
+                        : formatPrice(shippingCost)}
                     </span>
                   </div>
                   <div className="flex justify-between text-sm">

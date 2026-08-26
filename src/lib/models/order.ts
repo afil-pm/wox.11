@@ -30,7 +30,8 @@ export interface IOrder extends Document {
   tax: number;
   total: number;
   paymentMethod: "razorpay" | "cod";
-  paymentStatus: "PENDING" | "COMPLETED" | "FAILED" | "REFUNDED";
+  paymentId: string;
+  paymentStatus: "PENDING" | "PAID" | "COMPLETED" | "FAILED" | "REFUNDED";
   status:
     | "PENDING"
     | "CONFIRMED"
@@ -84,9 +85,10 @@ const OrderSchema = new Schema<IOrder>(
       enum: ["razorpay", "cod"],
       default: "cod",
     },
+    paymentId: { type: String, default: "" },
     paymentStatus: {
       type: String,
-      enum: ["PENDING", "COMPLETED", "FAILED", "REFUNDED"],
+      enum: ["PENDING", "PAID", "COMPLETED", "FAILED", "REFUNDED"],
       default: "PENDING",
     },
     status: {

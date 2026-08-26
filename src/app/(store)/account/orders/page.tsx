@@ -88,6 +88,7 @@ export default function AccountOrdersPage() {
     try {
       const stored = localStorage.getItem("wox-user");
       if (!stored) {
+        setOrders([]);
         setLoading(false);
         return;
       }
@@ -97,6 +98,7 @@ export default function AccountOrdersPage() {
       const allOrders: Order[] = data.orders || [];
       const myOrders = allOrders.filter(
         (o) =>
+          o.customerEmail?.toLowerCase() === user.email?.toLowerCase() ||
           o.customerPhone === user.phone ||
           o.customerName?.toLowerCase() === user.name?.toLowerCase()
       );
