@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import Header from "@/components/layout/header";
@@ -49,7 +50,9 @@ export default function RootLayout({
         <Header />
         <main className="flex-1 pb-16 lg:pb-0">{children}</main>
         <Footer />
-        <BottomNav />
+        <Suspense>
+          <BottomNav />
+        </Suspense>
       </body>
     </html>
   );
