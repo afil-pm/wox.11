@@ -54,6 +54,25 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Validate all items have valid prices
+    const hasInvalidItems = items.some(
+      (item: { price: number; quantity: number }) => !item.price || item.price <= 0 || !item.quantity || item.quantity <= 0
+    );
+    if (hasInvalidItems) {
+      return NextResponse.json(
+        { error: "All items must have a valid price greater than ₹0" },
+        { status: 400 }
+      );
+    }
+
+    // Validate total > 0
+    if (!total || total <= 0) {
+      return NextResponse.json(
+        { error: "Order total must be greater than ₹0" },
+        { status: 400 }
+      );
+    }
+
     const order = await Order.create({
       orderNumber,
       customerName: customerName || address.name,

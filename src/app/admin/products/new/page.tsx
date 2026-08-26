@@ -7,7 +7,7 @@ import { ArrowLeft, Save, Upload, X, ImagePlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
-type Category = { id: string; name: string; slug: string };
+type Category = { _id: string; name: string; slug: string };
 
 export default function NewProductPage() {
   const router = useRouter();
@@ -29,7 +29,7 @@ export default function NewProductPage() {
   });
 
   useEffect(() => {
-    fetch("/api/admin/categories")
+    fetch("/api/mongo/categories")
       .then((r) => r.json())
       .then((data) => setCategories(data.categories ?? []))
       .catch(() => {});
@@ -149,7 +149,7 @@ export default function NewProductPage() {
               >
                 <option value="">Select category</option>
                 {categories.map((cat) => (
-                  <option key={cat.id} value={cat.id}>{cat.name}</option>
+                  <option key={cat._id} value={cat._id}>{cat.name}</option>
                 ))}
               </select>
             </div>

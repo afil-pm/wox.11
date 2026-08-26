@@ -346,16 +346,26 @@ export default function AdminOrdersPage() {
             {/* Status Update */}
             {nextStatuses[selectedOrder.status]?.length > 0 && (
               <div className="mt-4 border-t pt-4">
-                <h3 className="mb-2 font-medium text-gray-700">Update Status</h3>
+                <h3 className="mb-2 font-medium text-gray-700">
+                  {selectedOrder.status === "PENDING" ? "Action Required" : "Update Status"}
+                </h3>
+                {selectedOrder.status === "PENDING" && (
+                  <p className="mb-3 text-xs text-gray-500">
+                    Review the order details above, then approve or cancel.
+                  </p>
+                )}
                 <div className="flex flex-wrap gap-2">
                   {nextStatuses[selectedOrder.status].map((s) => (
                     <Button
                       key={s}
                       size="sm"
                       variant={s === "CANCELLED" ? "destructive" : "default"}
+                      className={s === "CONFIRMED" ? "bg-green-600 text-white hover:bg-green-700" : ""}
                       onClick={() => updateOrderStatus(selectedOrder._id, s)}
                     >
-                      {statusLabels[s] || s}
+                      {selectedOrder.status === "PENDING" && s === "CONFIRMED"
+                        ? "Approve Order"
+                        : statusLabels[s] || s}
                     </Button>
                   ))}
                 </div>

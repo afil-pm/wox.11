@@ -67,11 +67,14 @@ export default function CheckoutPage() {
         : 0;
   const tax = Math.round(subtotal * 0.18);
   const total = subtotal + shippingCost + tax;
+  const hasValidItems = items.length > 0 && items.every((item) => item.price > 0 && item.quantity > 0);
 
   const selectedAddress =
     newAddress.name && newAddress.phone && newAddress.line1 && newAddress.city && newAddress.state && newAddress.pincode
       ? { ...newAddress, id: "new" }
       : null;
+
+  const canPlaceOrder = hasValidItems && total > 0 && selectedAddress && termsAccepted;
 
   function getEstimatedDelivery(): string {
     const days = deliveryMethod === "express" ? 2 : 6;
@@ -734,7 +737,7 @@ export default function CheckoutPage() {
                   </Button>
                   <Button
                     onClick={handleNextStep}
-                    disabled={!termsAccepted}
+                    disabled={!canPlaceOrder}
                     className="bg-zinc-900 text-white hover:bg-zinc-800"
                   >
                     <Check className="mr-2 h-4 w-4" />
