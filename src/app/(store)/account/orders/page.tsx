@@ -23,6 +23,7 @@ interface Order {
   orderNumber: string;
   customerName: string;
   customerPhone: string;
+  customerEmail: string;
   address: {
     name: string;
     phone: string;
