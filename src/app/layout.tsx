@@ -1,6 +1,7 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
+import { PWAInstallBanner } from "@/components/ui/pwa-install-banner";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -30,6 +31,24 @@ export const metadata: Metadata = {
       "Premium men's and boys fashion. Shop shirts, t-shirts, and pants crafted for the modern wardrobe.",
     siteName: "WOX.11",
   },
+  manifest: "/manifest.json",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+    title: "WOX.11",
+  },
+  formatDetection: {
+    telephone: false,
+  },
+};
+
+export const viewport: Viewport = {
+  themeColor: "#18181b",
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
+  viewportFit: "cover",
 };
 
 export default function RootLayout({
@@ -42,7 +61,16 @@ export default function RootLayout({
       lang="en"
       className={`${geistSans.variable} ${geistMono.variable} antialiased`}
     >
-      <body className="min-h-screen flex flex-col">{children}</body>
+      <head>
+        <link rel="apple-touch-icon" href="/icons/icon-192x192.png" />
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+        <meta name="mobile-web-app-capable" content="yes" />
+      </head>
+      <body className="min-h-screen flex flex-col">
+        {children}
+        <PWAInstallBanner />
+      </body>
     </html>
   );
 }

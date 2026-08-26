@@ -1,0 +1,9 @@
+<svg xmlns='http://www.w3.org/2000/svg' width='1280' height='720' viewBox='0 0 1280 720'>
+  <rect width='1280' height='720' fill='#ffffff'/>
+  <rect width='1280' height='64' fill='#18181b'/>
+  <text x='640' y='40' text-anchor='middle' font-family='system-ui' font-size='28' font-weight='900' fill='white' letter-spacing='2'>WOX.11</text>
+  <rect x='80' y='120' width='280' height='360' rx='12' fill='#f4f4f5'/>
+  <rect x='400' y='120' width='280' height='360' rx='12' fill='#f4f4f5'/>
+  <rect x='720' y='120' width='280' height='360' rx='12' fill='#f4f4f5'/>
+  <text x='640' y='560' text-anchor='middle' font-family='system-ui' font-size='20' fill='#71717a'>Premium Fashion Store</text>
+</svg>

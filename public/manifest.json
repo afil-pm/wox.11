@@ -1,0 +1,99 @@
+{
+  "name": "WOX.11 - Premium Fashion Store",
+  "short_name": "WOX.11",
+  "description": "Premium men's and boys fashion clothing store. Shop shirts, t-shirts, and pants.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#18181b",
+  "orientation": "portrait-primary",
+  "scope": "/",
+  "lang": "en",
+  "categories": ["shopping", "fashion"],
+  "icons": [
+    {
+      "src": "/icons/icon-72x72.png",
+      "sizes": "72x72",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-96x96.png",
+      "sizes": "96x96",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-128x128.png",
+      "sizes": "128x128",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-144x144.png",
+      "sizes": "144x144",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-152x152.png",
+      "sizes": "152x152",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icons/icon-384x384.png",
+      "sizes": "384x384",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "/screenshots/desktop.svg",
+      "sizes": "1280x720",
+      "type": "image/svg+xml",
+      "form_factor": "wide"
+    },
+    {
+      "src": "/screenshots/mobile.svg",
+      "sizes": "390x844",
+      "type": "image/svg+xml",
+      "form_factor": "narrow"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Men's Collection",
+      "url": "/men",
+      "description": "Browse men's clothing"
+    },
+    {
+      "name": "Boys' Collection",
+      "url": "/boys",
+      "description": "Browse boys' clothing"
+    },
+    {
+      "name": "New Arrivals",
+      "url": "/new-arrivals",
+      "description": "Latest products"
+    },
+    {
+      "name": "Cart",
+      "url": "/cart",
+      "description": "View your cart"
+    }
+  ]
+}

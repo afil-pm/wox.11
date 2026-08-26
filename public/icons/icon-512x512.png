@@ -1,0 +1,5 @@
+<svg xmlns='http://www.w3.org/2000/svg' width='512' height='512' viewBox='0 0 512 512'>
+  <rect width='512' height='512' fill='#18181b' rx='92'/>
+  <text x='50%' y='44%' text-anchor='middle' dominant-baseline='middle' font-family='system-ui,-apple-system,sans-serif' font-size='164' font-weight='900' fill='white' letter-spacing='-1'>WOX</text>
+  <text x='50%' y='66%' text-anchor='middle' dominant-baseline='middle' font-family='system-ui,-apple-system,sans-serif' font-size='61' font-weight='500' fill='#a1a1aa'>.11</text>
+</svg>
