@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { connectMongoDB } from "@/lib/mongodb";
 import Order from "@/lib/models/order";
+import { sendNewOrderEmail } from "@/lib/email";
 
 export async function GET(request: NextRequest) {
   try {
@@ -92,6 +93,18 @@ export async function POST(request: NextRequest) {
       status: "PENDING",
       notes: notes || "",
     });
+
+    sendNewOrderEmail({
+      orderNumber,
+      customerName: customerName || address.name,
+      customerPhone: customerPhone || address.phone,
+      customerEmail: customerEmail || "",
+      address,
+      items,
+      total: total || 0,
+      paymentMethod: paymentMethod || "cod",
+      paymentStatus: paymentStatus || "PENDING",
+    }).catch(() => {});
 
     return NextResponse.json({ order }, { status: 201 });
   } catch (error) {
