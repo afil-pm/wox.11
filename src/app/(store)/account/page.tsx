@@ -96,10 +96,10 @@ export default function AccountPage() {
         <div className="md:col-span-2">
           <div className="grid gap-4 sm:grid-cols-2">
             {[
-              { icon: Package, label: "My Orders", desc: "Track your orders", href: "/account" },
+              { icon: Package, label: "My Orders", desc: "Track your orders", href: "/account/orders" },
               { icon: Heart, label: "Wishlist", desc: "Your saved items", href: "/wishlist" },
-              { icon: MapPin, label: "Addresses", desc: "Manage addresses", href: "/account" },
-              { icon: Settings, label: "Settings", desc: "Account preferences", href: "/account" },
+              { icon: MapPin, label: "Addresses", desc: "Manage addresses", href: "/account/addresses" },
+              { icon: Settings, label: "Settings", desc: "Account preferences", href: "/account/settings" },
             ].map((item) => (
               <Link
                 key={item.label}

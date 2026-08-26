@@ -11,6 +11,17 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Email and password are required" }, { status: 400 });
     }
 
+    // Check env var admin credentials first
+    if (
+      email.toLowerCase() === (process.env.ADMIN_EMAIL || "").toLowerCase() &&
+      password === (process.env.ADMIN_PASSWORD || "")
+    ) {
+      return NextResponse.json({
+        user: { id: "admin-env", name: "Admin", email: email.toLowerCase(), role: "ADMIN" },
+      }, { status: 200 });
+    }
+
+    // Then check MongoDB
     await connectMongoDB();
 
     const user = await User.findOne({ email: email.toLowerCase() });

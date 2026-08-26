@@ -158,7 +158,27 @@ export default function Header() {
               <Search className="h-5 w-5" strokeWidth={1.5} />
             </button>
 
-            {/* Account / Auth */}
+            {/* Wishlist */}
+            <Link
+              href="/wishlist"
+              className="relative flex h-10 w-10 items-center justify-center text-zinc-900 transition-colors hover:text-zinc-600"
+              aria-label="Wishlist"
+            >
+              <Heart className="h-5 w-5" strokeWidth={1.5} />
+              <WishlistCount />
+            </Link>
+
+            {/* Cart */}
+            <Link
+              href="/cart"
+              className="relative flex h-10 w-10 items-center justify-center text-zinc-900 transition-colors hover:text-zinc-600"
+              aria-label="Cart"
+            >
+              <ShoppingBag className="h-5 w-5" strokeWidth={1.5} />
+              <CartCount />
+            </Link>
+
+            {/* Account / Auth - LAST */}
             {user ? (
               <div className="flex items-center gap-2">
                 <Link
@@ -188,26 +208,6 @@ export default function Header() {
                 <User className="h-5 w-5" strokeWidth={1.5} />
               </Link>
             )}
-
-            {/* Wishlist */}
-            <Link
-              href="/wishlist"
-              className="relative flex h-10 w-10 items-center justify-center text-zinc-900 transition-colors hover:text-zinc-600"
-              aria-label="Wishlist"
-            >
-              <Heart className="h-5 w-5" strokeWidth={1.5} />
-              <WishlistCount />
-            </Link>
-
-            {/* Cart */}
-            <Link
-              href="/cart"
-              className="relative flex h-10 w-10 items-center justify-center text-zinc-900 transition-colors hover:text-zinc-600"
-              aria-label="Cart"
-            >
-              <ShoppingBag className="h-5 w-5" strokeWidth={1.5} />
-              <CartCount />
-            </Link>
           </div>
 
           {/* Mobile: Right icons */}
@@ -221,6 +221,16 @@ export default function Header() {
             >
               <Search className="h-5 w-5" strokeWidth={1.5} />
             </button>
+
+            {/* Wishlist */}
+            <Link
+              href="/wishlist"
+              className="relative flex h-10 w-10 items-center justify-center text-zinc-900 transition-colors hover:text-zinc-600"
+              aria-label="Wishlist"
+            >
+              <Heart className="h-5 w-5" strokeWidth={1.5} />
+              <WishlistCount />
+            </Link>
 
             {/* Cart */}
             <Link
