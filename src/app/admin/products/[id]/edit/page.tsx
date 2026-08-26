@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { adminFetch } from "@/lib/admin-api";
 
-type Category = { id: string; name: string; slug: string };
+type Category = { id: string; name: string; slug: string; gender: string; type: string };
 type ProductData = {
   id: string;
   name: string;
@@ -19,6 +19,7 @@ type ProductData = {
   categoryId: string;
   isFeatured: boolean;
   isActive: boolean;
+  source: "static" | "mongo";
   images: { url: string; alt: string | null }[];
 };
 
@@ -57,14 +58,15 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
         const pData = await productRes.json();
         const product = pData.products?.find((p: ProductData) => p.id === id);
         if (!product) throw new Error("Product not found");
+        if (product.source === "static") throw new Error("This is a static product and cannot be edited. Create a new product in the admin panel instead.");
 
         setFormData({
           name: product.name,
           description: product.description ?? "",
           basePrice: String(product.basePrice),
-          salePrice: product.salePrice != null ? String(product.salePrice) : "",
+          salePrice: product.salePrice != null && product.salePrice > 0 ? String(product.salePrice) : "",
           sku: product.sku,
-          categoryId: product.categoryId,
+          categoryId: product.categoryId ?? "",
           isFeatured: product.isFeatured,
           isActive: product.isActive,
         });
@@ -193,7 +195,7 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
                 >
                   <option value="">Select category</option>
                   {categories.map((cat) => (
-                    <option key={cat.id} value={cat.id}>{cat.name}</option>
+                    <option key={cat.id} value={cat.id}>{cat.name} ({cat.gender})</option>
                   ))}
                 </select>
               </div>

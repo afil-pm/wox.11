@@ -6,7 +6,14 @@ export async function GET(request: NextRequest) {
   try {
     await connectMongoDB();
     const categories = await Category.find().sort({ name: 1 }).lean();
-    return NextResponse.json({ categories });
+    const mapped = categories.map((c) => ({
+      id: String(c._id),
+      name: c.name,
+      slug: c.slug,
+      gender: c.gender,
+      type: c.type,
+    }));
+    return NextResponse.json({ categories: mapped });
   } catch (error) {
     console.error("GET /api/admin/categories error:", error);
     return NextResponse.json({ error: "Failed to fetch categories" }, { status: 500 });

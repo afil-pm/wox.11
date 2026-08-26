@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { adminFetch } from "@/lib/admin-api";
 
-type Category = { _id: string; name: string; slug: string };
+type Category = { _id: string; name: string; slug: string; gender: string; type: string };
 
 export default function NewProductPage() {
   const router = useRouter();
@@ -149,7 +149,7 @@ export default function NewProductPage() {
               >
                 <option value="">Select category</option>
                 {categories.map((cat) => (
-                  <option key={cat._id} value={cat._id}>{cat.name}</option>
+                  <option key={cat._id} value={cat._id}>{cat.name} ({cat.gender})</option>
                 ))}
               </select>
             </div>

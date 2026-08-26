@@ -2,29 +2,38 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { Search, Plus, Edit2, Trash2 } from "lucide-react";
+import { Search, Plus, Edit2, Trash2, Database, FileCode } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { cn, formatPrice } from "@/lib/utils";
 import { adminFetch } from "@/lib/admin-api";
 
+type ProductVariant = {
+  name: string;
+  color: string | null;
+  colorCode: string | null;
+  sizes: { name: string; quantity: number }[];
+};
+
 type ApiProduct = {
   id: string;
   name: string;
   slug: string;
   sku: string;
+  description: string;
   basePrice: number;
   salePrice: number | null;
   isActive: boolean;
   isFeatured: boolean;
   averageRating: number;
   reviewCount: number;
-  category: { name: string };
-  images: { url: string; alt: string | null }[];
-  variants: {
-    sizes: { inventory: { quantity: number } | null }[];
-  }[];
+  category: { name: string; slug: string; gender: string; type: string };
+  categoryId: string | null;
+  images: { url: string; alt: string | null; position?: number }[];
+  variants: ProductVariant[];
+  source: "static" | "mongo";
+  createdAt: string;
 };
 
 type FilterStatus = "all" | "active" | "inactive" | "low-stock";
@@ -71,7 +80,7 @@ export default function AdminProductsPage() {
 
   function totalStock(p: ApiProduct) {
     return p.variants.reduce(
-      (sum, v) => sum + v.sizes.reduce((s, sz) => s + (sz.inventory?.quantity ?? 0), 0),
+      (sum, v) => sum + v.sizes.reduce((s, sz) => s + (sz.quantity ?? 0), 0),
       0
     );
   }
@@ -87,12 +96,17 @@ export default function AdminProductsPage() {
     return true;
   });
 
+  const staticCount = products.filter((p) => p.source === "static").length;
+  const mongoCount = products.filter((p) => p.source === "mongo").length;
+
   return (
     <>
       <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Products</h1>
-          <p className="text-sm text-gray-500">Manage your product catalog</p>
+          <p className="text-sm text-gray-500">
+            {products.length} total &middot; {staticCount} static &middot; {mongoCount} in database
+          </p>
         </div>
         <Link href="/admin/products/new">
           <Button>
@@ -144,6 +158,7 @@ export default function AdminProductsPage() {
                 <th className="p-4">Category</th>
                 <th className="p-4">Price</th>
                 <th className="p-4">Stock</th>
+                <th className="p-4">Source</th>
                 <th className="p-4">Status</th>
                 <th className="p-4 text-right">Actions</th>
               </tr>
@@ -151,8 +166,9 @@ export default function AdminProductsPage() {
             <tbody className="divide-y">
               {filtered.map((product) => {
                 const stock = totalStock(product);
+                const isMongo = product.source === "mongo";
                 return (
-                  <tr key={product.id} className="hover:bg-gray-50">
+                  <tr key={product.id} className={cn("hover:bg-gray-50", !isMongo && "bg-gray-50/50")}>
                     <td className="p-4">
                       <div className="flex items-center gap-3">
                         <div className="h-10 w-10 shrink-0 rounded-lg bg-gray-100 overflow-hidden">
@@ -173,7 +189,7 @@ export default function AdminProductsPage() {
                     <td className="p-4 font-mono text-xs text-gray-500">{product.sku}</td>
                     <td className="p-4 text-gray-600">{product.category.name}</td>
                     <td className="p-4">
-                      {product.salePrice ? (
+                      {product.salePrice && product.salePrice > 0 ? (
                         <div>
                           <span className="font-medium text-gray-900">{formatPrice(product.salePrice)}</span>
                           <span className="ml-1 text-xs text-gray-400 line-through">{formatPrice(product.basePrice)}</span>
@@ -188,30 +204,48 @@ export default function AdminProductsPage() {
                       </span>
                     </td>
                     <td className="p-4">
+                      <Badge
+                        variant="outline"
+                        className={cn(
+                          "text-[10px] gap-1",
+                          isMongo ? "border-green-200 text-green-700 bg-green-50" : "border-blue-200 text-blue-700 bg-blue-50"
+                        )}
+                      >
+                        {isMongo ? <Database className="h-2.5 w-2.5" /> : <FileCode className="h-2.5 w-2.5" />}
+                        {isMongo ? "DB" : "Static"}
+                      </Badge>
+                    </td>
+                    <td className="p-4">
                       <Badge variant={product.isActive ? "default" : "secondary"}>
                         {product.isActive ? "Active" : "Inactive"}
                       </Badge>
                     </td>
                     <td className="p-4 text-right">
                       <div className="flex items-center justify-end gap-1">
-                        <Button variant="ghost" size="sm" asChild>
-                          <Link href={`/admin/products/${product.id}/edit`}>
-                            <Edit2 className="h-4 w-4" />
-                          </Link>
-                        </Button>
-                        {deleteId === product.id ? (
-                          <div className="flex items-center gap-1">
-                            <Button variant="ghost" size="sm" onClick={() => handleDelete(product.id)} className="text-red-600 hover:text-red-700">
-                              Confirm
+                        {isMongo ? (
+                          <>
+                            <Button variant="ghost" size="sm" asChild>
+                              <Link href={`/admin/products/${product.id}/edit`}>
+                                <Edit2 className="h-4 w-4" />
+                              </Link>
                             </Button>
-                            <Button variant="ghost" size="sm" onClick={() => setDeleteId(null)}>
-                              Cancel
-                            </Button>
-                          </div>
+                            {deleteId === product.id ? (
+                              <div className="flex items-center gap-1">
+                                <Button variant="ghost" size="sm" onClick={() => handleDelete(product.id)} className="text-red-600 hover:text-red-700">
+                                  Confirm
+                                </Button>
+                                <Button variant="ghost" size="sm" onClick={() => setDeleteId(null)}>
+                                  Cancel
+                                </Button>
+                              </div>
+                            ) : (
+                              <Button variant="ghost" size="sm" onClick={() => setDeleteId(product.id)}>
+                                <Trash2 className="h-4 w-4 text-red-500" />
+                              </Button>
+                            )}
+                          </>
                         ) : (
-                          <Button variant="ghost" size="sm" onClick={() => setDeleteId(product.id)}>
-                            <Trash2 className="h-4 w-4 text-red-500" />
-                          </Button>
+                          <span className="text-xs text-gray-400 italic">Read-only</span>
                         )}
                       </div>
                     </td>

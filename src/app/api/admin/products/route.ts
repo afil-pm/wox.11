@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { connectMongoDB } from "@/lib/mongodb";
 import Product from "@/lib/models/product";
 import Category from "@/lib/models/category";
+import { products as staticProducts } from "@/lib/data/products";
 
 function isAdmin(req: NextRequest): boolean {
   const adminHeader = req.headers.get("x-admin-email");
@@ -9,12 +10,53 @@ function isAdmin(req: NextRequest): boolean {
   return adminHeader.toLowerCase() === (process.env.ADMIN_EMAIL || "").toLowerCase();
 }
 
+function getStaticProductCategories(p: (typeof staticProducts)[number]) {
+  const gender = p.category.gender;
+  const catSlug = p.category.name.toLowerCase().replace(/\s+/g, "-");
+  return { name: p.category.name, slug: catSlug, gender, type: catSlug };
+}
+
+function normalizeStaticProduct(p: (typeof staticProducts)[number]) {
+  return {
+    id: p.id,
+    name: p.name,
+    slug: p.slug,
+    description: "",
+    basePrice: p.basePrice,
+    salePrice: p.salePrice ?? 0,
+    sku: `STATIC-${p.id.toUpperCase()}`,
+    category: getStaticProductCategories(p),
+    categoryId: null,
+    images: p.images.map((img) => ({ url: img.url, alt: img.alt, position: 0 })),
+    variants: [
+      {
+        name: "Default",
+        color: p.category.name.toLowerCase(),
+        colorCode: null,
+        sizes: [
+          { name: "S", quantity: 10 },
+          { name: "M", quantity: 15 },
+          { name: "L", quantity: 12 },
+          { name: "XL", quantity: 8 },
+          { name: "XXL", quantity: 5 },
+        ],
+      },
+    ],
+    isFeatured: false,
+    isActive: true,
+    averageRating: p.averageRating,
+    reviewCount: p.reviewCount,
+    source: "static" as const,
+    createdAt: new Date().toISOString(),
+  };
+}
+
 export async function GET(request: NextRequest) {
   try {
     await connectMongoDB();
     const { searchParams } = new URL(request.url);
     const search = searchParams.get("search") || "";
-    const limit = parseInt(searchParams.get("limit") || "50", 10);
+    const limit = parseInt(searchParams.get("limit") || "200", 10);
     const skip = parseInt(searchParams.get("skip") || "0", 10);
 
     const filter: Record<string, unknown> = {};
@@ -25,17 +67,53 @@ export async function GET(request: NextRequest) {
       ];
     }
 
-    const [products, total] = await Promise.all([
+    const [mongoProducts] = await Promise.all([
       Product.find(filter)
         .populate("categoryId", "name slug gender type")
         .sort({ createdAt: -1 })
         .skip(skip)
         .limit(limit)
         .lean(),
-      Product.countDocuments(filter),
     ]);
 
-    return NextResponse.json({ products, total });
+    let allStatic = staticProducts.map(normalizeStaticProduct);
+    let allMongo = mongoProducts.map((p) => {
+      const obj = p.toObject();
+      const cat = obj.categoryId as unknown as { _id: string; name: string; slug: string; gender: string; type: string } | null;
+      return {
+        id: String(obj._id),
+        name: obj.name,
+        slug: obj.slug,
+        description: obj.description ?? "",
+        basePrice: obj.basePrice,
+        salePrice: obj.salePrice ?? 0,
+        sku: obj.sku,
+        category: cat ? { name: cat.name, slug: cat.slug, gender: cat.gender, type: cat.type } : { name: "Uncategorized", slug: "uncategorized", gender: "men", type: "shirts" },
+        categoryId: cat ? String(cat._id) : null,
+        images: (obj.images ?? []) as { url: string; alt: string; position: number }[],
+        variants: (obj.variants ?? []) as { name: string; color: string; colorCode: string; sizes: { name: string; quantity: number }[] }[],
+        isFeatured: obj.isFeatured ?? false,
+        isActive: obj.isActive ?? true,
+        averageRating: 0,
+        reviewCount: 0,
+        source: "mongo" as const,
+        createdAt: String(obj.createdAt ?? new Date().toISOString()),
+      };
+    });
+
+    if (search) {
+      const q = search.toLowerCase();
+      allStatic = allStatic.filter(
+        (p) => p.name.toLowerCase().includes(q) || p.sku.toLowerCase().includes(q)
+      );
+      allMongo = allMongo.filter(
+        (p) => p.name.toLowerCase().includes(q) || p.sku.toLowerCase().includes(q)
+      );
+    }
+
+    const products = [...allStatic, ...allMongo];
+
+    return NextResponse.json({ products, total: products.length });
   } catch (error) {
     console.error("GET /api/admin/products error:", error);
     return NextResponse.json({ error: "Failed to fetch products" }, { status: 500 });
@@ -112,7 +190,7 @@ export async function PUT(request: NextRequest) {
 
     const existingProduct = await Product.findById(id);
     if (!existingProduct) {
-      return NextResponse.json({ error: "Product not found" }, { status: 404 });
+      return NextResponse.json({ error: "Product not found in database. Static products cannot be edited — create a new product instead." }, { status: 404 });
     }
 
     if (data.name && data.name !== existingProduct.name) {
@@ -155,7 +233,7 @@ export async function DELETE(request: NextRequest) {
 
     const product = await Product.findById(id);
     if (!product) {
-      return NextResponse.json({ error: "Product not found" }, { status: 404 });
+      return NextResponse.json({ error: "Cannot delete static product. Only MongoDB products can be deleted." }, { status: 400 });
     }
 
     await Product.findByIdAndDelete(id);
