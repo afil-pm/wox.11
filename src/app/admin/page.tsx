@@ -8,10 +8,12 @@ import {
   TrendingUp,
   Plus,
   Eye,
+  Database,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { cn, formatPrice } from "@/lib/utils";
+import { adminFetch } from "@/lib/admin-api";
 import WoxLoader from "@/components/ui/wox-loader";
 
 interface Order {
@@ -49,6 +51,8 @@ export default function AdminDashboard() {
     pendingOrders: 0,
   });
   const [loading, setLoading] = useState(true);
+  const [seeding, setSeeding] = useState(false);
+  const [seedResult, setSeedResult] = useState<string | null>(null);
 
   const fetchData = useCallback(async () => {
     try {
@@ -84,6 +88,24 @@ export default function AdminDashboard() {
     const interval = setInterval(fetchData, 15000);
     return () => clearInterval(interval);
   }, [fetchData]);
+
+  async function handleSeed() {
+    setSeeding(true);
+    setSeedResult(null);
+    try {
+      const res = await adminFetch("/api/admin/seed", { method: "POST" });
+      const data = await res.json();
+      if (res.ok) {
+        setSeedResult(data.message);
+      } else {
+        setSeedResult(data.error || "Seed failed");
+      }
+    } catch {
+      setSeedResult("Seed request failed");
+    } finally {
+      setSeeding(false);
+    }
+  }
 
   if (loading) {
     return (
@@ -132,7 +154,7 @@ export default function AdminDashboard() {
         </div>
       </div>
 
-      <div className="mt-6 grid gap-4 sm:grid-cols-3">
+      <div className="mt-6 grid gap-4 sm:grid-cols-4">
         <Link href="/admin/products/new">
           <Button className="w-full justify-start gap-2">
             <Plus className="h-4 w-4" />
@@ -151,7 +173,19 @@ export default function AdminDashboard() {
             View Orders
           </Button>
         </Link>
+        <Button
+          variant="outline"
+          className="w-full justify-start gap-2"
+          onClick={handleSeed}
+          disabled={seeding}
+        >
+          <Database className="h-4 w-4" />
+          {seeding ? "Seeding..." : "Seed Products to DB"}
+        </Button>
       </div>
+      {seedResult && (
+        <div className="mt-3 rounded-lg bg-blue-50 p-3 text-sm text-blue-700">{seedResult}</div>
+      )}
 
       <div className="mt-6 rounded-xl border bg-white p-5 shadow-sm">
         <h2 className="mb-4 text-lg font-semibold text-gray-900">

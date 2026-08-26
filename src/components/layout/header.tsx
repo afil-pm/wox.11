@@ -1,9 +1,9 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import Link from "next/link";
 import dynamic from "next/dynamic";
-import { Search, User, Heart, ShoppingBag, Menu, X, LogOut } from "lucide-react";
+import { Search, User, Heart, ShoppingBag, Menu, X, LogOut, Package, Settings, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import SearchModal from "@/components/search/search-modal";
 
@@ -52,7 +52,9 @@ export default function Header() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
+  const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [user, setUser] = useState<{ name: string; email: string; role: string } | null>(null);
+  const userMenuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const checkAuth = () => {
@@ -72,9 +74,22 @@ export default function Header() {
     };
   }, []);
 
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (userMenuRef.current && !userMenuRef.current.contains(e.target as Node)) {
+        setUserMenuOpen(false);
+      }
+    }
+    if (userMenuOpen) {
+      document.addEventListener("mousedown", handleClickOutside);
+    }
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [userMenuOpen]);
+
   const handleLogout = () => {
     localStorage.removeItem("wox-user");
     window.dispatchEvent(new Event("auth-change"));
+    setUserMenuOpen(false);
     window.location.href = "/";
   };
 
@@ -93,9 +108,7 @@ export default function Header() {
     } else {
       document.body.style.overflow = "";
     }
-    return () => {
-      document.body.style.overflow = "";
-    };
+    return () => { document.body.style.overflow = ""; };
   }, [mobileOpen]);
 
   return (
@@ -148,7 +161,6 @@ export default function Header() {
 
           {/* Desktop: Right icons */}
           <div className="hidden items-center gap-1 lg:flex lg:gap-2">
-            {/* Search */}
             <button
               type="button"
               className="flex h-10 w-10 items-center justify-center text-zinc-900 transition-colors hover:text-zinc-600"
@@ -158,7 +170,6 @@ export default function Header() {
               <Search className="h-5 w-5" strokeWidth={1.5} />
             </button>
 
-            {/* Wishlist */}
             <Link
               href="/wishlist"
               className="relative flex h-10 w-10 items-center justify-center text-zinc-900 transition-colors hover:text-zinc-600"
@@ -168,7 +179,6 @@ export default function Header() {
               <WishlistCount />
             </Link>
 
-            {/* Cart */}
             <Link
               href="/cart"
               className="relative flex h-10 w-10 items-center justify-center text-zinc-900 transition-colors hover:text-zinc-600"
@@ -178,41 +188,85 @@ export default function Header() {
               <CartCount />
             </Link>
 
-            {/* Account / Auth - LAST */}
-            {user ? (
-              <div className="flex items-center gap-2">
-                <Link
-                  href={user.role === "ADMIN" ? "/admin" : "/account"}
-                  className="flex items-center gap-2 rounded-full bg-zinc-100 px-3 py-1.5 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-200"
+            {/* User Menu - Dropdown */}
+            <div className="relative" ref={userMenuRef}>
+              {user ? (
+                <button
+                  type="button"
+                  onClick={() => setUserMenuOpen(!userMenuOpen)}
+                  className={cn(
+                    "flex items-center gap-2 rounded-full px-3 py-1.5 text-sm font-medium transition-colors",
+                    userMenuOpen ? "bg-zinc-200 text-zinc-900" : "bg-zinc-100 text-zinc-700 hover:bg-zinc-200"
+                  )}
                 >
                   <span className="flex h-6 w-6 items-center justify-center rounded-full bg-zinc-900 text-[10px] font-bold text-white">
                     {user.name?.charAt(0)?.toUpperCase() || "U"}
                   </span>
                   <span className="hidden xl:inline">{user.name}</span>
-                </Link>
-                <button
-                  type="button"
-                  onClick={handleLogout}
-                  className="flex h-10 w-10 items-center justify-center text-zinc-500 transition-colors hover:text-red-600"
-                  aria-label="Logout"
-                >
-                  <LogOut className="h-5 w-5" strokeWidth={1.5} />
+                  <ChevronRight className={cn("h-3 w-3 transition-transform", userMenuOpen && "rotate-90")} />
                 </button>
-              </div>
-            ) : (
-              <Link
-                href="/auth/login"
-                className="flex h-10 w-10 items-center justify-center text-zinc-900 transition-colors hover:text-zinc-600"
-                aria-label="Account"
-              >
-                <User className="h-5 w-5" strokeWidth={1.5} />
-              </Link>
-            )}
+              ) : (
+                <Link
+                  href="/auth/login"
+                  className="flex items-center gap-2 rounded-full bg-zinc-900 px-4 py-1.5 text-sm font-medium text-white transition-colors hover:bg-zinc-800"
+                >
+                  <User className="h-4 w-4" strokeWidth={1.5} />
+                  <span className="hidden xl:inline">Sign In</span>
+                </Link>
+              )}
+
+              {/* Dropdown */}
+              {user && userMenuOpen && (
+                <div className="absolute right-0 top-full mt-2 w-56 overflow-hidden rounded-xl border border-zinc-200 bg-white shadow-xl">
+                  <div className="border-b border-zinc-100 px-4 py-3">
+                    <p className="text-sm font-medium text-zinc-900">{user.name}</p>
+                    <p className="mt-0.5 text-xs text-zinc-500">{user.email}</p>
+                  </div>
+                  <div className="py-1">
+                    <Link
+                      href={user.role === "ADMIN" ? "/admin" : "/account"}
+                      className="flex items-center gap-3 px-4 py-2.5 text-sm text-zinc-700 transition-colors hover:bg-zinc-50"
+                      onClick={() => setUserMenuOpen(false)}
+                    >
+                      <User className="h-4 w-4 text-zinc-400" />
+                      My Account
+                    </Link>
+                    {user.role === "ADMIN" && (
+                      <Link
+                        href="/admin"
+                        className="flex items-center gap-3 px-4 py-2.5 text-sm text-zinc-700 transition-colors hover:bg-zinc-50"
+                        onClick={() => setUserMenuOpen(false)}
+                      >
+                        <Settings className="h-4 w-4 text-zinc-400" />
+                        Admin Panel
+                      </Link>
+                    )}
+                    <Link
+                      href="/wishlist"
+                      className="flex items-center gap-3 px-4 py-2.5 text-sm text-zinc-700 transition-colors hover:bg-zinc-50"
+                      onClick={() => setUserMenuOpen(false)}
+                    >
+                      <Heart className="h-4 w-4 text-zinc-400" />
+                      Wishlist
+                    </Link>
+                  </div>
+                  <div className="border-t border-zinc-100 py-1">
+                    <button
+                      type="button"
+                      onClick={handleLogout}
+                      className="flex w-full items-center gap-3 px-4 py-2.5 text-sm text-red-600 transition-colors hover:bg-red-50"
+                    >
+                      <LogOut className="h-4 w-4" />
+                      Sign Out
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
 
           {/* Mobile: Right icons */}
           <div className="flex items-center gap-1 lg:hidden">
-            {/* Search */}
             <button
               type="button"
               className="flex h-10 w-10 items-center justify-center text-zinc-900 transition-colors hover:text-zinc-600"
@@ -222,7 +276,6 @@ export default function Header() {
               <Search className="h-5 w-5" strokeWidth={1.5} />
             </button>
 
-            {/* Wishlist */}
             <Link
               href="/wishlist"
               className="relative flex h-10 w-10 items-center justify-center text-zinc-900 transition-colors hover:text-zinc-600"
@@ -232,7 +285,6 @@ export default function Header() {
               <WishlistCount />
             </Link>
 
-            {/* Cart */}
             <Link
               href="/cart"
               className="relative flex h-10 w-10 items-center justify-center text-zinc-900 transition-colors hover:text-zinc-600"
@@ -249,9 +301,7 @@ export default function Header() {
       <div
         className={cn(
           "fixed inset-0 z-50 bg-black/40 transition-opacity duration-300 lg:hidden",
-          mobileOpen
-            ? "pointer-events-auto opacity-100"
-            : "pointer-events-none opacity-0"
+          mobileOpen ? "pointer-events-auto opacity-100" : "pointer-events-none opacity-0"
         )}
         onClick={() => setMobileOpen(false)}
         aria-hidden="true"
@@ -267,31 +317,18 @@ export default function Header() {
         aria-modal="true"
         aria-label="Mobile navigation"
       >
-        {/* Drawer header */}
         <div className="flex h-16 items-center justify-between border-b border-zinc-200 px-6">
-          <span className="text-lg font-bold tracking-wider text-zinc-900">
-            WOX.11
-          </span>
-          <button
-            type="button"
-            className="flex h-10 w-10 items-center justify-center text-zinc-900"
-            onClick={() => setMobileOpen(false)}
-            aria-label="Close menu"
-          >
+          <span className="text-lg font-bold tracking-wider text-zinc-900">WOX.11</span>
+          <button type="button" className="flex h-10 w-10 items-center justify-center text-zinc-900" onClick={() => setMobileOpen(false)} aria-label="Close menu">
             <X className="h-5 w-5" strokeWidth={1.5} />
           </button>
         </div>
 
-        {/* Drawer nav */}
         <nav className="flex-1 overflow-y-auto px-6 py-6">
           <ul className="space-y-1">
             {navLinks.map((link) => (
               <li key={link.href}>
-                <Link
-                  href={link.href}
-                  className="block rounded-md px-3 py-2.5 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-50 hover:text-zinc-900"
-                  onClick={() => setMobileOpen(false)}
-                >
+                <Link href={link.href} className="block rounded-md px-3 py-2.5 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-50 hover:text-zinc-900" onClick={() => setMobileOpen(false)}>
                   {link.label}
                 </Link>
               </li>
@@ -301,21 +338,13 @@ export default function Header() {
           <div className="mt-6 border-t border-zinc-200 pt-6">
             <ul className="space-y-1">
               <li>
-                <Link
-                  href="/wishlist"
-                  className="flex items-center gap-3 rounded-md px-3 py-2.5 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-50 hover:text-zinc-900"
-                  onClick={() => setMobileOpen(false)}
-                >
+                <Link href="/wishlist" className="flex items-center gap-3 rounded-md px-3 py-2.5 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-50 hover:text-zinc-900" onClick={() => setMobileOpen(false)}>
                   <Heart className="h-4 w-4" strokeWidth={1.5} />
                   Wishlist
                 </Link>
               </li>
               <li>
-                <Link
-                  href="/cart"
-                  className="flex items-center gap-3 rounded-md px-3 py-2.5 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-50 hover:text-zinc-900"
-                  onClick={() => setMobileOpen(false)}
-                >
+                <Link href="/cart" className="flex items-center gap-3 rounded-md px-3 py-2.5 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-50 hover:text-zinc-900" onClick={() => setMobileOpen(false)}>
                   <ShoppingBag className="h-4 w-4" strokeWidth={1.5} />
                   Cart
                 </Link>
@@ -323,35 +352,22 @@ export default function Header() {
             </ul>
           </div>
 
-          {/* Profile / Auth - LAST */}
           <div className="mt-6 border-t border-zinc-200 pt-6">
             <ul className="space-y-1">
               <li>
                 {user ? (
                   <>
-                    <Link
-                      href={user.role === "ADMIN" ? "/admin" : "/account"}
-                      className="flex items-center gap-3 rounded-md px-3 py-2.5 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-50 hover:text-zinc-900"
-                      onClick={() => setMobileOpen(false)}
-                    >
+                    <Link href={user.role === "ADMIN" ? "/admin" : "/account"} className="flex items-center gap-3 rounded-md px-3 py-2.5 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-50 hover:text-zinc-900" onClick={() => setMobileOpen(false)}>
                       <User className="h-4 w-4" strokeWidth={1.5} />
                       {user.name}
                     </Link>
-                    <button
-                      type="button"
-                      onClick={() => { handleLogout(); setMobileOpen(false); }}
-                      className="flex w-full items-center gap-3 rounded-md px-3 py-2.5 text-sm font-medium text-red-600 transition-colors hover:bg-red-50"
-                    >
+                    <button type="button" onClick={() => { handleLogout(); setMobileOpen(false); }} className="flex w-full items-center gap-3 rounded-md px-3 py-2.5 text-sm font-medium text-red-600 transition-colors hover:bg-red-50">
                       <LogOut className="h-4 w-4" strokeWidth={1.5} />
                       Sign Out
                     </button>
                   </>
                 ) : (
-                  <Link
-                    href="/auth/login"
-                    className="flex items-center gap-3 rounded-md px-3 py-2.5 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-50 hover:text-zinc-900"
-                    onClick={() => setMobileOpen(false)}
-                  >
+                  <Link href="/auth/login" className="flex items-center gap-3 rounded-md px-3 py-2.5 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-50 hover:text-zinc-900" onClick={() => setMobileOpen(false)}>
                     <User className="h-4 w-4" strokeWidth={1.5} />
                     Sign In / Register
                   </Link>
