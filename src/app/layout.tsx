@@ -1,6 +1,7 @@
 import { Suspense } from "react";
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import { Analytics } from "@vercel/analytics/next";
 import Header from "@/components/layout/header";
 import { Footer } from "@/components/layout/footer";
 import BottomNav from "@/components/layout/bottom-nav";
@@ -53,6 +54,7 @@ export default function RootLayout({
         <Suspense>
           <BottomNav />
         </Suspense>
+        <Analytics />
       </body>
     </html>
   );
