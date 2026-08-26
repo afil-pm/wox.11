@@ -1,9 +1,19 @@
 import NextAuth from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import Google from "next-auth/providers/google";
-import { PrismaAdapter } from "@auth/prisma-adapter";
 import bcrypt from "bcryptjs";
-import { prisma } from "@/lib/db";
+
+let prisma: any = null;
+let prismaAdapter: any = null;
+
+try {
+  const db = await import("@/lib/db");
+  prisma = db.prisma;
+  const { PrismaAdapter } = await import("@auth/prisma-adapter");
+  prismaAdapter = PrismaAdapter(prisma);
+} catch {
+  // Database not available
+}
 
 declare module "next-auth" {
   interface Session {
@@ -29,13 +39,17 @@ declare module "next-auth" {
 }
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
-  adapter: PrismaAdapter(prisma),
+  ...(prismaAdapter ? { adapter: prismaAdapter } : {}),
   session: { strategy: "jwt" },
   providers: [
-    Google({
-      clientId: process.env.GOOGLE_CLIENT_ID!,
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
-    }),
+    ...(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET
+      ? [
+          Google({
+            clientId: process.env.GOOGLE_CLIENT_ID,
+            clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+          }),
+        ]
+      : []),
     Credentials({
       name: "credentials",
       credentials: {
@@ -45,25 +59,46 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       async authorize(credentials) {
         if (!credentials?.email || !credentials?.password) return null;
 
-        const user = await prisma.user.findUnique({
-          where: { email: credentials.email as string },
-        });
+        const adminEmail = process.env.ADMIN_EMAIL;
+        const adminPassword = process.env.ADMIN_PASSWORD;
 
-        if (!user || !user.passwordHash) return null;
+        if (
+          credentials.email === adminEmail &&
+          credentials.password === adminPassword
+        ) {
+          return {
+            id: "admin-env",
+            name: "Admin",
+            email: adminEmail,
+            role: "ADMIN",
+          };
+        }
 
-        const passwordValid = await bcrypt.compare(
-          credentials.password as string,
-          user.passwordHash
-        );
+        if (!prisma) return null;
 
-        if (!passwordValid) return null;
+        try {
+          const user = await prisma.user.findUnique({
+            where: { email: credentials.email as string },
+          });
 
-        return {
-          id: user.id,
-          name: user.name,
-          email: user.email,
-          image: user.image,
-        };
+          if (!user || !user.passwordHash) return null;
+
+          const passwordValid = await bcrypt.compare(
+            credentials.password as string,
+            user.passwordHash
+          );
+
+          if (!passwordValid) return null;
+
+          return {
+            id: user.id,
+            name: user.name,
+            email: user.email,
+            image: user.image,
+          };
+        } catch {
+          return null;
+        }
       },
     }),
   ],
@@ -83,21 +118,25 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       return session;
     },
     async signIn({ user, account }) {
-      if (account?.provider === "google") {
-        const existingUser = await prisma.user.findUnique({
-          where: { email: user.email! },
-        });
-
-        if (!existingUser) {
-          await prisma.user.create({
-            data: {
-              email: user.email!,
-              name: user.name,
-              image: user.image,
-              emailVerified: new Date(),
-              role: "CUSTOMER",
-            },
+      if (account?.provider === "google" && prisma) {
+        try {
+          const existingUser = await prisma.user.findUnique({
+            where: { email: user.email! },
           });
+
+          if (!existingUser) {
+            await prisma.user.create({
+              data: {
+                email: user.email!,
+                name: user.name,
+                image: user.image,
+                emailVerified: new Date(),
+                role: "CUSTOMER",
+              },
+            });
+          }
+        } catch {
+          // Database not available, continue
         }
       }
       return true;
