@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Shield, Truck, RotateCcw, Headphones } from "lucide-react";
 import { ProductCard, type Product } from "@/components/product/product-card";
+import RecentlyViewed from "@/components/product/recently-viewed";
 
 const newArrivals: Product[] = [
   {
@@ -231,6 +232,9 @@ export default function Home() {
           </div>
         </div>
       </section>
+
+      {/* Recently Viewed */}
+      <RecentlyViewed />
 
       {/* Trust Section */}
       <section className="border-t border-zinc-200 bg-white py-16 sm:py-20">

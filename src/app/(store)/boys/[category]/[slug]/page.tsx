@@ -25,6 +25,7 @@ import { Badge } from "@/components/ui/badge";
 import WoxLoader from "@/components/ui/wox-loader";
 import useCartStore from "@/lib/stores/cart";
 import { useWishlistStore } from "@/lib/stores/wishlist";
+import { useRecentlyViewed } from "@/lib/hooks/use-recently-viewed";
 
 type ProductImage = { url: string; alt: string | null };
 type ColorVariant = { id: string; name: string; color: string | null; colorCode: string | null; images: ProductImage[] };
@@ -64,6 +65,7 @@ export default function ProductDetailPage({ params }: { params: Promise<{ catego
 
   const addItem = useCartStore((s) => s.addItem);
   const toggleItem = useWishlistStore((s) => s.toggleItem);
+  const { addView } = useRecentlyViewed();
 
   const [product, setProduct] = useState<ApiProduct | null>(null);
   const [loading, setLoading] = useState(true);
@@ -91,6 +93,15 @@ export default function ProductDetailPage({ params }: { params: Promise<{ catego
           const firstAvailable = p.variants[0]?.sizes.find((s) => (s.inventory?.quantity ?? 0) > 0);
           if (firstAvailable) setSelectedSize(firstAvailable.id);
         }
+        addView({
+          slug: p.slug,
+          name: p.name,
+          image: p.images[0]?.url || "/images/placeholder.png",
+          price: p.basePrice,
+          salePrice: p.salePrice,
+          category: p.category.name,
+          gender: p.category.gender,
+        });
       } catch (err) {
         setError(err instanceof Error ? err.message : "Failed to load product");
       } finally {
