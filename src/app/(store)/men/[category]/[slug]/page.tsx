@@ -150,6 +150,11 @@ export default function ProductDetailPage({ params }: { params: Promise<{ catego
   };
 
   const handleBuyNow = () => {
+    const stored = localStorage.getItem("wox-user");
+    if (!stored || !JSON.parse(stored)?.email) {
+      router.push("/auth/login");
+      return;
+    }
     handleAddToCart();
     router.push("/checkout");
   };

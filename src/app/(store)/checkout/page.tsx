@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import Image from "next/image";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   Truck,
   CreditCard,
@@ -10,6 +11,8 @@ import {
   ChevronRight,
   ChevronLeft,
   Shield,
+  LogIn,
+  ShoppingCart,
 } from "lucide-react";
 import { cn, formatPrice } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -75,6 +78,23 @@ const emptyAddress: Address = {
 
 export default function CheckoutPage() {
   const { items, subtotal, clearCart } = useCartStore();
+  const router = useRouter();
+
+  const [currentUser, setCurrentUser] = useState<{ name: string; email: string } | null>(null);
+  const [authChecked, setAuthChecked] = useState(false);
+
+  useEffect(() => {
+    const stored = localStorage.getItem("wox-user");
+    if (!stored) {
+      setAuthChecked(true);
+      return;
+    }
+    const user = JSON.parse(stored);
+    if (user?.email) {
+      setCurrentUser(user);
+    }
+    setAuthChecked(true);
+  }, []);
 
   const [currentStep, setCurrentStep] = useState(1);
   const [newAddress, setNewAddress] = useState(emptyAddress);
@@ -311,6 +331,59 @@ export default function CheckoutPage() {
 
   function handlePrevStep() {
     setCurrentStep((s) => Math.max(s - 1, 1));
+  }
+
+  if (!authChecked) {
+    return (
+      <div className="flex min-h-[60vh] items-center justify-center">
+        <div className="h-8 w-8 animate-spin rounded-full border-2 border-zinc-900 border-t-transparent" />
+      </div>
+    );
+  }
+
+  if (!currentUser) {
+    return (
+      <div className="flex min-h-[70vh] items-center justify-center px-4">
+        <div className="w-full max-w-md text-center">
+          <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-zinc-100">
+            <LogIn className="h-10 w-10 text-zinc-400" />
+          </div>
+          <h2 className="mt-6 text-2xl font-bold tracking-tight text-zinc-900">
+            Login Required
+          </h2>
+          <p className="mt-3 text-sm text-zinc-500">
+            Please sign in to your account to continue with checkout and place your order.
+          </p>
+          <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:justify-center">
+            <Button
+              asChild
+              variant="outline"
+              className="border-zinc-300"
+            >
+              <Link href="/cart">
+                <ShoppingCart className="mr-2 h-4 w-4" />
+                Back to Cart
+              </Link>
+            </Button>
+            <Button
+              asChild
+              className="bg-zinc-900 text-white hover:bg-zinc-800"
+            >
+              <Link href="/auth/login">
+                <LogIn className="mr-2 h-4 w-4" />
+                Sign In
+              </Link>
+            </Button>
+          </div>
+          <p className="mt-6 text-xs text-zinc-400">
+            Don&apos;t have an account?{" "}
+            <Link href="/auth/register" className="text-zinc-900 underline-offset-4 hover:underline">
+              Create one
+            </Link>
+          </p>
+        </div>
+      </div>
+    );
   }
 
   return (
