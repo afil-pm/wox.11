@@ -1,24 +1,37 @@
-import { NextResponse } from "next/server";
-import { prisma } from "@/lib/db";
-import { requireAdmin } from "@/lib/auth";
+import { NextRequest, NextResponse } from "next/server";
+import { connectMongoDB } from "@/lib/mongodb";
+import Category from "@/lib/models/category";
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
-    await requireAdmin();
-
-    const categories = await prisma.category.findMany({
-      orderBy: { name: "asc" },
-    });
-
-    return NextResponse.json({ categories }, { status: 200 });
+    await connectMongoDB();
+    const categories = await Category.find().sort({ name: 1 }).lean();
+    return NextResponse.json({ categories });
   } catch (error) {
-    if (error instanceof Error && error.message === "Forbidden") {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    console.error("GET /api/admin/categories error:", error);
+    return NextResponse.json({ error: "Failed to fetch categories" }, { status: 500 });
+  }
+}
+
+export async function POST(request: NextRequest) {
+  try {
+    await connectMongoDB();
+    const body = await request.json();
+    const { name, slug, gender, type } = body;
+
+    if (!name || !slug || !gender || !type) {
+      return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
     }
-    if (error instanceof Error && error.message === "Unauthorized") {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+    const existing = await Category.findOne({ slug });
+    if (existing) {
+      return NextResponse.json({ error: "Category slug already exists" }, { status: 400 });
     }
-    console.error("[ADMIN_CATEGORIES_GET]", error);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+
+    const category = await Category.create({ name, slug, gender, type });
+    return NextResponse.json({ category }, { status: 201 });
+  } catch (error) {
+    console.error("POST /api/admin/categories error:", error);
+    return NextResponse.json({ error: "Failed to create category" }, { status: 500 });
   }
 }

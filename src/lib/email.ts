@@ -1,6 +1,13 @@
 import { Resend } from "resend";
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+let resend: Resend;
+
+function getResend() {
+  if (!resend) {
+    resend = new Resend(process.env.RESEND_API_KEY);
+  }
+  return resend;
+}
 
 const ADMIN_EMAIL = "info.afilpm@gmail.com";
 
@@ -101,7 +108,7 @@ export async function sendNewOrderEmail(order: {
       </div>
     `;
 
-    await resend.emails.send({
+    await getResend().emails.send({
       from: "WOX.11 Store <onboarding@resend.dev>",
       to: ADMIN_EMAIL,
       subject: `🔔 New Order ${order.orderNumber} - ₹${order.total.toLocaleString("en-IN")}`,

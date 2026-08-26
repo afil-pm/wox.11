@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { Save, X, ImagePlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { adminFetch } from "@/lib/admin-api";
 
 type Category = { id: string; name: string; slug: string };
 type ProductData = {
@@ -47,8 +48,8 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
     async function load() {
       try {
         const [productRes, catRes] = await Promise.all([
-          fetch(`/api/admin/products?search=`),
-          fetch("/api/admin/categories"),
+          adminFetch(`/api/admin/products?search=`),
+          adminFetch("/api/admin/categories"),
         ]);
         const catData = await catRes.json();
         setCategories(catData.categories ?? []);
@@ -119,9 +120,8 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
         isFeatured: formData.isFeatured,
         isActive: formData.isActive,
       };
-      const res = await fetch("/api/admin/products", {
+      const res = await adminFetch("/api/admin/products", {
         method: "PUT",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
       });
       const data = await res.json();

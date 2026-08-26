@@ -83,12 +83,12 @@ export default function CheckoutPage() {
   const isBuyNow = searchParams.get("buyNow") === "true";
 
   const [buyNowItem, setBuyNowItem] = useState<{
-    name: string; slug: string; image: string; price: number;
-    size: string; quantity: number; category: string; gender: string;
+    productId: string; name: string; slug: string; image: string; price: number;
+    size: string; sizeId: string; quantity: number; category: string; gender: string;
   } | null>(null);
 
   const items = isBuyNow && buyNowItem
-    ? [{ id: "buy-now", name: buyNowItem.name, slug: buyNowItem.slug, image: buyNowItem.image, price: buyNowItem.price, size: buyNowItem.size, quantity: buyNowItem.quantity, sizeId: buyNowItem.size, maxQuantity: 10, category: buyNowItem.category, gender: buyNowItem.gender }]
+    ? [{ id: "buy-now", productId: buyNowItem.productId, name: buyNowItem.name, slug: buyNowItem.slug, image: buyNowItem.image, price: buyNowItem.price, size: buyNowItem.size, sizeId: buyNowItem.sizeId, quantity: buyNowItem.quantity, maxQuantity: 10, category: buyNowItem.category, gender: buyNowItem.gender }]
     : cartItems;
 
   const subtotal = isBuyNow && buyNowItem

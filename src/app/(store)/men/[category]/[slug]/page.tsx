@@ -511,6 +511,7 @@ export default function ProductDetailPage({ params }: { params: Promise<{ catego
           open={showBuyNow}
           onClose={() => setShowBuyNow(false)}
           product={{
+            productId: product.id,
             name: product.name,
             slug: product.slug,
             image: allImages[0]?.url || "/images/placeholder.png",

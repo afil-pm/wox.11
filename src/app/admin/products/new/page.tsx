@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { ArrowLeft, Save, Upload, X, ImagePlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { adminFetch } from "@/lib/admin-api";
 
 type Category = { _id: string; name: string; slug: string };
 
@@ -29,7 +30,7 @@ export default function NewProductPage() {
   });
 
   useEffect(() => {
-    fetch("/api/mongo/categories")
+    adminFetch("/api/mongo/categories")
       .then((r) => r.json())
       .then((data) => setCategories(data.categories ?? []))
       .catch(() => {});
@@ -76,9 +77,8 @@ export default function NewProductPage() {
         isFeatured: formData.isFeatured,
         isActive: formData.isActive,
       };
-      const res = await fetch("/api/admin/products", {
+      const res = await adminFetch("/api/admin/products", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
       });
       const data = await res.json();

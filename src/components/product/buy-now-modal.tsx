@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 type ProductImage = { url: string; alt: string | null };
 
 type BuyNowProduct = {
+  productId: string;
   name: string;
   slug: string;
   image: string;
@@ -34,7 +35,7 @@ export default function BuyNowModal({ product, open, onClose }: Props) {
   if (!open) return null;
 
   const displayPrice = product.salePrice || product.price;
-  const discount = calculateDiscount(product.price, product.salePrice);
+  const discount = calculateDiscount(product.price, product.salePrice ?? product.price);
   const selectedSizeData = product.sizes.find((s) => s.name === selectedSize);
   const stock = selectedSizeData?.quantity ?? 0;
   const inStock = stock > 0 && !!selectedSize;
@@ -51,11 +52,13 @@ export default function BuyNowModal({ product, open, onClose }: Props) {
     setLoading(true);
     // Store buy now item in sessionStorage for checkout
     const buyNowItem = {
+      productId: product.productId,
       name: product.name,
       slug: product.slug,
       image: product.image,
       price: displayPrice,
       size: selectedSize,
+      sizeId: selectedSize,
       quantity,
       category: product.category,
       gender: product.gender,

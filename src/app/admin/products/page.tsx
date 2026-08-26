@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { cn, formatPrice } from "@/lib/utils";
+import { adminFetch } from "@/lib/admin-api";
 
 type ApiProduct = {
   id: string;
@@ -48,7 +49,7 @@ export default function AdminProductsPage() {
 
   async function fetchProducts() {
     try {
-      const res = await fetch("/api/admin/products");
+      const res = await adminFetch("/api/admin/products");
       const data = await res.json();
       setProducts(data.products ?? []);
     } catch {
@@ -60,7 +61,7 @@ export default function AdminProductsPage() {
 
   async function handleDelete(id: string) {
     try {
-      const res = await fetch(`/api/admin/products?id=${id}`, { method: "DELETE" });
+      const res = await adminFetch(`/api/admin/products?id=${id}`, { method: "DELETE" });
       if (res.ok) setProducts((prev) => prev.filter((p) => p.id !== id));
     } catch {
       // silently fail

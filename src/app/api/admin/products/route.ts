@@ -3,16 +3,10 @@ import { connectMongoDB } from "@/lib/mongodb";
 import Product from "@/lib/models/product";
 import Category from "@/lib/models/category";
 
-function checkAdmin(req: NextRequest) {
-  const cookie = req.headers.get("cookie") || "";
-  const match = cookie.match(/wox-admin=([^;]+)/);
-  if (!match) return false;
-  try {
-    const data = JSON.parse(decodeURIComponent(match[1]));
-    return data?.role === "ADMIN";
-  } catch {
-    return false;
-  }
+function isAdmin(req: NextRequest): boolean {
+  const adminHeader = req.headers.get("x-admin-email");
+  if (!adminHeader) return false;
+  return adminHeader.toLowerCase() === (process.env.ADMIN_EMAIL || "").toLowerCase();
 }
 
 export async function GET(request: NextRequest) {
@@ -50,6 +44,10 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
+    if (!isAdmin(request)) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     await connectMongoDB();
     const body = await request.json();
 
@@ -72,7 +70,7 @@ export async function POST(request: NextRequest) {
       .replace(/[^a-z0-9]+/g, "-")
       .replace(/(^-|-$)/g, "");
 
-    const existingSku = await Product.findOne({ sku });
+    const existingSku = await Product.findOne({ sku: sku.toUpperCase() });
     if (existingSku) {
       return NextResponse.json({ error: "SKU already exists" }, { status: 400 });
     }
@@ -83,7 +81,7 @@ export async function POST(request: NextRequest) {
       description: description || "",
       basePrice: Number(basePrice),
       salePrice: salePrice ? Number(salePrice) : 0,
-      sku,
+      sku: sku.toUpperCase(),
       categoryId,
       isFeatured: isFeatured || false,
       isActive: isActive !== false,
@@ -100,6 +98,10 @@ export async function POST(request: NextRequest) {
 
 export async function PUT(request: NextRequest) {
   try {
+    if (!isAdmin(request)) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     await connectMongoDB();
     const body = await request.json();
     const { id, ...data } = body;
@@ -139,6 +141,10 @@ export async function PUT(request: NextRequest) {
 
 export async function DELETE(request: NextRequest) {
   try {
+    if (!isAdmin(request)) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     await connectMongoDB();
     const { searchParams } = new URL(request.url);
     const id = searchParams.get("id");
