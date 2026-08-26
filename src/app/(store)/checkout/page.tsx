@@ -9,13 +9,12 @@ import {
   Check,
   ChevronRight,
   ChevronLeft,
-  CheckCircle2,
   Shield,
 } from "lucide-react";
 import { cn, formatPrice } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
+import OrderSuccess from "@/components/ui/order-success";
 import useCartStore from "@/lib/stores/cart";
 
 declare global {
@@ -948,59 +947,40 @@ export default function CheckoutPage() {
 
             {/* Step 5: Confirmation */}
             {currentStep === 5 && confirmedOrder && (
-              <div className="flex flex-col items-center py-12 text-center">
-                <div className="relative">
-                  <CheckCircle2 className="h-20 w-20 text-green-500 animate-bounce" />
-                  <div className="absolute -top-2 -right-2 h-6 w-6 rounded-full bg-green-100 flex items-center justify-center">
-                    <Check className="h-4 w-4 text-green-600" />
-                  </div>
-                </div>
-                <h2 className="mt-6 text-2xl font-semibold text-zinc-900">
-                  Order Placed Successfully!
-                </h2>
-                <p className="mt-2 text-sm text-zinc-500">
-                  Thank you for shopping with WOX.11
-                </p>
-                {orderNumber && (
-                  <Badge
-                    variant="secondary"
-                    className="mt-4 px-4 py-1.5 text-sm"
-                  >
-                    Order #{orderNumber}
-                  </Badge>
-                )}
+              <div className="py-4">
+                <OrderSuccess orderNumber={orderNumber || ""} />
 
-                <div className="mt-8 w-full max-w-md rounded-lg border border-zinc-200 p-5 text-left">
+                <div className="mx-auto mt-6 w-full max-w-md rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm">
                   <h3 className="text-sm font-semibold text-zinc-900">
                     Order Summary
                   </h3>
-                  <div className="mt-4 max-h-48 space-y-3 overflow-y-auto">
+                  <div className="mt-4 max-h-56 space-y-3 overflow-y-auto">
                     {confirmedOrder.items.map((item, i) => (
                       <div key={i} className="flex items-center gap-3">
-                        <div className="relative h-12 w-12 flex-shrink-0 overflow-hidden bg-zinc-100 rounded">
+                        <div className="relative h-14 w-14 flex-shrink-0 overflow-hidden rounded-lg bg-zinc-100">
                           <Image
                             src={item.image}
                             alt={item.name}
                             fill
                             className="object-cover"
-                            sizes="48px"
+                            sizes="56px"
                           />
                         </div>
                         <div className="flex-1 min-w-0">
-                          <p className="text-xs font-medium text-zinc-900 line-clamp-1">
+                          <p className="text-sm font-medium text-zinc-900 line-clamp-1">
                             {item.name}
                           </p>
-                          <p className="text-[11px] text-zinc-500">
-                            {item.size} | Qty: {item.quantity}
+                          <p className="text-xs text-zinc-500">
+                            {item.size} &middot; Qty: {item.quantity}
                           </p>
                         </div>
-                        <span className="text-xs font-semibold text-zinc-900">
+                        <span className="text-sm font-semibold text-zinc-900">
                           {formatPrice(item.price * item.quantity)}
                         </span>
                       </div>
                     ))}
                   </div>
-                  <div className="mt-5 space-y-2 border-t border-zinc-100 pt-4">
+                  <div className="mt-5 space-y-2.5 border-t border-zinc-100 pt-4">
                     <div className="flex justify-between text-sm">
                       <span className="text-zinc-500">
                         Items ({confirmedOrder.items.length})
@@ -1023,28 +1003,28 @@ export default function CheckoutPage() {
                         {formatPrice(confirmedOrder.tax)}
                       </span>
                     </div>
-                    <div className="flex justify-between border-t border-zinc-100 pt-2 text-sm">
-                      <span className="font-semibold text-zinc-900">
+                    <div className="flex justify-between border-t border-zinc-100 pt-2.5 text-sm">
+                      <span className="font-bold text-zinc-900">
                         Total Paid
                       </span>
-                      <span className="font-semibold text-zinc-900">
+                      <span className="font-bold text-zinc-900">
                         {formatPrice(confirmedOrder.total)}
                       </span>
                     </div>
                   </div>
                 </div>
 
-                <div className="mt-8 flex flex-col gap-3 sm:flex-row">
+                <div className="mx-auto mt-8 flex max-w-md flex-col gap-3 sm:flex-row">
                   <Button
                     asChild
                     variant="outline"
-                    className="border-zinc-300"
+                    className="flex-1 border-zinc-300"
                   >
                     <Link href="/">Continue Shopping</Link>
                   </Button>
                   <Button
                     asChild
-                    className="bg-zinc-900 text-white hover:bg-zinc-800"
+                    className="flex-1 bg-zinc-900 text-white hover:bg-zinc-800"
                   >
                     <Link href="/account/orders">View Orders</Link>
                   </Button>

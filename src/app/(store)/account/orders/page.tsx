@@ -40,6 +40,7 @@ interface Order {
   total: number;
   status: string;
   paymentMethod: string;
+  paymentId: string;
   paymentStatus: string;
   createdAt: string;
 }
@@ -97,12 +98,24 @@ export default function AccountOrdersPage() {
       const res = await fetch("/api/mongo/orders");
       const data = await res.json();
       const allOrders: Order[] = data.orders || [];
-      const myOrders = allOrders.filter(
-        (o) =>
-          o.customerEmail?.toLowerCase() === user.email?.toLowerCase() ||
-          o.customerPhone === user.phone ||
-          o.customerName?.toLowerCase() === user.name?.toLowerCase()
-      );
+
+      const userEmail = (user.email || "").toLowerCase().trim();
+      const userName = (user.name || "").toLowerCase().trim();
+
+      const myOrders = allOrders.filter((o) => {
+        const orderEmail = (o.customerEmail || "").toLowerCase().trim();
+        const orderName = (o.customerName || "").toLowerCase().trim();
+        const orderPhone = (o.customerPhone || "").trim();
+
+        if (userEmail && orderEmail && orderEmail === userEmail) return true;
+        if (userName && orderName && orderName === userName) return true;
+        if (orderPhone && o.address?.phone && orderPhone === o.address.phone) return true;
+        if (userEmail && orderEmail === "") {
+          if (userName && orderName === userName) return true;
+        }
+        return false;
+      });
+
       setOrders(myOrders);
     } catch {
       // silent

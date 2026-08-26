@@ -77,6 +77,17 @@ body {
   }
 }
 
+@keyframes gradient {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+
+@layer utilities {
+  .animate-gradient {
+    animation: gradient 1.5s ease-in-out infinite;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   ::before,
