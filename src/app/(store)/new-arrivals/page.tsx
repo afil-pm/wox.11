@@ -5,6 +5,7 @@ import { ChevronDown, SlidersHorizontal, X, Search } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { ProductCard, type Product } from "@/components/product/product-card";
+import PremiumSelect from "@/components/ui/premium-select";
 
 const products: Product[] = [
   {
@@ -388,38 +389,26 @@ export default function NewArrivalsPage() {
           <div className="hidden lg:block">
             <div className="flex items-center gap-2">
               <span className="text-sm text-zinc-500">Sort by:</span>
-              <select
+              <PremiumSelect
                 value={sortBy}
-                onChange={(e) => {
-                  setSortBy(e.target.value);
+                onValueChange={(v: string) => {
+                  setSortBy(v);
                   setCurrentPage(1);
                 }}
-                className="rounded-md border border-zinc-200 bg-white px-3 py-1.5 text-sm text-zinc-900 focus:border-zinc-900 focus:outline-none focus:ring-1 focus:ring-zinc-900"
-              >
-                {sortOptions.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
+                options={sortOptions}
+              />
             </div>
           </div>
 
           <div className="lg:hidden">
-            <select
+            <PremiumSelect
               value={sortBy}
-              onChange={(e) => {
-                setSortBy(e.target.value);
+              onValueChange={(v: string) => {
+                setSortBy(v);
                 setCurrentPage(1);
               }}
-              className="rounded-md border border-zinc-200 bg-white px-3 py-1.5 text-sm text-zinc-900 focus:border-zinc-900 focus:outline-none focus:ring-1 focus:ring-zinc-900"
-            >
-              {sortOptions.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
+              options={sortOptions}
+            />
           </div>
         </div>
 
