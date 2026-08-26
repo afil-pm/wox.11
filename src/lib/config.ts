@@ -1,6 +1,6 @@
 export const siteConfig = {
   name: "WOX.11",
-  url: process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000",
+  url: process.env.NEXT_PUBLIC_APP_URL || "https://wox11.vercel.app",
   description:
     "Premium men's and boys' clothing. Quality shirts, t-shirts, and pants at affordable prices.",
   email: "support@wox11.com",
