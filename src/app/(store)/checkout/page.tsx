@@ -56,6 +56,8 @@ export default function CheckoutPage() {
   );
   const [termsAccepted, setTermsAccepted] = useState(false);
   const [orderNumber, setOrderNumber] = useState<string | null>(null);
+  const [orderError, setOrderError] = useState<string | null>(null);
+  const [orderSaving, setOrderSaving] = useState(false);
 
   const shippingCost =
     paymentMethod === "cod"
@@ -99,15 +101,21 @@ export default function CheckoutPage() {
   async function handlePlaceOrder() {
     const orderNum = generateOrderNumber();
     setOrderNumber(orderNum);
+    setOrderSaving(true);
+    setOrderError(null);
 
     try {
-      await fetch("/api/mongo/orders", {
+      const stored = localStorage.getItem("wox-user");
+      const user = stored ? JSON.parse(stored) : null;
+
+      const res = await fetch("/api/mongo/orders", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           orderNumber: orderNum,
           customerName: newAddress.name,
           customerPhone: newAddress.phone,
+          customerEmail: user?.email || "",
           address: {
             name: newAddress.name,
             phone: newAddress.phone,
@@ -133,10 +141,19 @@ export default function CheckoutPage() {
           paymentMethod,
         }),
       });
+
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || "Failed to save order");
+      }
     } catch (e) {
       console.error("Failed to save order:", e);
+      setOrderError(e instanceof Error ? e.message : "Failed to save order. Please try again.");
+      setOrderSaving(false);
+      return;
     }
 
+    setOrderSaving(false);
     clearCart();
     setCurrentStep(5);
   }
@@ -730,6 +747,13 @@ export default function CheckoutPage() {
                   </span>
                 </label>
 
+                {/* Error */}
+                {orderError && (
+                  <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-600">
+                    {orderError}
+                  </div>
+                )}
+
                 <div className="flex justify-between">
                   <Button
                     variant="outline"
@@ -741,11 +765,20 @@ export default function CheckoutPage() {
                   </Button>
                   <Button
                     onClick={handleNextStep}
-                    disabled={!canPlaceOrder}
+                    disabled={!canPlaceOrder || orderSaving}
                     className="bg-zinc-900 text-white hover:bg-zinc-800"
                   >
-                    <Check className="mr-2 h-4 w-4" />
-                    Place Order
+                    {orderSaving ? (
+                      <span className="flex items-center gap-2">
+                        <span className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                        Placing Order...
+                      </span>
+                    ) : (
+                      <>
+                        <Check className="mr-2 h-4 w-4" />
+                        Place Order
+                      </>
+                    )}
                   </Button>
                 </div>
               </div>
@@ -811,7 +844,7 @@ export default function CheckoutPage() {
                     <Link href="/">Continue Shopping</Link>
                   </Button>
                   <Button asChild className="bg-zinc-900 text-white hover:bg-zinc-800">
-                    <Link href="/orders">View Orders</Link>
+                    <Link href="/account/orders">View Orders</Link>
                   </Button>
                 </div>
               </div>

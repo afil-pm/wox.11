@@ -2,6 +2,24 @@ import { NextRequest, NextResponse } from "next/server";
 import { connectMongoDB } from "@/lib/mongodb";
 import Order from "@/lib/models/order";
 
+export async function GET(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    await connectMongoDB();
+    const { id } = await params;
+    const order = await Order.findById(id).lean();
+    if (!order) {
+      return NextResponse.json({ error: "Order not found" }, { status: 404 });
+    }
+    return NextResponse.json({ order });
+  } catch (error) {
+    console.error("GET /api/mongo/orders/[id] error:", error);
+    return NextResponse.json({ error: "Failed to fetch order" }, { status: 500 });
+  }
+}
+
 export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -17,11 +35,9 @@ export async function PATCH(
     if (paymentStatus) update.paymentStatus = paymentStatus;
 
     const order = await Order.findByIdAndUpdate(id, update, { new: true }).lean();
-
     if (!order) {
       return NextResponse.json({ error: "Order not found" }, { status: 404 });
     }
-
     return NextResponse.json({ order });
   } catch (error) {
     console.error("PATCH /api/mongo/orders/[id] error:", error);

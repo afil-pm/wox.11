@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
-import { Package, ArrowLeft, Eye } from "lucide-react";
+import Image from "next/image";
+import { Package, ArrowLeft, Eye, XCircle, RotateCcw, Truck, CheckCircle2, Clock, Box } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { cn, formatPrice } from "@/lib/utils";
@@ -14,6 +15,7 @@ interface OrderItem {
   quantity: number;
   size: string;
   image: string;
+  slug: string;
 }
 
 interface Order {
@@ -21,6 +23,15 @@ interface Order {
   orderNumber: string;
   customerName: string;
   customerPhone: string;
+  address: {
+    name: string;
+    phone: string;
+    line1: string;
+    line2: string;
+    city: string;
+    state: string;
+    pincode: string;
+  };
   items: OrderItem[];
   subtotal: number;
   shippingCost: number;
@@ -36,42 +47,111 @@ const statusStyles: Record<string, string> = {
   PENDING: "bg-yellow-100 text-yellow-800",
   CONFIRMED: "bg-blue-100 text-blue-800",
   PROCESSING: "bg-indigo-100 text-indigo-800",
+  PACKED: "bg-purple-100 text-purple-800",
   SHIPPED: "bg-cyan-100 text-cyan-800",
+  OUT_FOR_DELIVERY: "bg-teal-100 text-teal-800",
   DELIVERED: "bg-green-100 text-green-800",
   CANCELLED: "bg-red-100 text-red-800",
+  RETURNED: "bg-orange-100 text-orange-800",
 };
 
 const statusLabels: Record<string, string> = {
-  PENDING: "Pending",
+  PENDING: "Order Placed",
   CONFIRMED: "Confirmed",
   PROCESSING: "Processing",
+  PACKED: "Packed",
   SHIPPED: "Shipped",
+  OUT_FOR_DELIVERY: "Out for Delivery",
   DELIVERED: "Delivered",
   CANCELLED: "Cancelled",
+  RETURNED: "Return Requested",
 };
+
+const trackingSteps = [
+  { key: "PENDING", label: "Order Placed", icon: Clock },
+  { key: "CONFIRMED", label: "Confirmed", icon: CheckCircle2 },
+  { key: "PROCESSING", label: "Processing", icon: Box },
+  { key: "SHIPPED", label: "Shipped", icon: Truck },
+  { key: "DELIVERED", label: "Delivered", icon: CheckCircle2 },
+];
+
+const cancelableStatuses = ["PENDING", "CONFIRMED"];
+const returnableStatuses = ["DELIVERED"];
 
 export default function AccountOrdersPage() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
+
+  const fetchOrders = useCallback(async () => {
+    try {
+      const stored = localStorage.getItem("wox-user");
+      if (!stored) {
+        setLoading(false);
+        return;
+      }
+      const user = JSON.parse(stored);
+      const res = await fetch("/api/mongo/orders");
+      const data = await res.json();
+      const allOrders: Order[] = data.orders || [];
+      const myOrders = allOrders.filter(
+        (o) =>
+          o.customerPhone === user.phone ||
+          o.customerName?.toLowerCase() === user.name?.toLowerCase()
+      );
+      setOrders(myOrders);
+    } catch {
+      // silent
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
-    const stored = localStorage.getItem("wox-user");
-    if (!stored) return;
-    const user = JSON.parse(stored);
+    fetchOrders();
+  }, [fetchOrders]);
 
-    fetch(`/api/mongo/orders`)
-      .then((res) => res.json())
-      .then((data) => {
-        const myOrders = (data.orders || []).filter(
-          (o: Order) =>
-            o.customerPhone === user.phone || o.customerName === user.name
-        );
-        setOrders(myOrders);
-      })
-      .catch(() => {})
-      .finally(() => setLoading(false));
-  }, []);
+  async function handleCancelOrder(orderId: string) {
+    if (!confirm("Are you sure you want to cancel this order?")) return;
+    setActionLoading(orderId);
+    try {
+      await fetch(`/api/mongo/orders/${orderId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: "CANCELLED" }),
+      });
+      await fetchOrders();
+      setSelectedOrder(null);
+    } catch {
+      alert("Failed to cancel order");
+    } finally {
+      setActionLoading(null);
+    }
+  }
+
+  async function handleReturnOrder(orderId: string) {
+    if (!confirm("Are you sure you want to request a return?")) return;
+    setActionLoading(orderId);
+    try {
+      await fetch(`/api/mongo/orders/${orderId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: "RETURNED" }),
+      });
+      await fetchOrders();
+      setSelectedOrder(null);
+    } catch {
+      alert("Failed to request return");
+    } finally {
+      setActionLoading(null);
+    }
+  }
+
+  function getTrackingIndex(status: string): number {
+    const idx = trackingSteps.findIndex((s) => s.key === status);
+    return idx >= 0 ? idx : 0;
+  }
 
   if (loading) {
     return (
@@ -106,6 +186,7 @@ export default function AccountOrdersPage() {
               key={order._id}
               className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm"
             >
+              {/* Order Header */}
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
                   <p className="font-semibold text-zinc-900">{order.orderNumber}</p>
@@ -125,7 +206,70 @@ export default function AccountOrdersPage() {
                 </div>
               </div>
 
+              {/* Mini Tracking */}
+              {order.status !== "CANCELLED" && order.status !== "RETURNED" && (
+                <div className="mt-4 flex items-center gap-1">
+                  {trackingSteps.map((step, i) => {
+                    const currentIdx = getTrackingIndex(order.status);
+                    const isCompleted = i <= currentIdx;
+                    const isCurrent = i === currentIdx;
+                    return (
+                      <div key={step.key} className="flex flex-1 items-center">
+                        <div className="flex flex-col items-center">
+                          <div
+                            className={cn(
+                              "flex h-7 w-7 items-center justify-center rounded-full text-[10px] font-semibold",
+                              isCompleted
+                                ? "bg-zinc-900 text-white"
+                                : isCurrent
+                                  ? "bg-zinc-900 text-white ring-2 ring-zinc-200"
+                                  : "bg-zinc-200 text-zinc-500"
+                            )}
+                          >
+                            <step.icon className="h-3.5 w-3.5" />
+                          </div>
+                          <span className="mt-1 text-[9px] text-zinc-500 hidden sm:block">
+                            {step.label}
+                          </span>
+                        </div>
+                        {i < trackingSteps.length - 1 && (
+                          <div
+                            className={cn(
+                              "mx-1 h-0.5 flex-1",
+                              i < currentIdx ? "bg-zinc-900" : "bg-zinc-200"
+                            )}
+                          />
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              {order.status === "CANCELLED" && (
+                <div className="mt-3 rounded-lg bg-red-50 p-2 text-center text-xs font-medium text-red-600">
+                  This order has been cancelled
+                </div>
+              )}
+              {order.status === "RETURNED" && (
+                <div className="mt-3 rounded-lg bg-orange-50 p-2 text-center text-xs font-medium text-orange-600">
+                  Return request submitted — our team will contact you
+                </div>
+              )}
+
+              {/* Items Preview */}
               <div className="mt-3 flex items-center gap-2">
+                <div className="flex -space-x-2">
+                  {order.items.slice(0, 3).map((item, i) => (
+                    <div key={i} className="relative h-10 w-10 overflow-hidden rounded-lg border-2 border-white bg-zinc-100">
+                      {item.image ? (
+                        <Image src={item.image} alt={item.name} fill className="object-cover" sizes="40px" />
+                      ) : (
+                        <div className="flex h-full items-center justify-center text-[8px] text-zinc-400">N/A</div>
+                      )}
+                    </div>
+                  ))}
+                </div>
                 <span className="text-xs text-zinc-500">
                   {order.items.length} item(s) &middot; {order.paymentMethod.toUpperCase()}
                 </span>
@@ -136,7 +280,7 @@ export default function AccountOrdersPage() {
                   className="ml-auto"
                 >
                   <Eye className="mr-1 h-3.5 w-3.5" />
-                  View Details
+                  View
                 </Button>
               </div>
             </div>
@@ -144,69 +288,138 @@ export default function AccountOrdersPage() {
         </div>
       )}
 
+      {/* Order Detail Modal */}
       {selectedOrder && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
           onClick={() => setSelectedOrder(null)}
         >
           <div
-            className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-2xl bg-white p-6 shadow-xl"
+            className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-2xl bg-white p-6 shadow-xl"
             onClick={(e) => e.stopPropagation()}
           >
+            {/* Header */}
             <div className="flex items-center justify-between">
-              <h2 className="text-lg font-bold text-zinc-900">{selectedOrder.orderNumber}</h2>
-              <button onClick={() => setSelectedOrder(null)} className="text-zinc-400 hover:text-zinc-600">
+              <div>
+                <h2 className="text-lg font-bold text-zinc-900">{selectedOrder.orderNumber}</h2>
+                <p className="text-xs text-zinc-500">
+                  Placed on {new Date(selectedOrder.createdAt).toLocaleString("en-IN")}
+                </p>
+              </div>
+              <button onClick={() => setSelectedOrder(null)} className="text-zinc-400 hover:text-zinc-600 text-xl">
                 &times;
               </button>
             </div>
 
-            <div className="mt-4 space-y-2 text-sm">
-              <div className="flex justify-between">
-                <span className="text-zinc-500">Status</span>
-                <Badge className={cn(statusStyles[selectedOrder.status])}>
-                  {statusLabels[selectedOrder.status]}
-                </Badge>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-zinc-500">Payment</span>
-                <span>{selectedOrder.paymentMethod.toUpperCase()} &middot; {selectedOrder.paymentStatus}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-zinc-500">Date</span>
-                <span>{new Date(selectedOrder.createdAt).toLocaleString("en-IN")}</span>
-              </div>
+            {/* Status */}
+            <div className="mt-4 flex items-center gap-3">
+              <Badge className={cn(statusStyles[selectedOrder.status])}>
+                {statusLabels[selectedOrder.status]}
+              </Badge>
+              <span className="text-sm text-zinc-500">
+                Payment: {selectedOrder.paymentMethod.toUpperCase()} ({selectedOrder.paymentStatus})
+              </span>
             </div>
 
-            <div className="mt-4 border-t pt-4">
-              <h3 className="font-medium text-zinc-700">Items</h3>
-              <div className="mt-2 space-y-2">
+            {/* Tracking */}
+            {selectedOrder.status !== "CANCELLED" && selectedOrder.status !== "RETURNED" && (
+              <div className="mt-5 rounded-xl bg-zinc-50 p-4">
+                <h3 className="mb-3 text-sm font-semibold text-zinc-900">Order Tracking</h3>
+                <div className="flex items-center gap-1">
+                  {trackingSteps.map((step, i) => {
+                    const currentIdx = getTrackingIndex(selectedOrder.status);
+                    const isCompleted = i <= currentIdx;
+                    return (
+                      <div key={step.key} className="flex flex-1 items-center">
+                        <div className="flex flex-col items-center">
+                          <div
+                            className={cn(
+                              "flex h-8 w-8 items-center justify-center rounded-full",
+                              isCompleted ? "bg-zinc-900 text-white" : "bg-zinc-200 text-zinc-400"
+                            )}
+                          >
+                            <step.icon className="h-4 w-4" />
+                          </div>
+                          <span className="mt-1 text-[10px] text-zinc-500">{step.label}</span>
+                        </div>
+                        {i < trackingSteps.length - 1 && (
+                          <div className={cn("mx-1 h-0.5 flex-1", i < currentIdx ? "bg-zinc-900" : "bg-zinc-200")} />
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* Items */}
+            <div className="mt-5">
+              <h3 className="text-sm font-semibold text-zinc-900">Items</h3>
+              <div className="mt-3 space-y-3">
                 {selectedOrder.items.map((item, i) => (
-                  <div key={i} className="flex justify-between text-sm">
-                    <span>
-                      {item.name} (Size: {item.size}) &times; {item.quantity}
+                  <div key={i} className="flex items-center gap-3 rounded-lg border border-zinc-100 p-3">
+                    <div className="relative h-16 w-16 flex-shrink-0 overflow-hidden rounded-lg bg-zinc-100">
+                      {item.image ? (
+                        <Image src={item.image} alt={item.name} fill className="object-cover" sizes="64px" />
+                      ) : (
+                        <div className="flex h-full items-center justify-center text-[10px] text-zinc-400">No Image</div>
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-zinc-900 line-clamp-1">{item.name}</p>
+                      <p className="text-xs text-zinc-500">Size: {item.size} &middot; Qty: {item.quantity}</p>
+                      <p className="text-xs text-zinc-500">{formatPrice(item.price)} each</p>
+                    </div>
+                    <span className="text-sm font-semibold text-zinc-900">
+                      {formatPrice(item.price * item.quantity)}
                     </span>
-                    <span className="font-medium">{formatPrice(item.price * item.quantity)}</span>
                   </div>
                 ))}
               </div>
-              <div className="mt-3 space-y-1 border-t pt-3 text-sm">
-                <div className="flex justify-between">
-                  <span className="text-zinc-500">Subtotal</span>
-                  <span>{formatPrice(selectedOrder.subtotal)}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-zinc-500">Shipping</span>
-                  <span>{selectedOrder.shippingCost === 0 ? "Free" : formatPrice(selectedOrder.shippingCost)}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-zinc-500">Tax</span>
-                  <span>{formatPrice(selectedOrder.tax)}</span>
-                </div>
-                <div className="flex justify-between border-t pt-1 font-semibold">
-                  <span>Total</span>
-                  <span>{formatPrice(selectedOrder.total)}</span>
-                </div>
-              </div>
+            </div>
+
+            {/* Address */}
+            <div className="mt-4 rounded-xl bg-zinc-50 p-4 text-sm">
+              <h3 className="font-semibold text-zinc-900">Delivery Address</h3>
+              <p className="mt-1 text-zinc-600">{selectedOrder.address?.line1}</p>
+              <p className="text-zinc-600">
+                {selectedOrder.address?.city}, {selectedOrder.address?.state} - {selectedOrder.address?.pincode}
+              </p>
+            </div>
+
+            {/* Price Summary */}
+            <div className="mt-4 space-y-1 text-sm">
+              <div className="flex justify-between"><span className="text-zinc-500">Subtotal</span><span>{formatPrice(selectedOrder.subtotal)}</span></div>
+              <div className="flex justify-between"><span className="text-zinc-500">Shipping</span><span>{selectedOrder.shippingCost === 0 ? "Free" : formatPrice(selectedOrder.shippingCost)}</span></div>
+              <div className="flex justify-between"><span className="text-zinc-500">Tax</span><span>{formatPrice(selectedOrder.tax)}</span></div>
+              <div className="flex justify-between border-t pt-2 font-semibold"><span>Total</span><span>{formatPrice(selectedOrder.total)}</span></div>
+            </div>
+
+            {/* Actions */}
+            <div className="mt-5 flex flex-wrap gap-2 border-t pt-4">
+              {cancelableStatuses.includes(selectedOrder.status) && (
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  disabled={actionLoading === selectedOrder._id}
+                  onClick={() => handleCancelOrder(selectedOrder._id)}
+                >
+                  <XCircle className="mr-1 h-4 w-4" />
+                  {actionLoading === selectedOrder._id ? "Cancelling..." : "Cancel Order"}
+                </Button>
+              )}
+              {returnableStatuses.includes(selectedOrder.status) && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="border-orange-300 text-orange-600 hover:bg-orange-50"
+                  disabled={actionLoading === selectedOrder._id}
+                  onClick={() => handleReturnOrder(selectedOrder._id)}
+                >
+                  <RotateCcw className="mr-1 h-4 w-4" />
+                  {actionLoading === selectedOrder._id ? "Processing..." : "Request Return"}
+                </Button>
+              )}
             </div>
           </div>
         </div>
