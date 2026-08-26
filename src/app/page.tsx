@@ -100,9 +100,9 @@ const categories = [
   { name: "Men's Shirts", href: "/men/shirts", gender: "Men", image: "https://images.unsplash.com/photo-1602810318383-e386cc2a3ccf?w=600&h=600&fit=crop&auto=format" },
   { name: "Men's T-Shirts", href: "/men/t-shirts", gender: "Men", image: "https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?w=600&h=600&fit=crop&auto=format" },
   { name: "Men's Pants", href: "/men/pants", gender: "Men", image: "https://images.unsplash.com/photo-1624378439575-d8705ad7ae80?w=600&h=600&fit=crop&auto=format" },
-  { name: "Boys' Shirts", href: "/boys/shirts", gender: "Boys", image: "https://images.unsplash.com/photo-1503944583220-79d8926ad5e2?w=600&h=600&fit=crop&auto=format" },
-  { name: "Boys' T-Shirts", href: "/boys/t-shirts", gender: "Boys", image: "https://images.unsplash.com/photo-1519238263530-99bdd11df2ea?w=600&h=600&fit=crop&auto=format" },
-  { name: "Boys' Pants", href: "/boys/pants", gender: "Boys", image: "https://images.unsplash.com/photo-1519238263530-99bdd11df2ea?w=600&h=600&fit=crop&auto=format" },
+  { name: "Boys' Shirts", href: "/boys/shirts", gender: "Boys", image: "https://share.google/lJ9WjxtdyvOJlQQwy?w=600&h=600&fit=crop&auto=format" },
+  { name: "Boys' T-Shirts", href: "/boys/t-shirts", gender: "Boys", image: "https://share.google/9zKeiqa3ob9zqsUl6?w=600&h=600&fit=crop&auto=format" },
+  { name: "Boys' Pants", href: "/boys/pants", gender: "Boys", image: "https://share.google/CoD8CmN4HNZPQI2ii?w=600&h=600&fit=crop&auto=format" },
 ];
 
 const trustItems = [
