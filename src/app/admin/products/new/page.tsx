@@ -3,12 +3,32 @@
 import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Save, Upload, X, ImagePlus } from "lucide-react";
+import { Save, X, ImagePlus, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { adminFetch } from "@/lib/admin-api";
+import PremiumSelect from "@/components/ui/premium-select";
 
 type Category = { _id: string; name: string; slug: string; gender: string; type: string };
+
+interface SizeInput {
+  name: string;
+  quantity: number;
+}
+
+interface VariantInput {
+  name: string;
+  color: string;
+  sizes: SizeInput[];
+}
+
+const defaultSizes: SizeInput[] = [
+  { name: "S", quantity: 0 },
+  { name: "M", quantity: 0 },
+  { name: "L", quantity: 0 },
+  { name: "XL", quantity: 0 },
+  { name: "XXL", quantity: 0 },
+];
 
 export default function NewProductPage() {
   const router = useRouter();
@@ -18,6 +38,9 @@ export default function NewProductPage() {
   const [error, setError] = useState<string | null>(null);
   const [imageFiles, setImageFiles] = useState<File[]>([]);
   const [imagePreviews, setImagePreviews] = useState<string[]>([]);
+  const [variants, setVariants] = useState<VariantInput[]>([
+    { name: "Default", color: "", sizes: [...defaultSizes] },
+  ]);
   const [formData, setFormData] = useState({
     name: "",
     description: "",
@@ -62,11 +85,31 @@ export default function NewProductPage() {
     setImagePreviews((prev) => prev.filter((_, i) => i !== index));
   }
 
+  function updateVariant(index: number, field: keyof VariantInput, value: string) {
+    setVariants((prev) => prev.map((v, i) => i === index ? { ...v, [field]: value } : v));
+  }
+
+  function updateVariantSize(variantIdx: number, sizeIdx: number, field: keyof SizeInput, value: string | number) {
+    setVariants((prev) => prev.map((v, i) => {
+      if (i !== variantIdx) return v;
+      return { ...v, sizes: v.sizes.map((s, j) => j === sizeIdx ? { ...s, [field]: value } : s) };
+    }));
+  }
+
+  function addVariant() {
+    setVariants((prev) => [...prev, { name: `Variant ${prev.length + 1}`, color: "", sizes: [...defaultSizes] }]);
+  }
+
+  function removeVariant(index: number) {
+    setVariants((prev) => prev.filter((_, i) => i !== index));
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
     setError(null);
     try {
+      const imageUrls = imagePreviews.map((url, i) => ({ url, alt: formData.name, position: i }));
       const body = {
         name: formData.name,
         description: formData.description || undefined,
@@ -76,6 +119,13 @@ export default function NewProductPage() {
         categoryId: formData.categoryId,
         isFeatured: formData.isFeatured,
         isActive: formData.isActive,
+        images: imageUrls,
+        variants: variants.filter((v) => v.name).map((v) => ({
+          name: v.name,
+          color: v.color,
+          colorCode: "",
+          sizes: v.sizes.filter((s) => s.quantity > 0 || s.name),
+        })),
       };
       const res = await adminFetch("/api/admin/products", {
         method: "POST",
@@ -92,6 +142,8 @@ export default function NewProductPage() {
       setLoading(false);
     }
   }
+
+  const totalStock = variants.reduce((sum, v) => sum + v.sizes.reduce((s, sz) => s + sz.quantity, 0), 0);
 
   return (
     <>
@@ -119,7 +171,7 @@ export default function NewProductPage() {
               onChange={handleChange}
               placeholder="Enter product description"
               rows={4}
-              className="flex w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="flex w-full rounded-lg border border-zinc-200 bg-white px-3 py-2.5 text-sm placeholder:text-zinc-400 outline-none transition-colors focus:border-zinc-900 focus:ring-1 focus:ring-zinc-900"
             />
           </div>
 
@@ -142,41 +194,79 @@ export default function NewProductPage() {
             </div>
             <div>
               <label className="mb-1 block text-sm font-medium text-gray-700">Category</label>
-              <select
-                name="categoryId"
+              <PremiumSelect
                 value={formData.categoryId}
-                onChange={handleChange}
-                className="flex h-10 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                required
-              >
-                <option value="">Select category</option>
-                {categories.map((cat) => (
-                  <option key={cat._id} value={cat._id}>{cat.name} ({cat.gender})</option>
-                ))}
-              </select>
+                onValueChange={(val) => setFormData((prev) => ({ ...prev, categoryId: val }))}
+                options={categories.map((cat) => ({ label: `${cat.name} (${cat.gender})`, value: cat._id }))}
+                placeholder="Select category"
+              />
             </div>
           </div>
 
+          {/* Variants & Sizes */}
+          <div>
+            <div className="mb-3 flex items-center justify-between">
+              <label className="text-sm font-medium text-gray-700">Variants & Stock</label>
+              <Button type="button" variant="outline" size="sm" onClick={addVariant}>
+                <Plus className="mr-1 h-3 w-3" /> Add Variant
+              </Button>
+            </div>
+
+            <div className="space-y-4">
+              {variants.map((variant, vi) => (
+                <div key={vi} className="rounded-lg border border-zinc-200 p-4">
+                  <div className="mb-3 flex items-center gap-3">
+                    <Input
+                      value={variant.name}
+                      onChange={(e) => updateVariant(vi, "name", e.target.value)}
+                      placeholder="Variant name"
+                      className="flex-1"
+                    />
+                    <Input
+                      value={variant.color}
+                      onChange={(e) => updateVariant(vi, "color", e.target.value)}
+                      placeholder="Color"
+                      className="w-32"
+                    />
+                    {variants.length > 1 && (
+                      <Button type="button" variant="ghost" size="sm" onClick={() => removeVariant(vi)} className="text-red-500 hover:text-red-600">
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    )}
+                  </div>
+
+                  <div className="grid grid-cols-5 gap-2">
+                    {variant.sizes.map((size, si) => (
+                      <div key={si}>
+                        <label className="mb-1 block text-xs text-gray-500">{size.name}</label>
+                        <Input
+                          type="number"
+                          min="0"
+                          value={size.quantity || ""}
+                          onChange={(e) => updateVariantSize(vi, si, "quantity", Number(e.target.value))}
+                          placeholder="0"
+                          className="h-9 text-center"
+                        />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <p className="mt-2 text-xs text-gray-400">Total stock: {totalStock} units across all sizes</p>
+          </div>
+
+          {/* Images */}
           <div>
             <label className="mb-2 block text-sm font-medium text-gray-700">Product Images</label>
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/*"
-              multiple
-              onChange={handleImageChange}
-              className="hidden"
-            />
+            <input ref={fileInputRef} type="file" accept="image/*" multiple onChange={handleImageChange} className="hidden" />
             {imagePreviews.length > 0 && (
               <div className="mb-3 flex flex-wrap gap-3">
                 {imagePreviews.map((src, i) => (
                   <div key={i} className="group relative h-24 w-24 overflow-hidden rounded-lg border bg-gray-50">
                     <img src={src} alt={`Preview ${i + 1}`} className="h-full w-full object-cover" />
-                    <button
-                      type="button"
-                      onClick={() => removeImage(i)}
-                      className="absolute right-1 top-1 flex h-5 w-5 items-center justify-center rounded-full bg-black/60 text-white opacity-0 transition-opacity group-hover:opacity-100"
-                    >
+                    <button type="button" onClick={() => removeImage(i)} className="absolute right-1 top-1 flex h-5 w-5 items-center justify-center rounded-full bg-black/60 text-white opacity-0 transition-opacity group-hover:opacity-100">
                       <X className="h-3 w-3" />
                     </button>
                   </div>
@@ -187,7 +277,7 @@ export default function NewProductPage() {
               <ImagePlus className="mr-2 h-4 w-4" />
               {imagePreviews.length > 0 ? "Add More Images" : "Upload Images"}
             </Button>
-            <p className="mt-1 text-xs text-gray-400">Upload product photos (JPEG, PNG, WebP)</p>
+            <p className="mt-1 text-xs text-gray-400">Images are stored as data URLs. Max 2MB per image.</p>
           </div>
 
           <div className="flex items-center gap-6">

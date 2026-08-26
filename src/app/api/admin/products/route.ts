@@ -135,7 +135,7 @@ export async function POST(request: NextRequest) {
     await connectMongoDB();
     const body = await request.json();
 
-    const { name, description, basePrice, salePrice, sku, categoryId, isFeatured, isActive } = body;
+    const { name, description, basePrice, salePrice, sku, categoryId, isFeatured, isActive, images, variants } = body;
 
     if (!name || !basePrice || !sku || !categoryId) {
       return NextResponse.json(
@@ -149,15 +149,37 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: `Category not found for ID: ${categoryId}` }, { status: 404 });
     }
 
-    const slug = name
+    let slug = name
       .toLowerCase()
       .replace(/[^a-z0-9]+/g, "-")
       .replace(/(^-|-$)/g, "");
+
+    const existingSlug = await Product.findOne({ slug });
+    if (existingSlug) {
+      slug = `${slug}-${Date.now()}`;
+    }
 
     const existingSku = await Product.findOne({ sku: sku.toUpperCase() });
     if (existingSku) {
       return NextResponse.json({ error: `SKU "${sku.toUpperCase()}" already exists` }, { status: 400 });
     }
+
+    const productImages = Array.isArray(images)
+      ? images.map((img: { url: string; alt?: string; position?: number }, i: number) => ({
+          url: img.url,
+          alt: img.alt || name,
+          position: img.position ?? i,
+        }))
+      : [];
+
+    const productVariants = Array.isArray(variants)
+      ? variants.map((v: { name: string; color?: string; colorCode?: string; sizes?: { name: string; quantity: number }[] }) => ({
+          name: v.name || "Default",
+          color: v.color || "",
+          colorCode: v.colorCode || "",
+          sizes: Array.isArray(v.sizes) ? v.sizes.map((s) => ({ name: s.name, quantity: s.quantity || 0 })) : [],
+        }))
+      : [];
 
     const product = await Product.create({
       name,
@@ -169,8 +191,8 @@ export async function POST(request: NextRequest) {
       categoryId,
       isFeatured: isFeatured || false,
       isActive: isActive !== false,
-      images: [],
-      variants: [],
+      images: productImages,
+      variants: productVariants,
     });
 
     return NextResponse.json({ product }, { status: 201 });
@@ -214,6 +236,23 @@ export async function PUT(request: NextRequest) {
       if (existingSku) {
         return NextResponse.json({ error: `SKU "${data.sku}" already exists` }, { status: 400 });
       }
+    }
+
+    if (data.images && Array.isArray(data.images)) {
+      data.images = data.images.map((img: { url: string; alt?: string; position?: number }, i: number) => ({
+        url: img.url,
+        alt: img.alt || "",
+        position: img.position ?? i,
+      }));
+    }
+
+    if (data.variants && Array.isArray(data.variants)) {
+      data.variants = data.variants.map((v: { name: string; color?: string; colorCode?: string; sizes?: { name: string; quantity: number }[] }) => ({
+        name: v.name || "Default",
+        color: v.color || "",
+        colorCode: v.colorCode || "",
+        sizes: Array.isArray(v.sizes) ? v.sizes.map((s) => ({ name: s.name, quantity: s.quantity || 0 })) : [],
+      }));
     }
 
     const product = await Product.findByIdAndUpdate(id, data, { new: true })

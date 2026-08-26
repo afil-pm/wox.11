@@ -6,6 +6,7 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { ProductCard, type Product } from "@/components/product/product-card";
 import WoxLoader from "@/components/ui/wox-loader";
+import PremiumSelect from "@/components/ui/premium-select";
 
 const categories = ["All", "Shirts", "T-Shirts", "Pants"];
 const sizes = ["4-5Y", "6-7Y", "8-9Y", "10-11Y", "12-13Y", "14-15Y"];
@@ -188,16 +189,22 @@ export default function BoysPage() {
           <div className="hidden lg:block">
             <div className="flex items-center gap-2">
               <span className="text-sm text-zinc-500">Sort by:</span>
-              <select value={sortBy} onChange={(e) => { setSortBy(e.target.value); setCurrentPage(1); }} className="rounded-md border border-zinc-200 bg-white px-3 py-1.5 text-sm text-zinc-900 focus:border-zinc-900 focus:outline-none focus:ring-1 focus:ring-zinc-900">
-                {sortOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
-              </select>
+              <PremiumSelect
+                value={sortBy}
+                onValueChange={(val) => { setSortBy(val); setCurrentPage(1); }}
+                options={sortOptions.map((o) => ({ label: o.label, value: o.value }))}
+                className="w-48"
+              />
             </div>
           </div>
 
           <div className="lg:hidden">
-            <select value={sortBy} onChange={(e) => { setSortBy(e.target.value); setCurrentPage(1); }} className="rounded-md border border-zinc-200 bg-white px-3 py-1.5 text-sm text-zinc-900 focus:border-zinc-900 focus:outline-none focus:ring-1 focus:ring-zinc-900">
-              {sortOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
-            </select>
+            <PremiumSelect
+              value={sortBy}
+              onValueChange={(val) => { setSortBy(val); setCurrentPage(1); }}
+              options={sortOptions.map((o) => ({ label: o.label, value: o.value }))}
+              className="w-48"
+            />
           </div>
         </div>
 

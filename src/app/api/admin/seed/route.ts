@@ -8,6 +8,12 @@ export async function POST() {
     const { default: Category } = await import("@/lib/models/category");
     await connectMongoDB();
 
+    try {
+      await Category.collection.dropIndex("slug_1");
+    } catch {
+      // Index may not exist
+    }
+
     const categoryMap: Record<string, string> = {};
 
     const categoriesToCreate = [
