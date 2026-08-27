@@ -396,6 +396,7 @@ export default function NewArrivalsPage() {
                   setCurrentPage(1);
                 }}
                 options={sortOptions}
+                className="w-48"
               />
             </div>
           </div>
@@ -408,6 +409,7 @@ export default function NewArrivalsPage() {
                 setCurrentPage(1);
               }}
               options={sortOptions}
+              className="w-48"
             />
           </div>
         </div>

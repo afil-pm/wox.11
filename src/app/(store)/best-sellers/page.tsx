@@ -400,6 +400,7 @@ export default function BestSellersPage() {
                   setCurrentPage(1);
                 }}
                 options={sortOptions}
+                className="w-48"
               />
             </div>
           </div>
@@ -412,6 +413,7 @@ export default function BestSellersPage() {
                 setCurrentPage(1);
               }}
               options={sortOptions}
+              className="w-48"
             />
           </div>
         </div>
