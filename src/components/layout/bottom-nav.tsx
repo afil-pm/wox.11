@@ -52,12 +52,14 @@ export default function BottomNav() {
                 isActive ? "text-zinc-900" : "text-zinc-400"
               )}
             >
-              <Icon
-                className="h-5 w-5"
-                strokeWidth={isActive ? 2.2 : 1.5}
-              />
+              <span className="relative">
+                <Icon
+                  className="h-5 w-5"
+                  strokeWidth={isActive ? 2.2 : 1.5}
+                />
+                {item.label === "Cart" && <CartBadge />}
+              </span>
               <span className="text-[10px] font-medium">{item.label}</span>
-              {item.label === "Cart" && <CartBadge />}
             </Link>
           );
         })}

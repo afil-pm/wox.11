@@ -10,11 +10,11 @@ export default function WoxLoader({ className }: { className?: string }) {
         className
       )}
     >
-      {/* Animated WOX.11 text with stroke */}
-      <div className="relative">
+      {/* Animated WOX.11 text */}
+      <div className="relative flex items-center justify-center">
         <svg
           viewBox="0 0 280 60"
-          className="h-16 w-70 sm:h-20 sm:w-80"
+          className="h-16 w-[200px] sm:h-20 sm:w-[240px]"
           xmlns="http://www.w3.org/2000/svg"
         >
           <defs>
@@ -38,8 +38,10 @@ export default function WoxLoader({ className }: { className?: string }) {
             </linearGradient>
           </defs>
           <text
-            x="10"
-            y="45"
+            x="50%"
+            y="50%"
+            dominantBaseline="central"
+            textAnchor="middle"
             fontFamily="system-ui, -apple-system, sans-serif"
             fontSize="48"
             fontWeight="900"
@@ -47,7 +49,6 @@ export default function WoxLoader({ className }: { className?: string }) {
             fill="none"
             stroke="url(#wox-gradient)"
             strokeWidth="1.5"
-            className="animate-[stroke-dash_2s_ease-in-out_infinite]"
             style={{
               strokeDasharray: "800",
               strokeDashoffset: "800",
@@ -57,14 +58,15 @@ export default function WoxLoader({ className }: { className?: string }) {
             WOX.11
           </text>
           <text
-            x="10"
-            y="45"
+            x="50%"
+            y="50%"
+            dominantBaseline="central"
+            textAnchor="middle"
             fontFamily="system-ui, -apple-system, sans-serif"
             fontSize="48"
             fontWeight="900"
             letterSpacing="-2"
             fill="url(#wox-gradient)"
-            className="animate-[fill-in_1.5s_ease-in-out_infinite]"
             style={{
               strokeDasharray: "800",
               strokeDashoffset: "800",

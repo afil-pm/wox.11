@@ -407,13 +407,13 @@ export default function ProductDetailPage({ params }: { params: Promise<{ catego
             {/* Delivery Check */}
             <div className="mt-5 rounded-lg border border-zinc-200 p-4">
               <p className="mb-2 text-sm font-medium text-zinc-900">DELIVERY OPTIONS</p>
-              <div className="flex gap-2">
-                <div className="flex flex-1 items-center gap-2 rounded-md border border-zinc-200 px-3 py-2">
-                  <MapPin className="h-4 w-4 text-zinc-400" />
-                  <input value={pincode} onChange={(e) => setPincode(e.target.value)} placeholder="Enter Pincode"
-                    className="flex-1 bg-transparent text-sm outline-none placeholder:text-zinc-400" />
+              <div className="flex items-center gap-2">
+                <div className="flex min-w-0 flex-1 items-center gap-2 rounded-md border border-zinc-200 px-3 py-2">
+                  <MapPin className="h-4 w-4 shrink-0 text-zinc-400" />
+                  <input value={pincode} onChange={(e) => setPincode(e.target.value.replace(/\D/g, "").slice(0, 6))} placeholder="Enter Pincode"
+                    className="min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-zinc-400" />
                 </div>
-                <Button variant="outline" size="sm" className="px-4">Check</Button>
+                <Button variant="outline" size="sm" className="shrink-0 px-4">Check</Button>
               </div>
               {pincode.length === 6 && (
                 <div className="mt-3 space-y-2 text-sm">
