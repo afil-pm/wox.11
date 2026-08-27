@@ -126,15 +126,17 @@ export default function Home() {
           <div className="mt-8 flex flex-col items-center justify-center gap-4 sm:flex-row">
             <Link
               href="/men"
-              className="inline-flex h-12 items-center justify-center rounded-none bg-white px-8 text-sm font-semibold uppercase tracking-wider text-zinc-900 transition-colors hover:bg-zinc-200"
+              className="group inline-flex h-13 w-44 items-center justify-center gap-2 rounded-full bg-white px-8 text-sm font-semibold uppercase tracking-wider text-zinc-900 transition-all hover:scale-105 hover:shadow-lg"
             >
               Shop Men
+              <span className="transition-transform group-hover:translate-x-0.5">&rarr;</span>
             </Link>
             <Link
               href="/boys"
-              className="inline-flex h-12 items-center justify-center rounded-none border border-white px-8 text-sm font-semibold uppercase tracking-wider text-white transition-colors hover:bg-white hover:text-zinc-900"
+              className="group inline-flex h-13 w-44 items-center justify-center gap-2 rounded-full border-2 border-white px-8 text-sm font-semibold uppercase tracking-wider text-white transition-all hover:scale-105 hover:bg-white hover:text-zinc-900 hover:shadow-lg"
             >
               Shop Boys
+              <span className="transition-transform group-hover:translate-x-0.5">&rarr;</span>
             </Link>
           </div>
         </div>
