@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import { products as staticProducts } from "@/lib/data/products";
 
 function isAdmin(req: NextRequest): boolean {
   const adminHeader = req.headers.get("x-admin-email");
@@ -9,8 +8,13 @@ function isAdmin(req: NextRequest): boolean {
   return adminHeader.toLowerCase() === adminEmail.toLowerCase();
 }
 
-async function getMongoProducts(search: string, limit: number, skip: number) {
+export async function GET(request: NextRequest) {
   try {
+    const { searchParams } = new URL(request.url);
+    const search = searchParams.get("search") || "";
+    const limit = parseInt(searchParams.get("limit") || "200", 10);
+    const skip = parseInt(searchParams.get("skip") || "0", 10);
+
     const { connectMongoDB } = await import("@/lib/mongodb");
     const { default: Product } = await import("@/lib/models/product");
     await connectMongoDB();
@@ -23,15 +27,15 @@ async function getMongoProducts(search: string, limit: number, skip: number) {
       ];
     }
 
-    const mongoProducts = await Product.find(filter)
+    const products = await Product.find(filter)
       .populate("categoryId", "name slug gender type")
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit)
       .lean();
 
-    return mongoProducts.map((p) => {
-      const obj = p as unknown as { _id: string; name: string; slug: string; description: string; basePrice: number; salePrice: number; sku: string; categoryId: unknown; images: unknown; variants: unknown; isFeatured: boolean; isActive: boolean; createdAt: unknown };
+    const formatted = products.map((p) => {
+      const obj = p as unknown as { _id: string; name: string; slug: string; description: string; basePrice: number; salePrice: number; sku: string; categoryId: unknown; images: unknown; variants: unknown; isFeatured: boolean; isActive: boolean; averageRating: number; reviewCount: number; createdAt: unknown };
       const cat = obj.categoryId as unknown as { _id: string; name: string; slug: string; gender: string; type: string } | null;
       return {
         id: String(obj._id),
@@ -47,79 +51,16 @@ async function getMongoProducts(search: string, limit: number, skip: number) {
         variants: (obj.variants ?? []) as { name: string; color: string; colorCode: string; sizes: { name: string; quantity: number }[] }[],
         isFeatured: obj.isFeatured ?? false,
         isActive: obj.isActive ?? true,
-        averageRating: 0,
-        reviewCount: 0,
-        source: "mongo" as const,
+        averageRating: obj.averageRating ?? 0,
+        reviewCount: obj.reviewCount ?? 0,
         createdAt: String(obj.createdAt ?? new Date().toISOString()),
       };
     });
-  } catch (error) {
-    console.error("Failed to fetch MongoDB products:", error);
-    return [];
-  }
-}
 
-function normalizeStaticProduct(p: (typeof staticProducts)[number]) {
-  const gender = p.category.gender;
-  const catSlug = p.category.name.toLowerCase().replace(/\s+/g, "-");
-  return {
-    id: p.id,
-    name: p.name,
-    slug: p.slug,
-    description: "",
-    basePrice: p.basePrice,
-    salePrice: p.salePrice ?? 0,
-    sku: `STATIC-${p.id.toUpperCase()}`,
-    category: { name: p.category.name, slug: catSlug, gender, type: catSlug },
-    categoryId: null,
-    images: p.images.map((img) => ({ url: img.url, alt: img.alt, position: 0 })),
-    variants: [
-      {
-        name: "Default",
-        color: p.category.name.toLowerCase(),
-        colorCode: null,
-        sizes: [
-          { name: "S", quantity: 10 },
-          { name: "M", quantity: 15 },
-          { name: "L", quantity: 12 },
-          { name: "XL", quantity: 8 },
-          { name: "XXL", quantity: 5 },
-        ],
-      },
-    ],
-    isFeatured: false,
-    isActive: true,
-    averageRating: p.averageRating,
-    reviewCount: p.reviewCount,
-    source: "static" as const,
-    createdAt: new Date().toISOString(),
-  };
-}
-
-export async function GET(request: NextRequest) {
-  try {
-    const { searchParams } = new URL(request.url);
-    const search = searchParams.get("search") || "";
-    const limit = parseInt(searchParams.get("limit") || "200", 10);
-    const skip = parseInt(searchParams.get("skip") || "0", 10);
-
-    const allStatic = staticProducts.map(normalizeStaticProduct);
-    const allMongo = await getMongoProducts(search, limit, skip);
-
-    let products = [...allStatic, ...allMongo];
-
-    if (search) {
-      const q = search.toLowerCase();
-      products = products.filter(
-        (p) => p.name.toLowerCase().includes(q) || p.sku.toLowerCase().includes(q)
-      );
-    }
-
-    return NextResponse.json({ products, total: products.length });
+    return NextResponse.json({ products: formatted, total: formatted.length });
   } catch (error) {
     console.error("GET /api/admin/products error:", error);
-    const allStatic = staticProducts.map(normalizeStaticProduct);
-    return NextResponse.json({ products: allStatic, total: allStatic.length });
+    return NextResponse.json({ products: [], total: 0 });
   }
 }
 
@@ -221,7 +162,7 @@ export async function PUT(request: NextRequest) {
 
     const existingProduct = await Product.findById(id);
     if (!existingProduct) {
-      return NextResponse.json({ error: "Product not found in database. Static products cannot be edited — create a new product instead." }, { status: 404 });
+      return NextResponse.json({ error: "Product not found" }, { status: 404 });
     }
 
     if (data.name && data.name !== existingProduct.name) {
@@ -284,7 +225,7 @@ export async function DELETE(request: NextRequest) {
 
     const product = await Product.findById(id);
     if (!product) {
-      return NextResponse.json({ error: "Cannot delete static product. Only MongoDB products can be deleted." }, { status: 400 });
+      return NextResponse.json({ error: "Product not found" }, { status: 404 });
     }
 
     await Product.findByIdAndDelete(id);

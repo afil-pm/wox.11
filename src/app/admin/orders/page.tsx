@@ -4,8 +4,9 @@ import { useEffect, useState, useCallback } from "react";
 import Image from "next/image";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { cn, formatPrice } from "@/lib/utils";
-import { RefreshCw, Eye } from "lucide-react";
+import { RefreshCw, Eye, Trash2, Lock } from "lucide-react";
 import WoxLoader from "@/components/ui/wox-loader";
 
 interface OrderItem {
@@ -14,6 +15,7 @@ interface OrderItem {
   quantity: number;
   size: string;
   image: string;
+  slug: string;
 }
 
 interface Order {
@@ -21,6 +23,7 @@ interface Order {
   orderNumber: string;
   customerName: string;
   customerPhone: string;
+  customerEmail: string;
   address: {
     name: string;
     phone: string;
@@ -54,6 +57,7 @@ const statusStyles: Record<string, string> = {
 };
 
 const paymentStyles: Record<string, string> = {
+  PAID: "text-green-600",
   COMPLETED: "text-green-600",
   PENDING: "text-yellow-600",
   FAILED: "text-red-600",
@@ -90,6 +94,10 @@ export default function AdminOrdersPage() {
   const [filter, setFilter] = useState("ALL");
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
+  const [showClearModal, setShowClearModal] = useState(false);
+  const [clearPassword, setClearPassword] = useState("");
+  const [clearLoading, setClearLoading] = useState(false);
+  const [clearError, setClearError] = useState("");
 
   const fetchOrders = useCallback(async () => {
     try {
@@ -132,25 +140,61 @@ export default function AdminOrdersPage() {
     }
   }
 
+  async function handleClearOrders() {
+    setClearLoading(true);
+    setClearError("");
+    try {
+      const res = await fetch("/api/mongo/orders/clear", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ password: clearPassword }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setClearError(data.error || "Failed to clear orders");
+        return;
+      }
+      setShowClearModal(false);
+      setClearPassword("");
+      setOrders([]);
+      setSelectedOrder(null);
+    } catch {
+      setClearError("Network error. Please try again.");
+    } finally {
+      setClearLoading(false);
+    }
+  }
+
   return (
     <>
       <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Orders</h1>
           <p className="text-sm text-gray-500">
-            Live order tracking &middot; Updated{" "}
+            {orders.length} order(s) &middot; Updated{" "}
             {lastUpdated.toLocaleTimeString("en-IN")}
           </p>
         </div>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => fetchOrders()}
-          className="gap-2"
-        >
-          <RefreshCw className="h-4 w-4" />
-          Refresh
-        </Button>
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => fetchOrders()}
+            className="gap-2"
+          >
+            <RefreshCw className="h-4 w-4" />
+            Refresh
+          </Button>
+          <Button
+            variant="destructive"
+            size="sm"
+            onClick={() => { setShowClearModal(true); setClearError(""); }}
+            className="gap-2"
+          >
+            <Trash2 className="h-4 w-4" />
+            Clear History
+          </Button>
+        </div>
       </div>
 
       {/* Filter Tabs */}
@@ -179,8 +223,7 @@ export default function AdminOrdersPage() {
         </div>
       ) : orders.length === 0 ? (
         <div className="rounded-xl border bg-white p-10 text-center shadow-sm">
-          <ShoppingCart className="mx-auto h-12 w-12 text-gray-300" />
-          <p className="mt-4 text-sm text-gray-500">No orders found</p>
+          <p className="text-sm text-gray-500">No orders found</p>
         </div>
       ) : (
         <div className="rounded-xl border bg-white shadow-sm">
@@ -270,7 +313,6 @@ export default function AdminOrdersPage() {
             className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-xl bg-white p-6 shadow-xl"
             onClick={(e) => e.stopPropagation()}
           >
-            {/* Header */}
             <div className="flex items-center justify-between">
               <div>
                 <h2 className="text-lg font-bold text-gray-900">
@@ -288,7 +330,6 @@ export default function AdminOrdersPage() {
               </button>
             </div>
 
-            {/* Customer Info */}
             <div className="mt-4 rounded-lg bg-gray-50 p-4 text-sm">
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <div>
@@ -299,6 +340,12 @@ export default function AdminOrdersPage() {
                   <span className="font-medium text-gray-700">Phone:</span>
                   <p className="text-gray-900">{selectedOrder.customerPhone}</p>
                 </div>
+                {selectedOrder.customerEmail && (
+                  <div>
+                    <span className="font-medium text-gray-700">Email:</span>
+                    <p className="text-gray-900">{selectedOrder.customerEmail}</p>
+                  </div>
+                )}
                 <div className="sm:col-span-2">
                   <span className="font-medium text-gray-700">Address:</span>
                   <p className="text-gray-900">
@@ -312,7 +359,6 @@ export default function AdminOrdersPage() {
               </div>
             </div>
 
-            {/* Items with Images */}
             <div className="mt-4">
               <h3 className="font-medium text-gray-700">
                 Items ({selectedOrder.items.length})
@@ -357,7 +403,6 @@ export default function AdminOrdersPage() {
               </div>
             </div>
 
-            {/* Price Breakdown */}
             <div className="mt-4 space-y-1 border-t pt-4 text-sm">
               <div className="flex justify-between">
                 <span className="text-gray-500">Subtotal</span>
@@ -377,7 +422,6 @@ export default function AdminOrdersPage() {
               </div>
             </div>
 
-            {/* Status + Actions */}
             <div className="mt-4 flex items-center justify-between border-t pt-4">
               <div className="flex items-center gap-2">
                 <span className="text-sm text-gray-500">Status:</span>
@@ -393,7 +437,6 @@ export default function AdminOrdersPage() {
               </div>
             </div>
 
-            {/* Action Buttons */}
             {nextStatuses[selectedOrder.status]?.length > 0 && (
               <div className="mt-4 border-t pt-4">
                 {selectedOrder.status === "PENDING" && (
@@ -421,27 +464,64 @@ export default function AdminOrdersPage() {
           </div>
         </div>
       )}
-    </>
-  );
-}
 
-function ShoppingCart(props: React.SVGProps<SVGSVGElement>) {
-  return (
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      width="24"
-      height="24"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      {...props}
-    >
-      <circle cx="8" cy="21" r="1" />
-      <circle cx="19" cy="21" r="1" />
-      <path d="M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12" />
-    </svg>
+      {/* Clear History Password Modal */}
+      {showClearModal && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+          onClick={() => { setShowClearModal(false); setClearPassword(""); setClearError(""); }}
+        >
+          <div
+            className="w-full max-w-sm rounded-xl bg-white p-6 shadow-xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-red-100">
+                <Lock className="h-5 w-5 text-red-600" />
+              </div>
+              <div>
+                <h3 className="text-lg font-bold text-gray-900">Clear Order History</h3>
+                <p className="text-xs text-red-500">This cannot be undone</p>
+              </div>
+            </div>
+
+            <p className="mt-4 text-sm text-gray-600">
+              This will permanently delete all {orders.length} orders. Users will see an empty order history. Enter password to confirm.
+            </p>
+
+            <div className="mt-4">
+              <Input
+                type="password"
+                value={clearPassword}
+                onChange={(e) => setClearPassword(e.target.value)}
+                placeholder="Enter admin password"
+                onKeyDown={(e) => { if (e.key === "Enter" && clearPassword) handleClearOrders(); }}
+              />
+              {clearError && (
+                <p className="mt-2 text-xs text-red-500">{clearError}</p>
+              )}
+            </div>
+
+            <div className="mt-5 flex gap-3">
+              <Button
+                variant="outline"
+                className="flex-1"
+                onClick={() => { setShowClearModal(false); setClearPassword(""); setClearError(""); }}
+              >
+                Cancel
+              </Button>
+              <Button
+                variant="destructive"
+                className="flex-1"
+                disabled={!clearPassword || clearLoading}
+                onClick={handleClearOrders}
+              >
+                {clearLoading ? "Deleting..." : "Delete All Orders"}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   );
 }

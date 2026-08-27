@@ -1,13 +1,25 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { connectMongoDB } from "@/lib/mongodb";
 import Order from "@/lib/models/order";
 
-export async function DELETE() {
+const CLEAR_PASSWORD = process.env.ORDER_CLEAR_PASSWORD || "Wox_@7736";
+
+export async function DELETE(request: NextRequest) {
   try {
+    const body = await request.json().catch(() => ({}));
+    const { password } = body;
+
+    if (!password || password !== CLEAR_PASSWORD) {
+      return NextResponse.json(
+        { error: "Incorrect password. Order history not cleared." },
+        { status: 403 }
+      );
+    }
+
     await connectMongoDB();
     const result = await Order.deleteMany({});
     return NextResponse.json({
-      message: "All orders deleted",
+      message: "All orders deleted successfully",
       deletedCount: result.deletedCount,
     });
   } catch (error) {
