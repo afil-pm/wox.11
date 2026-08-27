@@ -53,6 +53,7 @@ export async function GET(request: NextRequest) {
         isActive: obj.isActive ?? true,
         averageRating: obj.averageRating ?? 0,
         reviewCount: obj.reviewCount ?? 0,
+        source: "mongo" as const,
         createdAt: String(obj.createdAt ?? new Date().toISOString()),
       };
     });
