@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn, formatPrice } from "@/lib/utils";
-import { RefreshCw, Eye, Trash2, Lock } from "lucide-react";
+import { RefreshCw, Eye, Trash2, Lock, IndianRupee, TrendingUp, Calendar, BarChart3 } from "lucide-react";
 import WoxLoader from "@/components/ui/wox-loader";
 
 interface OrderItem {
@@ -98,6 +98,7 @@ export default function AdminOrdersPage() {
   const [clearPassword, setClearPassword] = useState("");
   const [clearLoading, setClearLoading] = useState(false);
   const [clearError, setClearError] = useState("");
+  const [revenuePeriod, setRevenuePeriod] = useState<"today" | "7d" | "30d" | "all">("all");
   const modalRef = useRef<HTMLDivElement>(null);
 
   const fetchOrders = useCallback(async () => {
@@ -176,6 +177,38 @@ export default function AdminOrdersPage() {
     }
   }
 
+  function getFilteredRevenueOrders() {
+    const now = new Date();
+    if (revenuePeriod === "all") return orders;
+    const cutoff = new Date(now);
+    if (revenuePeriod === "today") {
+      cutoff.setHours(0, 0, 0, 0);
+    } else if (revenuePeriod === "7d") {
+      cutoff.setDate(now.getDate() - 7);
+    } else if (revenuePeriod === "30d") {
+      cutoff.setDate(now.getDate() - 30);
+    }
+    return orders.filter((o) => new Date(o.createdAt) >= cutoff);
+  }
+
+  const revenueOrders = getFilteredRevenueOrders();
+  const totalRevenue = revenueOrders.reduce((sum, o) => sum + (o.total || 0), 0);
+  const paidRevenue = revenueOrders
+    .filter((o) => o.paymentStatus === "PAID" || o.paymentStatus === "COMPLETED")
+    .reduce((sum, o) => sum + (o.total || 0), 0);
+  const pendingRevenue = revenueOrders
+    .filter((o) => o.paymentStatus === "PENDING")
+    .reduce((sum, o) => sum + (o.total || 0), 0);
+  const totalOrdersCount = revenueOrders.length;
+  const avgOrderValue = totalOrdersCount > 0 ? totalRevenue / totalOrdersCount : 0;
+
+  const revenuePeriods = [
+    { key: "today" as const, label: "Today" },
+    { key: "7d" as const, label: "7 Days" },
+    { key: "30d" as const, label: "30 Days" },
+    { key: "all" as const, label: "All Time" },
+  ];
+
   return (
     <>
       <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -205,6 +238,63 @@ export default function AdminOrdersPage() {
             <Trash2 className="h-4 w-4" />
             Clear History
           </Button>
+        </div>
+      </div>
+
+      {/* Revenue Dashboard */}
+      <div className="mb-6 rounded-xl border bg-white p-4 shadow-sm">
+        <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-center gap-2">
+            <BarChart3 className="h-4 w-4 text-gray-500" />
+            <h2 className="text-sm font-semibold text-gray-900">Revenue Overview</h2>
+          </div>
+          <div className="flex gap-1">
+            {revenuePeriods.map((p) => (
+              <button
+                key={p.key}
+                onClick={() => setRevenuePeriod(p.key)}
+                className={cn(
+                  "rounded-full px-3 py-1 text-xs font-medium transition-colors",
+                  revenuePeriod === p.key
+                    ? "bg-zinc-900 text-white"
+                    : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                )}
+              >
+                {p.label}
+              </button>
+            ))}
+          </div>
+        </div>
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+          <div className="rounded-lg bg-zinc-50 p-3">
+            <div className="flex items-center gap-1.5 text-gray-500">
+              <IndianRupee className="h-3.5 w-3.5" />
+              <span className="text-xs">Total Revenue</span>
+            </div>
+            <p className="mt-1 text-lg font-bold text-gray-900">{formatPrice(totalRevenue)}</p>
+            <p className="text-[11px] text-gray-400">{totalOrdersCount} orders</p>
+          </div>
+          <div className="rounded-lg bg-green-50 p-3">
+            <div className="flex items-center gap-1.5 text-green-600">
+              <TrendingUp className="h-3.5 w-3.5" />
+              <span className="text-xs">Paid</span>
+            </div>
+            <p className="mt-1 text-lg font-bold text-green-700">{formatPrice(paidRevenue)}</p>
+          </div>
+          <div className="rounded-lg bg-yellow-50 p-3">
+            <div className="flex items-center gap-1.5 text-yellow-600">
+              <Calendar className="h-3.5 w-3.5" />
+              <span className="text-xs">Pending</span>
+            </div>
+            <p className="mt-1 text-lg font-bold text-yellow-700">{formatPrice(pendingRevenue)}</p>
+          </div>
+          <div className="rounded-lg bg-blue-50 p-3">
+            <div className="flex items-center gap-1.5 text-blue-600">
+              <IndianRupee className="h-3.5 w-3.5" />
+              <span className="text-xs">Avg. Order</span>
+            </div>
+            <p className="mt-1 text-lg font-bold text-blue-700">{formatPrice(avgOrderValue)}</p>
+          </div>
         </div>
       </div>
 
@@ -317,7 +407,7 @@ export default function AdminOrdersPage() {
       {/* Order Detail Modal */}
       {selectedOrder && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 pb-[calc(1rem+env(safe-area-inset-bottom))]"
+          className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 px-4 pt-4 pb-[calc(5rem+env(safe-area-inset-bottom))] lg:p-4"
           onClick={() => setSelectedOrder(null)}
         >
           <div

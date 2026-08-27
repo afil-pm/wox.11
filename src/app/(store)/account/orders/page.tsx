@@ -320,7 +320,7 @@ export default function AccountOrdersPage() {
       {/* Order Detail Modal */}
       {selectedOrder && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 pb-[calc(1rem+env(safe-area-inset-bottom))] lg:p-4"
+          className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 px-4 pt-4 pb-[calc(5rem+env(safe-area-inset-bottom))] lg:p-4"
           onClick={() => setSelectedOrder(null)}
         >
           <div

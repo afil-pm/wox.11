@@ -30,11 +30,13 @@ export default function BuyNowModal({ product, open, onClose }: Props) {
   const [selectedSize, setSelectedSize] = useState<string | null>(null);
   const [quantity, setQuantity] = useState(1);
   const [loading, setLoading] = useState(false);
+  const [sizeError, setSizeError] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (open) {
       document.body.style.overflow = "hidden";
+      setSizeError(false);
       requestAnimationFrame(() => {
         scrollRef.current?.scrollTo({ top: 0, behavior: "auto" });
       });
@@ -57,7 +59,10 @@ export default function BuyNowModal({ product, open, onClose }: Props) {
       window.location.href = "/auth/login";
       return;
     }
-    if (!selectedSize) return;
+    if (!selectedSize) {
+      setSizeError(true);
+      return;
+    }
     setLoading(true);
     const buyNowItem = {
       productId: product.productId,
@@ -77,10 +82,10 @@ export default function BuyNowModal({ product, open, onClose }: Props) {
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50" onClick={onClose}>
+    <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center bg-black/50 sm:p-4" onClick={onClose}>
       <div
         ref={scrollRef}
-        className="flex max-h-[92dvh] w-full flex-col overflow-y-auto overscroll-contain rounded-t-2xl bg-white shadow-2xl sm:max-h-[90dvh] sm:max-w-md sm:rounded-2xl"
+        className="flex max-h-[85dvh] sm:max-h-[90dvh] w-full flex-col overflow-y-auto overscroll-contain rounded-t-2xl bg-white shadow-2xl sm:max-w-md sm:rounded-2xl"
         style={{ WebkitOverflowScrolling: "touch" } as React.CSSProperties}
         onClick={(e) => e.stopPropagation()}
       >
@@ -117,15 +122,19 @@ export default function BuyNowModal({ product, open, onClose }: Props) {
         </div>
 
         {/* Size Selection */}
-        <div className="border-t border-zinc-100 px-5 py-4">
-          <p className="text-xs font-medium text-zinc-600 mb-2">Select Size</p>
+        <div className={cn(
+          "border-t px-5 py-4 transition-colors",
+          sizeError ? "border-red-200 bg-red-50/50" : "border-zinc-100",
+          sizeError && "animate-[shake_0.4s_ease-in-out]"
+        )}>
+          <p className={cn("text-xs font-medium mb-2", sizeError ? "text-red-600" : "text-zinc-600")}>Select Size</p>
           <div className="flex flex-wrap gap-2">
             {product.sizes.map((size) => {
               const available = size.quantity > 0;
               return (
                 <button
                   key={size.name}
-                  onClick={() => available && setSelectedSize(size.name)}
+                  onClick={() => { available && setSelectedSize(size.name); setSizeError(false); }}
                   disabled={!available}
                   className={cn(
                     "h-9 min-w-[36px] rounded-lg border px-3 text-xs font-semibold transition-all",
@@ -141,8 +150,11 @@ export default function BuyNowModal({ product, open, onClose }: Props) {
               );
             })}
           </div>
-          {!selectedSize && (
-            <p className="mt-2 text-xs text-zinc-400">Please select a size</p>
+          {sizeError && (
+            <p className="mt-2 text-xs font-medium text-red-500">Please select a size to continue</p>
+          )}
+          {!sizeError && !selectedSize && (
+            <p className="mt-2 text-xs text-zinc-400">Choose your size above</p>
           )}
         </div>
 
@@ -189,8 +201,11 @@ export default function BuyNowModal({ product, open, onClose }: Props) {
         <div className="sticky bottom-0 border-t border-zinc-100 bg-white px-5 py-4 pb-[calc(1rem+env(safe-area-inset-bottom))]">
           <Button
             onClick={handleBuyNow}
-            disabled={!selectedSize || loading}
-            className="w-full bg-zinc-900 text-white hover:bg-zinc-800 h-12 text-sm font-semibold"
+            disabled={loading}
+            className={cn(
+              "w-full h-12 text-sm font-semibold text-white",
+              !selectedSize ? "bg-zinc-400 hover:bg-zinc-500" : "bg-zinc-900 hover:bg-zinc-800"
+            )}
           >
             {loading ? (
               <span className="flex items-center gap-2">
