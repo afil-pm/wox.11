@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { Search, Plus, Edit2, Trash2, Database, FileCode } from "lucide-react";
+import { Search, Plus, Edit2, Trash2, Database, FileCode, Percent, IndianRupee, Check, X, Tag } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -52,6 +52,13 @@ export default function AdminProductsPage() {
   const [filter, setFilter] = useState<FilterStatus>("all");
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [apiError, setApiError] = useState<string | null>(null);
+
+  const [showDiscountPanel, setShowDiscountPanel] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [discountType, setDiscountType] = useState<"percent" | "flat">("percent");
+  const [discountValue, setDiscountValue] = useState("");
+  const [discountLoading, setDiscountLoading] = useState(false);
+  const [discountResult, setDiscountResult] = useState<string | null>(null);
 
   useEffect(() => {
     fetchProducts();
@@ -107,6 +114,54 @@ export default function AdminProductsPage() {
     return true;
   });
 
+  const allSelectableIds = filtered.filter((p) => p.source === "mongo").map((p) => p.id);
+  const allSelected = allSelectableIds.length > 0 && allSelectableIds.every((id) => selectedIds.includes(id));
+
+  function toggleSelectAll() {
+    if (allSelected) {
+      setSelectedIds([]);
+    } else {
+      setSelectedIds(allSelectableIds);
+    }
+  }
+
+  function toggleSelect(id: string) {
+    setSelectedIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+  }
+
+  async function applyDiscount() {
+    if (selectedIds.length === 0) return;
+    const value = parseFloat(discountValue);
+    if (isNaN(value) || value <= 0) return;
+
+    setDiscountLoading(true);
+    setDiscountResult(null);
+    try {
+      const res = await adminFetch("/api/admin/products", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          productIds: selectedIds,
+          discountType,
+          discountValue: value,
+        }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setDiscountResult(`Done! ${data.message}`);
+        setSelectedIds([]);
+        setDiscountValue("");
+        fetchProducts();
+      } else {
+        setDiscountResult(`Error: ${data.error}`);
+      }
+    } catch {
+      setDiscountResult("Failed to apply discount");
+    } finally {
+      setDiscountLoading(false);
+    }
+  }
+
   const staticCount = products.filter((p) => p.source === "static").length;
   const mongoCount = products.filter((p) => p.source === "mongo").length;
 
@@ -119,13 +174,83 @@ export default function AdminProductsPage() {
             {products.length} total &middot; {staticCount} static &middot; {mongoCount} in database
           </p>
         </div>
-        <Link href="/admin/products/new">
-          <Button>
-            <Plus className="mr-2 h-4 w-4" />
-            Add Product
+        <div className="flex gap-2">
+          <Button variant={showDiscountPanel ? "default" : "outline"} onClick={() => setShowDiscountPanel(!showDiscountPanel)}>
+            <Tag className="mr-2 h-4 w-4" />
+            Quick Discount
           </Button>
-        </Link>
+          <Link href="/admin/products/new">
+            <Button>
+              <Plus className="mr-2 h-4 w-4" />
+              Add Product
+            </Button>
+          </Link>
+        </div>
       </div>
+
+      {showDiscountPanel && (
+        <div className="mb-4 rounded-xl border-2 border-dashed border-zinc-300 bg-zinc-50 p-4">
+          <div className="mb-3 flex items-center justify-between">
+            <h3 className="text-sm font-semibold text-zinc-900">Quick Discount</h3>
+            {selectedIds.length > 0 && (
+              <span className="text-xs text-zinc-500">{selectedIds.length} product(s) selected</span>
+            )}
+          </div>
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
+            <div className="flex gap-1">
+              <button
+                onClick={() => setDiscountType("percent")}
+                className={cn(
+                  "flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-medium transition-colors",
+                  discountType === "percent" ? "bg-zinc-900 text-white" : "bg-white text-zinc-600 border border-zinc-200 hover:bg-zinc-100"
+                )}
+              >
+                <Percent className="h-3 w-3" />
+                Percent
+              </button>
+              <button
+                onClick={() => setDiscountType("flat")}
+                className={cn(
+                  "flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-medium transition-colors",
+                  discountType === "flat" ? "bg-zinc-900 text-white" : "bg-white text-zinc-600 border border-zinc-200 hover:bg-zinc-100"
+                )}
+              >
+                <IndianRupee className="h-3 w-3" />
+                Flat ₹
+              </button>
+            </div>
+            <Input
+              type="number"
+              min="1"
+              placeholder={discountType === "percent" ? "e.g. 20 for 20%" : "e.g. 50 for ₹50 off"}
+              value={discountValue}
+              onChange={(e) => setDiscountValue(e.target.value)}
+              className="w-full sm:w-40"
+            />
+            <Button
+              onClick={applyDiscount}
+              disabled={discountLoading || selectedIds.length === 0 || !discountValue}
+              className="gap-1.5"
+            >
+              {discountLoading ? "Applying..." : "Apply Discount"}
+            </Button>
+            {selectedIds.length > 0 && (
+              <Button variant="ghost" size="sm" onClick={() => setSelectedIds([])}>
+                <X className="mr-1 h-3 w-3" />
+                Clear
+              </Button>
+            )}
+          </div>
+          {discountResult && (
+            <p className={cn("mt-2 text-xs", discountResult.startsWith("Done") ? "text-green-600" : "text-red-600")}>
+              {discountResult}
+            </p>
+          )}
+          <p className="mt-2 text-[10px] text-zinc-400">
+            Select products below using checkboxes, then apply a discount. All products must be in database (not static).
+          </p>
+        </div>
+      )}
 
       <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center">
         <div className="relative flex-1">
@@ -171,6 +296,16 @@ export default function AdminProductsPage() {
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b text-left text-xs font-medium uppercase text-gray-500">
+                {showDiscountPanel && (
+                  <th className="p-4 w-10">
+                    <input
+                      type="checkbox"
+                      checked={allSelected}
+                      onChange={toggleSelectAll}
+                      className="h-4 w-4 rounded border-zinc-300"
+                    />
+                  </th>
+                )}
                 <th className="p-4">Product</th>
                 <th className="p-4">SKU</th>
                 <th className="p-4">Category</th>
@@ -186,7 +321,21 @@ export default function AdminProductsPage() {
                 const stock = totalStock(product);
                 const isMongo = product.source === "mongo";
                 return (
-                  <tr key={product.id} className={cn("hover:bg-gray-50", !isMongo && "bg-gray-50/50")}>
+                  <tr key={product.id} className={cn("hover:bg-gray-50", !isMongo && "bg-gray-50/50", showDiscountPanel && selectedIds.includes(product.id) && "bg-blue-50")}>
+                    {showDiscountPanel && (
+                      <td className="p-4">
+                        {isMongo ? (
+                          <input
+                            type="checkbox"
+                            checked={selectedIds.includes(product.id)}
+                            onChange={() => toggleSelect(product.id)}
+                            className="h-4 w-4 rounded border-zinc-300"
+                          />
+                        ) : (
+                          <span className="text-[10px] text-zinc-400">—</span>
+                        )}
+                      </td>
+                    )}
                     <td className="p-4">
                       <div className="flex items-center gap-3">
                         <div className="h-10 w-10 shrink-0 rounded-lg bg-gray-100 overflow-hidden">

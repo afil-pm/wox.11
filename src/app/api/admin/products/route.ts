@@ -247,3 +247,61 @@ export async function DELETE(request: NextRequest) {
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }
+
+export async function PATCH(request: NextRequest) {
+  try {
+    if (!isAdmin(request)) {
+      return NextResponse.json({ error: "Unauthorized — admin access required" }, { status: 401 });
+    }
+
+    const { connectMongoDB } = await import("@/lib/mongodb");
+    const { default: Product } = await import("@/lib/models/product");
+    await connectMongoDB();
+    const body = await request.json();
+    const { productIds, discountType, discountValue } = body;
+
+    if (!Array.isArray(productIds) || productIds.length === 0) {
+      return NextResponse.json({ error: "productIds array is required" }, { status: 400 });
+    }
+
+    if (!discountType || !["percent", "flat"].includes(discountType)) {
+      return NextResponse.json({ error: "discountType must be 'percent' or 'flat'" }, { status: 400 });
+    }
+
+    if (typeof discountValue !== "number" || discountValue <= 0) {
+      return NextResponse.json({ error: "discountValue must be a positive number" }, { status: 400 });
+    }
+
+    const products = await Product.find({ _id: { $in: productIds } }).lean();
+    if (products.length === 0) {
+      return NextResponse.json({ error: "No matching products found" }, { status: 404 });
+    }
+
+    const ops = products.map((p) => {
+      const basePrice = Number(p.basePrice);
+      let newSalePrice: number;
+      if (discountType === "percent") {
+        newSalePrice = Math.round(basePrice * (1 - discountValue / 100));
+      } else {
+        newSalePrice = Math.max(1, basePrice - discountValue);
+      }
+      return {
+        updateOne: {
+          filter: { _id: p._id },
+          update: { salePrice: newSalePrice },
+        },
+      };
+    });
+
+    await Product.bulkWrite(ops);
+
+    return NextResponse.json({
+      message: `Updated ${products.length} product(s)`,
+      count: products.length,
+    });
+  } catch (error) {
+    console.error("PATCH /api/admin/products error:", error);
+    const message = error instanceof Error ? error.message : "Failed to apply discount";
+    return NextResponse.json({ error: message }, { status: 500 });
+  }
+}
