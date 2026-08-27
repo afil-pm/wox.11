@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import Image from "next/image";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -98,6 +98,7 @@ export default function AdminOrdersPage() {
   const [clearPassword, setClearPassword] = useState("");
   const [clearLoading, setClearLoading] = useState(false);
   const [clearError, setClearError] = useState("");
+  const modalRef = useRef<HTMLDivElement>(null);
 
   const fetchOrders = useCallback(async () => {
     try {
@@ -121,6 +122,16 @@ export default function AdminOrdersPage() {
     const interval = setInterval(fetchOrders, 10000);
     return () => clearInterval(interval);
   }, [fetchOrders]);
+
+  useEffect(() => {
+    if (selectedOrder) {
+      document.body.style.overflow = "hidden";
+      requestAnimationFrame(() => modalRef.current?.scrollTo({ top: 0, behavior: "auto" }));
+    } else {
+      document.body.style.overflow = "";
+    }
+    return () => { document.body.style.overflow = ""; };
+  }, [selectedOrder]);
 
   async function updateOrderStatus(orderId: string, newStatus: string) {
     try {
@@ -306,13 +317,16 @@ export default function AdminOrdersPage() {
       {/* Order Detail Modal */}
       {selectedOrder && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 pb-[calc(1rem+env(safe-area-inset-bottom))]"
           onClick={() => setSelectedOrder(null)}
         >
           <div
-            className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-xl bg-white p-6 shadow-xl"
+            ref={modalRef}
+            className="flex max-h-[92dvh] w-full max-w-2xl flex-col overflow-y-auto overscroll-contain rounded-xl bg-white shadow-xl"
+            style={{ WebkitOverflowScrolling: "touch" } as React.CSSProperties}
             onClick={(e) => e.stopPropagation()}
           >
+            <div className="p-6 pb-8">
             <div className="flex items-center justify-between">
               <div>
                 <h2 className="text-lg font-bold text-gray-900">
@@ -438,7 +452,7 @@ export default function AdminOrdersPage() {
             </div>
 
             {nextStatuses[selectedOrder.status]?.length > 0 && (
-              <div className="mt-4 border-t pt-4">
+              <div className="mt-4 border-t pt-4 pb-2">
                 {selectedOrder.status === "PENDING" && (
                   <p className="mb-3 text-xs text-gray-500">
                     Review the order above, then approve or cancel.
@@ -461,6 +475,7 @@ export default function AdminOrdersPage() {
                 </div>
               </div>
             )}
+            </div>
           </div>
         </div>
       )}

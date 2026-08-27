@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { connectMongoDB } from "@/lib/mongodb";
 import Order from "@/lib/models/order";
 
-const CLEAR_PASSWORD = process.env.ORDER_CLEAR_PASSWORD || "Wox_@7736";
+const CLEAR_PASSWORD = process.env.ORDER_CLEAR_PASSWORD || "";
 
 export async function DELETE(request: NextRequest) {
   try {

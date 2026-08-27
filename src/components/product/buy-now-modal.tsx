@@ -1,9 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import Image from "next/image";
-import Link from "next/link";
-import { X, Minus, Plus, LogIn, Truck, Shield, CreditCard } from "lucide-react";
+import { X, Minus, Plus, Truck, Shield, CreditCard } from "lucide-react";
 import { cn, formatPrice, calculateDiscount } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 
@@ -31,6 +30,19 @@ export default function BuyNowModal({ product, open, onClose }: Props) {
   const [selectedSize, setSelectedSize] = useState<string | null>(null);
   const [quantity, setQuantity] = useState(1);
   const [loading, setLoading] = useState(false);
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (open) {
+      document.body.style.overflow = "hidden";
+      requestAnimationFrame(() => {
+        scrollRef.current?.scrollTo({ top: 0, behavior: "auto" });
+      });
+    } else {
+      document.body.style.overflow = "";
+    }
+    return () => { document.body.style.overflow = ""; };
+  }, [open]);
 
   if (!open) return null;
 
@@ -38,7 +50,6 @@ export default function BuyNowModal({ product, open, onClose }: Props) {
   const discount = calculateDiscount(product.price, product.salePrice ?? product.price);
   const selectedSizeData = product.sizes.find((s) => s.name === selectedSize);
   const stock = selectedSizeData?.quantity ?? 0;
-  const inStock = stock > 0 && !!selectedSize;
 
   function handleBuyNow() {
     const stored = localStorage.getItem("wox-user");
@@ -46,11 +57,8 @@ export default function BuyNowModal({ product, open, onClose }: Props) {
       window.location.href = "/auth/login";
       return;
     }
-
     if (!selectedSize) return;
-
     setLoading(true);
-    // Store buy now item in sessionStorage for checkout
     const buyNowItem = {
       productId: product.productId,
       name: product.name,
@@ -69,13 +77,15 @@ export default function BuyNowModal({ product, open, onClose }: Props) {
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 p-0 sm:p-4" onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50" onClick={onClose}>
       <div
-        className="w-full sm:max-w-md rounded-t-2xl sm:rounded-2xl bg-white shadow-2xl max-h-[90vh] overflow-y-auto"
+        ref={scrollRef}
+        className="flex max-h-[92dvh] w-full flex-col overflow-y-auto overscroll-contain rounded-t-2xl bg-white shadow-2xl sm:max-h-[90dvh] sm:max-w-md sm:rounded-2xl"
+        style={{ WebkitOverflowScrolling: "touch" } as React.CSSProperties}
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="flex items-center justify-between border-b border-zinc-100 px-5 py-4">
+        <div className="sticky top-0 z-10 flex shrink-0 items-center justify-between border-b border-zinc-100 bg-white px-5 py-4">
           <h3 className="text-base font-semibold text-zinc-900">Buy Now</h3>
           <button onClick={onClose} className="rounded-full p-1 hover:bg-zinc-100 transition-colors">
             <X className="h-5 w-5 text-zinc-500" />
@@ -175,8 +185,8 @@ export default function BuyNowModal({ product, open, onClose }: Props) {
           </div>
         </div>
 
-        {/* Buy Button */}
-        <div className="border-t border-zinc-100 px-5 py-4">
+        {/* Buy Button - sticky bottom on mobile so always reachable */}
+        <div className="sticky bottom-0 border-t border-zinc-100 bg-white px-5 py-4 pb-[calc(1rem+env(safe-area-inset-bottom))]">
           <Button
             onClick={handleBuyNow}
             disabled={!selectedSize || loading}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { Package, ArrowLeft, Eye, XCircle, RotateCcw, Truck, CheckCircle2, Clock, Box } from "lucide-react";
@@ -85,6 +85,7 @@ export default function AccountOrdersPage() {
   const [loading, setLoading] = useState(true);
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const modalScrollRef = useRef<HTMLDivElement>(null);
 
   const fetchOrders = useCallback(async () => {
     try {
@@ -127,6 +128,18 @@ export default function AccountOrdersPage() {
   useEffect(() => {
     fetchOrders();
   }, [fetchOrders]);
+
+  useEffect(() => {
+    if (selectedOrder) {
+      document.body.style.overflow = "hidden";
+      requestAnimationFrame(() => {
+        modalScrollRef.current?.scrollTo({ top: 0, behavior: "auto" });
+      });
+    } else {
+      document.body.style.overflow = "";
+    }
+    return () => { document.body.style.overflow = ""; };
+  }, [selectedOrder]);
 
   async function handleCancelOrder(orderId: string) {
     if (!confirm("Are you sure you want to cancel this order?")) return;
@@ -307,13 +320,16 @@ export default function AccountOrdersPage() {
       {/* Order Detail Modal */}
       {selectedOrder && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 pb-[calc(1rem+env(safe-area-inset-bottom))] lg:p-4"
           onClick={() => setSelectedOrder(null)}
         >
           <div
-            className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-2xl bg-white p-6 shadow-xl"
+            ref={modalScrollRef}
+            className="flex max-h-[92dvh] w-full max-w-2xl flex-col overflow-y-auto overscroll-contain rounded-2xl bg-white shadow-xl"
+            style={{ WebkitOverflowScrolling: "touch" } as React.CSSProperties}
             onClick={(e) => e.stopPropagation()}
           >
+            <div className="p-6 pb-8">
             {/* Header */}
             <div className="flex items-center justify-between">
               <div>
@@ -412,7 +428,7 @@ export default function AccountOrdersPage() {
             </div>
 
             {/* Actions */}
-            <div className="mt-5 flex flex-wrap gap-2 border-t pt-4">
+            <div className="mt-5 flex flex-wrap gap-2 border-t pt-4 pb-2">
               {cancelableStatuses.includes(selectedOrder.status) && (
                 <Button
                   variant="destructive"
@@ -437,9 +453,10 @@ export default function AccountOrdersPage() {
                 </Button>
               )}
             </div>
-          </div>
-        </div>
-      )}
-    </div>
-  );
+            </div>
+           </div>
+         </div>
+       )}
+     </div>
+   );
 }

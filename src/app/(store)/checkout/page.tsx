@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -142,6 +142,7 @@ export default function CheckoutPage() {
     total: number;
   } | null>(null);
   const [razorpayLoaded, setRazorpayLoaded] = useState(false);
+  const checkoutRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (document.getElementById("razorpay-script")) {
@@ -155,14 +156,16 @@ export default function CheckoutPage() {
     document.body.appendChild(script);
   }, []);
 
-  const shippingCost =
-    paymentMethod === "cod"
-      ? deliveryMethod === "express"
-        ? 149
-        : 49
-      : deliveryMethod === "express"
-        ? 149
-        : 0;
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: "smooth" });
+    checkoutRef.current?.scrollTo({ top: 0, behavior: "auto" });
+  }, [currentStep]);
+
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: "auto" });
+  }, []);
+
+  const shippingCost = deliveryMethod === "express" ? 49 : 0;
   const tax = Math.round(subtotal * 0.18);
   const total = subtotal + shippingCost + tax;
   const hasValidItems =
@@ -446,7 +449,7 @@ export default function CheckoutPage() {
   }
 
   return (
-    <div className="min-h-screen bg-white">
+    <div ref={checkoutRef} className="min-h-screen bg-white pb-24 lg:pb-0" style={{ WebkitOverflowScrolling: "touch" } as React.CSSProperties}>
       <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
         <h1 className="text-2xl font-semibold tracking-tight text-zinc-900">
           Checkout
@@ -829,9 +832,7 @@ export default function CheckoutPage() {
                 {paymentMethod === "cod" && (
                   <div className="rounded-lg border border-amber-200 bg-amber-50 p-4">
                     <p className="text-sm text-amber-800">
-                      A handling fee of {formatPrice(49)} applies for Cash on
-                      Delivery orders. Please keep exact change ready at the time
-                      of delivery.
+                      Please keep exact change ready at the time of delivery.
                     </p>
                   </div>
                 )}
