@@ -13,12 +13,21 @@ import {
   Shield,
   LogIn,
   ShoppingCart,
+  MapPin,
+  Plus,
 } from "lucide-react";
 import { cn, formatPrice } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import OrderSuccess from "@/components/ui/order-success";
 import useCartStore from "@/lib/stores/cart";
+import {
+  getSavedAddresses,
+  saveSavedAddresses,
+  addressToOrderAddress,
+  formatAddressShort,
+  type SavedAddress,
+} from "@/app/(store)/account/addresses/page";
 
 declare global {
   interface Window {
@@ -59,6 +68,7 @@ type Address = {
   line1: string;
   line2: string;
   city: string;
+  district: string;
   state: string;
   pincode: string;
   landmark: string;
@@ -71,6 +81,7 @@ const emptyAddress: Address = {
   line1: "",
   line2: "",
   city: "",
+  district: "",
   state: "",
   pincode: "",
   landmark: "",
@@ -99,6 +110,8 @@ export default function CheckoutPage() {
   const [authChecked, setAuthChecked] = useState(false);
   const [pincodeLoading, setPincodeLoading] = useState(false);
   const [pincodeError, setPincodeError] = useState("");
+  const [savedAddresses, setSavedAddresses] = useState<SavedAddress[]>([]);
+  const [selectedSavedId, setSelectedSavedId] = useState<string | null>(null);
 
   useEffect(() => {
     if (isBuyNow) {
@@ -119,6 +132,7 @@ export default function CheckoutPage() {
     if (user?.email) {
       setCurrentUser(user);
     }
+    setSavedAddresses(getSavedAddresses());
     setAuthChecked(true);
   }, []);
 
@@ -219,7 +233,7 @@ export default function CheckoutPage() {
           name: newAddress.name,
           phone: newAddress.phone,
           line1: newAddress.line1,
-          line2: newAddress.line2,
+          line2: [newAddress.line2, newAddress.district].filter(Boolean).join(", "),
           city: newAddress.city,
           state: newAddress.state,
           pincode: newAddress.pincode,
@@ -263,7 +277,49 @@ export default function CheckoutPage() {
     } else {
       clearCart();
     }
+    // Auto-save address to saved addresses if not already saved
+    if (newAddress.name && newAddress.phone && newAddress.line1 && newAddress.city && newAddress.state && newAddress.pincode) {
+      const existing = getSavedAddresses();
+      const alreadySaved = existing.some(
+        (a) => a.house === newAddress.line1 && a.town === newAddress.city && a.pincode === newAddress.pincode && a.name === newAddress.name
+      );
+      if (!alreadySaved) {
+        const addrParts = (newAddress.line2 || "").split(",").map((s) => s.trim());
+        const street = addrParts[0] || "";
+        const district = addrParts[1] || "";
+        const newSaved: SavedAddress = {
+          id: `addr-${Date.now()}`,
+          name: newAddress.name,
+          phone: newAddress.phone,
+          house: newAddress.line1,
+          street,
+          town: newAddress.city,
+          district,
+          state: newAddress.state,
+          country: "India",
+          pincode: newAddress.pincode,
+          landmark: newAddress.landmark,
+        };
+        saveSavedAddresses([...existing, newSaved]);
+      }
+    }
     setCurrentStep(5);
+  }
+
+  function handleSelectSavedAddress(addr: SavedAddress) {
+    setSelectedSavedId(addr.id);
+    setNewAddress({
+      id: addr.id,
+      name: addr.name,
+      phone: addr.phone,
+      line1: addr.house,
+      line2: addr.street,
+      city: addr.town,
+      district: addr.district,
+      state: addr.state,
+      pincode: addr.pincode,
+      landmark: addr.landmark,
+    });
   }
 
   async function handlePlaceOrder() {
@@ -367,7 +423,7 @@ export default function CheckoutPage() {
   }
 
   async function handlePincodeLookup(pincode: string) {
-    setNewAddress((prev) => ({ ...prev, pincode, city: "", state: "" }));
+    setNewAddress((prev) => ({ ...prev, pincode, city: "", state: "", district: "" }));
     setPincodeError("");
 
     if (pincode.length !== 6) return;
@@ -383,7 +439,7 @@ export default function CheckoutPage() {
         const state = postOffice.State || "";
         const city = postOffice.Division || district;
 
-        setNewAddress((prev) => ({ ...prev, city, state }));
+        setNewAddress((prev) => ({ ...prev, city, state, district }));
         setPincodeError("");
       } else {
         setPincodeError("Invalid pincode");
@@ -532,9 +588,53 @@ export default function CheckoutPage() {
                   Delivery Address
                 </h2>
 
+                {/* Saved Addresses */}
+                {savedAddresses.length > 0 && (
+                  <div className="space-y-3">
+                    <p className="text-sm text-zinc-500">Choose a saved address or enter a new one.</p>
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      {savedAddresses.map((addr) => (
+                        <button
+                          key={addr.id}
+                          onClick={() => handleSelectSavedAddress(addr)}
+                          className={cn(
+                            "rounded-lg border p-4 text-left transition-all",
+                            selectedSavedId === addr.id
+                              ? "border-zinc-900 bg-zinc-50 ring-1 ring-zinc-900"
+                              : "border-zinc-200 hover:border-zinc-400"
+                          )}
+                        >
+                          <div className="flex items-start gap-3">
+                            <MapPin className={cn("mt-0.5 h-4 w-4 flex-shrink-0", selectedSavedId === addr.id ? "text-zinc-900" : "text-zinc-400")} />
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-medium text-zinc-900">{addr.name} · {addr.phone}</p>
+                              <p className="mt-0.5 text-xs text-zinc-500 line-clamp-2">{formatAddressShort(addr)}</p>
+                            </div>
+                            {selectedSavedId === addr.id && (
+                              <Check className="h-4 w-4 flex-shrink-0 text-zinc-900" />
+                            )}
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                    <div className="relative flex items-center gap-3 py-2">
+                      <div className="h-px flex-1 bg-zinc-200" />
+                      <span className="text-xs text-zinc-400">or enter new address</span>
+                      <div className="h-px flex-1 bg-zinc-200" />
+                    </div>
+                  </div>
+                )}
+
+                {savedAddresses.length === 0 && (
+                  <div className="flex items-center gap-2 rounded-lg bg-zinc-50 px-4 py-3 text-sm text-zinc-500">
+                    <Plus className="h-4 w-4" />
+                    <span>Enter your address below — it will be saved for next time.</span>
+                  </div>
+                )}
+
                 <div className="rounded-lg border border-zinc-200 p-5">
                   <h3 className="text-sm font-semibold text-zinc-900">
-                    Enter your delivery address
+                    {selectedSavedId ? "Edit selected address" : "Enter your delivery address"}
                   </h3>
                   <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
                     <div>
@@ -624,6 +724,20 @@ export default function CheckoutPage() {
                           setNewAddress({ ...newAddress, city: e.target.value })
                         }
                         placeholder={pincodeLoading ? "Fetching..." : "City"}
+                        className="mt-1"
+                        readOnly={pincodeLoading}
+                      />
+                    </div>
+                    <div>
+                      <label className="text-xs font-medium text-zinc-600">
+                        District
+                      </label>
+                      <Input
+                        value={newAddress.district}
+                        onChange={(e) =>
+                          setNewAddress({ ...newAddress, district: e.target.value })
+                        }
+                        placeholder={pincodeLoading ? "Fetching..." : "District (optional)"}
                         className="mt-1"
                         readOnly={pincodeLoading}
                       />
