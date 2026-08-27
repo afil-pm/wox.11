@@ -59,16 +59,19 @@ export default function AdminProductsPage() {
 
   async function fetchProducts() {
     try {
-      const res = await adminFetch("/api/admin/products");
-      if (!res.ok) {
-        setApiError(`API error: ${res.status}`);
-        return;
-      }
+      const res = await fetch("/api/admin/products", {
+        headers: { "Content-Type": "application/json" },
+      });
       const text = await res.text();
       const data = JSON.parse(text);
+      if (!res.ok) {
+        setApiError(`API error: ${res.status} — ${data.error || "unknown"}`);
+        return;
+      }
       setProducts(data.products ?? []);
       setApiError(null);
     } catch (e) {
+      console.error("Admin products fetch error:", e);
       setApiError("Failed to load products. Retrying...");
       setTimeout(() => fetchProducts(), 3000);
     } finally {

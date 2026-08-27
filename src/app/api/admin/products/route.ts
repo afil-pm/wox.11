@@ -17,6 +17,7 @@ export async function GET(request: NextRequest) {
 
     const { connectMongoDB } = await import("@/lib/mongodb");
     const { default: Product } = await import("@/lib/models/product");
+    const { default: Category } = await import("@/lib/models/category");
     await connectMongoDB();
 
     const filter: Record<string, unknown> = {};
@@ -28,15 +29,21 @@ export async function GET(request: NextRequest) {
     }
 
     const products = await Product.find(filter)
-      .populate("categoryId", "name slug gender type")
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit)
       .lean();
 
+    const catIds = [...new Set((products as unknown as Record<string, unknown>[]).map((p) => String(p.categoryId)).filter(Boolean))];
+    const cats = catIds.length > 0 ? await Category.find({ _id: { $in: catIds } }).lean() : [];
+    const catMap: Record<string, { name: string; slug: string; gender: string; type: string }> = {};
+    for (const c of (cats as unknown as Record<string, unknown>[])) {
+      catMap[String(c._id)] = { name: c.name as string, slug: c.slug as string, gender: c.gender as string, type: c.type as string };
+    }
+
     const formatted = products.map((p) => {
       const obj = p as unknown as { _id: string; name: string; slug: string; description: string; basePrice: number; salePrice: number; sku: string; categoryId: unknown; images: unknown; variants: unknown; isFeatured: boolean; isActive: boolean; averageRating: number; reviewCount: number; createdAt: unknown };
-      const cat = obj.categoryId as unknown as { _id: string; name: string; slug: string; gender: string; type: string } | null;
+      const cat = obj.categoryId ? catMap[String(obj.categoryId)] : null;
       return {
         id: String(obj._id),
         name: obj.name,
@@ -45,8 +52,8 @@ export async function GET(request: NextRequest) {
         basePrice: obj.basePrice,
         salePrice: obj.salePrice ?? 0,
         sku: obj.sku,
-        category: cat ? { name: cat.name, slug: cat.slug, gender: cat.gender, type: cat.type } : { name: "Uncategorized", slug: "uncategorized", gender: "men", type: "shirts" },
-        categoryId: cat ? String(cat._id) : null,
+        category: cat ?? { name: "Uncategorized", slug: "uncategorized", gender: "men", type: "shirts" },
+        categoryId: obj.categoryId ? String(obj.categoryId) : null,
         images: (obj.images ?? []) as { url: string; alt: string; position: number }[],
         variants: (obj.variants ?? []) as { name: string; color: string; colorCode: string; sizes: { name: string; quantity: number }[] }[],
         isFeatured: obj.isFeatured ?? false,
@@ -61,7 +68,10 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ products: formatted, total: formatted.length });
   } catch (error) {
     console.error("GET /api/admin/products error:", error);
-    return NextResponse.json({ products: [], total: 0 });
+    return NextResponse.json(
+      { products: [], total: 0, error: error instanceof Error ? error.message : "Unknown error" },
+      { status: 200 }
+    );
   }
 }
 
