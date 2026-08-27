@@ -28,6 +28,7 @@ import { useWishlistStore } from "@/lib/stores/wishlist";
 import { useRecentlyViewed } from "@/lib/hooks/use-recently-viewed";
 import BuyNowModal from "@/components/product/buy-now-modal";
 import RelatedProducts from "@/components/product/related-products";
+import OptimizedImage from "@/components/ui/optimized-image";
 
 type ProductImage = { url: string; alt: string | null };
 type ColorVariant = { id: string; name: string; color: string | null; colorCode: string | null; images: ProductImage[] };
@@ -269,13 +270,13 @@ export default function ProductDetailPage({ params }: { params: Promise<{ catego
                 {allImages.map((img, idx) => (
                   <button key={idx} onClick={() => setSelectedImage(idx)}
                     className={cn("relative h-16 w-16 flex-shrink-0 overflow-hidden border-2 transition-all sm:h-20 sm:w-20", selectedImage === idx ? "border-zinc-900" : "border-zinc-200 hover:border-zinc-400")}>
-                    <img src={img.url} alt={img.alt ?? ""} className="h-full w-full object-cover" />
+                    <OptimizedImage src={img.url} alt={img.alt ?? ""} sizes="80px" />
                   </button>
                 ))}
               </div>
               <div className="relative flex-1 overflow-hidden bg-zinc-50">
                 <div className="aspect-[3/4] relative">
-                  <img src={allImages[selectedImage].url} alt={allImages[selectedImage].alt ?? product.name} className="h-full w-full object-cover" />
+                  <OptimizedImage src={allImages[selectedImage].url} alt={allImages[selectedImage].alt ?? product.name} sizes="(max-width: 768px) 100vw, 50vw" />
                 </div>
                 {isOnSale && (
                   <Badge className="absolute left-3 top-3 bg-zinc-900 text-xs font-bold text-white">-{discount}%</Badge>
