@@ -30,6 +30,8 @@ interface Order {
     line1: string;
     line2: string;
     city: string;
+    taluk: string;
+    district: string;
     state: string;
     pincode: string;
     landmark: string;
@@ -290,7 +292,7 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
         <p className="text-sm text-zinc-600">{order.address?.line1}</p>
         {order.address?.line2 && <p className="text-sm text-zinc-600">{order.address.line2}</p>}
         <p className="text-sm text-zinc-600">
-          {order.address?.city}, {order.address?.state} - {order.address?.pincode}
+          {order.address?.city}{order.address?.taluk ? `, ${order.address.taluk}` : ""}{order.address?.district ? `, ${order.address.district}` : ""} — {order.address?.state} - {order.address?.pincode}
         </p>
       </div>
 

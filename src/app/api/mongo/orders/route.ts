@@ -74,6 +74,15 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const requiredAddressFields = ["name", "phone", "line1", "city", "state", "pincode"];
+    const missingFields = requiredAddressFields.filter((f) => !address[f]?.trim());
+    if (missingFields.length > 0) {
+      return NextResponse.json(
+        { error: `Missing required address fields: ${missingFields.join(", ")}` },
+        { status: 400 }
+      );
+    }
+
     const hasInvalidItems = items.some(
       (item: { price: number; quantity: number }) => !item.price || item.price <= 0 || !item.quantity || item.quantity <= 0
     );

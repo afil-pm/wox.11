@@ -68,6 +68,7 @@ type Address = {
   line1: string;
   line2: string;
   city: string;
+  taluk: string;
   district: string;
   state: string;
   pincode: string;
@@ -81,6 +82,7 @@ const emptyAddress: Address = {
   line1: "",
   line2: "",
   city: "",
+  taluk: "",
   district: "",
   state: "",
   pincode: "",
@@ -157,6 +159,8 @@ export default function CheckoutPage() {
   } | null>(null);
   const [razorpayLoaded, setRazorpayLoaded] = useState(false);
   const checkoutRef = useRef<HTMLDivElement>(null);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, boolean>>({});
+  const [shakingFields, setShakingFields] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
     if (document.getElementById("razorpay-script")) {
@@ -190,12 +194,56 @@ export default function CheckoutPage() {
     newAddress.phone &&
     newAddress.line1 &&
     newAddress.city &&
+    newAddress.taluk &&
+    newAddress.district &&
     newAddress.state &&
     newAddress.pincode
       ? { ...newAddress, id: "new" }
       : null;
 
   const canPlaceOrder = hasValidItems && total > 0 && selectedAddress && termsAccepted;
+
+  function triggerFieldError(fieldName: string) {
+    setFieldErrors((prev) => ({ ...prev, [fieldName]: true }));
+    setShakingFields((prev) => ({ ...prev, [fieldName]: true }));
+    setTimeout(() => {
+      setShakingFields((prev) => ({ ...prev, [fieldName]: false }));
+    }, 400);
+  }
+
+  function clearFieldError(fieldName: string) {
+    setFieldErrors((prev) => ({ ...prev, [fieldName]: false }));
+  }
+
+  function validateAddressFields(): boolean {
+    const fields: { name: string; value: string }[] = [
+      { name: "pincode", value: newAddress.pincode },
+      { name: "phone", value: newAddress.phone },
+      { name: "name", value: newAddress.name },
+      { name: "line1", value: newAddress.line1 },
+      { name: "line2", value: newAddress.line2 },
+      { name: "city", value: newAddress.city },
+      { name: "taluk", value: newAddress.taluk },
+      { name: "district", value: newAddress.district },
+      { name: "state", value: newAddress.state },
+    ];
+    let valid = true;
+    const errors: Record<string, boolean> = {};
+    const shakes: Record<string, boolean> = {};
+    for (const f of fields) {
+      if (!f.value.trim()) {
+        errors[f.name] = true;
+        shakes[f.name] = true;
+        valid = false;
+      }
+    }
+    setFieldErrors(errors);
+    setShakingFields(shakes);
+    if (!valid) {
+      setTimeout(() => setShakingFields({}), 400);
+    }
+    return valid;
+  }
 
   function getEstimatedDelivery(): string {
     const days = deliveryMethod === "express" ? 2 : 6;
@@ -234,8 +282,10 @@ export default function CheckoutPage() {
           name: newAddress.name,
           phone: newAddress.phone,
           line1: newAddress.line1,
-          line2: [newAddress.line2, newAddress.district].filter(Boolean).join(", "),
+          line2: newAddress.line2,
           city: newAddress.city,
+          taluk: newAddress.taluk,
+          district: newAddress.district,
           state: newAddress.state,
           pincode: newAddress.pincode,
           landmark: newAddress.landmark,
@@ -279,23 +329,21 @@ export default function CheckoutPage() {
       clearCart();
     }
     // Auto-save address to saved addresses if not already saved
-    if (newAddress.name && newAddress.phone && newAddress.line1 && newAddress.city && newAddress.state && newAddress.pincode) {
+    if (newAddress.name && newAddress.phone && newAddress.line1 && newAddress.city && newAddress.taluk && newAddress.district && newAddress.state && newAddress.pincode) {
       const existing = getSavedAddresses();
       const alreadySaved = existing.some(
         (a) => a.house === newAddress.line1 && a.town === newAddress.city && a.pincode === newAddress.pincode && a.name === newAddress.name
       );
       if (!alreadySaved) {
-        const addrParts = (newAddress.line2 || "").split(",").map((s) => s.trim());
-        const street = addrParts[0] || "";
-        const district = addrParts[1] || "";
         const newSaved: SavedAddress = {
           id: `addr-${Date.now()}`,
           name: newAddress.name,
           phone: newAddress.phone,
           house: newAddress.line1,
-          street,
+          street: newAddress.line2,
           town: newAddress.city,
-          district,
+          taluk: newAddress.taluk,
+          district: newAddress.district,
           state: newAddress.state,
           country: "India",
           pincode: newAddress.pincode,
@@ -316,11 +364,14 @@ export default function CheckoutPage() {
       line1: addr.house,
       line2: addr.street,
       city: addr.town,
+      taluk: addr.taluk || "",
       district: addr.district,
       state: addr.state,
       pincode: addr.pincode,
       landmark: addr.landmark,
     });
+    setFieldErrors({});
+    setShakingFields({});
   }
 
   async function handlePlaceOrder() {
@@ -412,6 +463,9 @@ export default function CheckoutPage() {
   }
 
   function handleNextStep() {
+    if (currentStep === 1) {
+      if (!validateAddressFields()) return;
+    }
     if (currentStep === 4) {
       handlePlaceOrder();
     } else {
@@ -424,7 +478,8 @@ export default function CheckoutPage() {
   }
 
   async function handlePincodeLookup(pincode: string) {
-    setNewAddress((prev) => ({ ...prev, pincode, city: "", state: "", district: "" }));
+    setNewAddress((prev) => ({ ...prev, pincode, city: "", taluk: "", state: "", district: "" }));
+    clearFieldError("pincode");
     setPincodeError("");
 
     if (pincode.length !== 6) return;
@@ -435,12 +490,21 @@ export default function CheckoutPage() {
       const data = await res.json();
 
       if (data[0]?.Status === "Success" && data[0]?.PostOffice?.length > 0) {
-        const postOffice = data[0].PostOffice[0];
-        const district = postOffice.District || "";
-        const state = postOffice.State || "";
-        const city = postOffice.Division || district;
+        const offices = data[0].PostOffice;
+        const deliveryOffice =
+          offices.find((po: Record<string, string>) => po.DeliveryStatus === "Delivery" && po.BranchType === "Sub Post Office")
+          || offices.find((po: Record<string, string>) => po.DeliveryStatus === "Delivery")
+          || offices[0];
+        const city = deliveryOffice.Name || "";
+        const taluk = deliveryOffice.Block || "";
+        const district = deliveryOffice.District || "";
+        const state = deliveryOffice.State || "";
 
-        setNewAddress((prev) => ({ ...prev, city, state, district }));
+        setNewAddress((prev) => ({ ...prev, city, taluk, district, state }));
+        clearFieldError("city");
+        clearFieldError("taluk");
+        clearFieldError("district");
+        clearFieldError("state");
         setPincodeError("");
       } else {
         setPincodeError("Invalid pincode");
@@ -651,6 +715,7 @@ export default function CheckoutPage() {
                           }}
                           placeholder="6-digit pincode"
                           maxLength={6}
+                          className={cn(shakingFields.pincode && "animate-shake-field", fieldErrors.pincode && !shakingFields.pincode && "field-error")}
                         />
                         {pincodeLoading && (
                           <div className="absolute right-3 top-1/2 -translate-y-1/2">
@@ -668,11 +733,12 @@ export default function CheckoutPage() {
                       </label>
                       <Input
                         value={newAddress.phone}
-                        onChange={(e) =>
-                          setNewAddress({ ...newAddress, phone: e.target.value.replace(/\D/g, "").slice(0, 10) })
-                        }
+                        onChange={(e) => {
+                          setNewAddress({ ...newAddress, phone: e.target.value.replace(/\D/g, "").slice(0, 10) });
+                          clearFieldError("phone");
+                        }}
                         placeholder="10-digit mobile number"
-                        className="mt-1"
+                        className={cn("mt-1", shakingFields.phone && "animate-shake-field", fieldErrors.phone && !shakingFields.phone && "field-error")}
                         maxLength={10}
                       />
                     </div>
@@ -682,11 +748,12 @@ export default function CheckoutPage() {
                       </label>
                       <Input
                         value={newAddress.name}
-                        onChange={(e) =>
-                          setNewAddress({ ...newAddress, name: e.target.value })
-                        }
+                        onChange={(e) => {
+                          setNewAddress({ ...newAddress, name: e.target.value });
+                          clearFieldError("name");
+                        }}
                         placeholder="Full name"
-                        className="mt-1"
+                        className={cn("mt-1", shakingFields.name && "animate-shake-field", fieldErrors.name && !shakingFields.name && "field-error")}
                       />
                     </div>
                     <div className="sm:col-span-2">
@@ -695,51 +762,70 @@ export default function CheckoutPage() {
                       </label>
                       <Input
                         value={newAddress.line1}
-                        onChange={(e) =>
-                          setNewAddress({ ...newAddress, line1: e.target.value })
-                        }
+                        onChange={(e) => {
+                          setNewAddress({ ...newAddress, line1: e.target.value });
+                          clearFieldError("line1");
+                        }}
                         placeholder="House no., Flat no., Building name"
-                        className="mt-1"
+                        className={cn("mt-1", shakingFields.line1 && "animate-shake-field", fieldErrors.line1 && !shakingFields.line1 && "field-error")}
                       />
                     </div>
                     <div className="sm:col-span-2">
                       <label className="text-xs font-medium text-zinc-600">
-                        Street / Area / Landmark
+                        Street / Area / Landmark *
                       </label>
                       <Input
                         value={newAddress.line2}
-                        onChange={(e) =>
-                          setNewAddress({ ...newAddress, line2: e.target.value })
-                        }
-                        placeholder="Street, Area, Sector, Landmark (optional)"
-                        className="mt-1"
+                        onChange={(e) => {
+                          setNewAddress({ ...newAddress, line2: e.target.value });
+                          clearFieldError("line2");
+                        }}
+                        placeholder="Street, Area, Sector, Landmark"
+                        className={cn("mt-1", shakingFields.line2 && "animate-shake-field", fieldErrors.line2 && !shakingFields.line2 && "field-error")}
                       />
                     </div>
                     <div>
                       <label className="text-xs font-medium text-zinc-600">
-                        City *
+                        City / Town *
                       </label>
                       <Input
                         value={newAddress.city}
-                        onChange={(e) =>
-                          setNewAddress({ ...newAddress, city: e.target.value })
-                        }
-                        placeholder={pincodeLoading ? "Fetching..." : "City"}
-                        className="mt-1"
+                        onChange={(e) => {
+                          setNewAddress({ ...newAddress, city: e.target.value });
+                          clearFieldError("city");
+                        }}
+                        placeholder={pincodeLoading ? "Fetching..." : "City or Town"}
+                        className={cn("mt-1", shakingFields.city && "animate-shake-field", fieldErrors.city && !shakingFields.city && "field-error")}
                         readOnly={pincodeLoading}
                       />
                     </div>
                     <div>
                       <label className="text-xs font-medium text-zinc-600">
-                        District
+                        Taluk *
+                      </label>
+                      <Input
+                        value={newAddress.taluk}
+                        onChange={(e) => {
+                          setNewAddress({ ...newAddress, taluk: e.target.value });
+                          clearFieldError("taluk");
+                        }}
+                        placeholder={pincodeLoading ? "Fetching..." : "Taluk"}
+                        className={cn("mt-1", shakingFields.taluk && "animate-shake-field", fieldErrors.taluk && !shakingFields.taluk && "field-error")}
+                        readOnly={pincodeLoading}
+                      />
+                    </div>
+                    <div>
+                      <label className="text-xs font-medium text-zinc-600">
+                        District *
                       </label>
                       <Input
                         value={newAddress.district}
-                        onChange={(e) =>
-                          setNewAddress({ ...newAddress, district: e.target.value })
-                        }
-                        placeholder={pincodeLoading ? "Fetching..." : "District (optional)"}
-                        className="mt-1"
+                        onChange={(e) => {
+                          setNewAddress({ ...newAddress, district: e.target.value });
+                          clearFieldError("district");
+                        }}
+                        placeholder={pincodeLoading ? "Fetching..." : "District"}
+                        className={cn("mt-1", shakingFields.district && "animate-shake-field", fieldErrors.district && !shakingFields.district && "field-error")}
                         readOnly={pincodeLoading}
                       />
                     </div>
@@ -749,11 +835,12 @@ export default function CheckoutPage() {
                       </label>
                       <Input
                         value={newAddress.state}
-                        onChange={(e) =>
-                          setNewAddress({ ...newAddress, state: e.target.value })
-                        }
+                        onChange={(e) => {
+                          setNewAddress({ ...newAddress, state: e.target.value });
+                          clearFieldError("state");
+                        }}
                         placeholder={pincodeLoading ? "Fetching..." : "State"}
-                        className="mt-1"
+                        className={cn("mt-1", shakingFields.state && "animate-shake-field", fieldErrors.state && !shakingFields.state && "field-error")}
                         readOnly={pincodeLoading}
                       />
                     </div>
@@ -1055,7 +1142,7 @@ export default function CheckoutPage() {
                           : ""}
                       </p>
                       <p className="text-sm text-zinc-500">
-                        {selectedAddress.city}, {selectedAddress.state} -{" "}
+                        {selectedAddress.city}{selectedAddress.taluk ? `, ${selectedAddress.taluk}` : ""}{selectedAddress.district ? `, ${selectedAddress.district}` : ""} — {selectedAddress.state} -{" "}
                         {selectedAddress.pincode}
                       </p>
                       <p className="text-sm text-zinc-500">

@@ -21,6 +21,8 @@ export interface IOrder extends Document {
     line1: string;
     line2: string;
     city: string;
+    taluk: string;
+    district: string;
     state: string;
     pincode: string;
     landmark: string;
@@ -73,6 +75,8 @@ const OrderSchema = new Schema<IOrder>(
       line1: { type: String, required: true },
       line2: { type: String, default: "" },
       city: { type: String, required: true },
+      taluk: { type: String, default: "" },
+      district: { type: String, default: "" },
       state: { type: String, required: true },
       pincode: { type: String, required: true },
       landmark: { type: String, default: "" },

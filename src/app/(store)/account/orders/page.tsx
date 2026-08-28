@@ -30,6 +30,8 @@ interface Order {
     line1: string;
     line2: string;
     city: string;
+    taluk: string;
+    district: string;
     state: string;
     pincode: string;
   };

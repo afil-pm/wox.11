@@ -14,6 +14,7 @@ export type SavedAddress = {
   house: string;
   street: string;
   town: string;
+  taluk: string;
   district: string;
   state: string;
   country: string;
@@ -28,6 +29,7 @@ const emptyAddress: SavedAddress = {
   house: "",
   street: "",
   town: "",
+  taluk: "",
   district: "",
   state: "",
   country: "India",
@@ -56,13 +58,14 @@ export function saveSavedAddresses(addrs: SavedAddress[]) {
 }
 
 export function addressToOrderAddress(addr: SavedAddress) {
-  const parts = [addr.street, addr.district].filter(Boolean);
   return {
     name: addr.name,
     phone: addr.phone,
     line1: addr.house,
-    line2: parts.join(", "),
+    line2: addr.street,
     city: addr.town,
+    taluk: addr.taluk,
+    district: addr.district,
     state: addr.state,
     pincode: addr.pincode,
     landmark: addr.landmark,
@@ -93,7 +96,7 @@ export default function AccountAddressesPage() {
   }
 
   function handleSave() {
-    if (!form.name || !form.phone || !form.house || !form.town || !form.state || !form.pincode) return;
+    if (!form.name || !form.phone || !form.house || !form.town || !form.taluk || !form.district || !form.state || !form.pincode || !form.street) return;
     if (editingId) {
       persistAddresses(addresses.map((a) => (a.id === editingId ? { ...form, id: editingId } : a)));
     } else {
@@ -116,19 +119,23 @@ export default function AccountAddressesPage() {
   }
 
   async function handlePincodeLookup(pincode: string) {
-    setForm((prev) => ({ ...prev, pincode, town: "", state: "", district: "" }));
+    setForm((prev) => ({ ...prev, pincode, town: "", taluk: "", state: "", district: "" }));
     if (pincode.length !== 6) return;
     setPincodeLoading(true);
     try {
       const res = await fetch(`https://api.postalpincode.in/pincode/${pincode}`);
       const data = await res.json();
       if (data[0]?.Status === "Success" && data[0]?.PostOffice?.length > 0) {
-        const po = data[0].PostOffice[0];
+        const offices = data[0].PostOffice;
+        const deliveryOffice = offices.find((po: Record<string, string>) => po.DeliveryStatus === "Delivery" && po.BranchType === "Sub Post Office")
+          || offices.find((po: Record<string, string>) => po.DeliveryStatus === "Delivery")
+          || offices[0];
         setForm((prev) => ({
           ...prev,
-          town: po.Division || po.District || "",
-          district: po.District || "",
-          state: po.State || "",
+          town: deliveryOffice.Name || "",
+          taluk: deliveryOffice.Block || "",
+          district: deliveryOffice.District || "",
+          state: deliveryOffice.State || "",
         }));
       }
     } catch { /* silent */ } finally {
@@ -212,8 +219,8 @@ export default function AccountAddressesPage() {
               <Input value={form.house} onChange={(e) => setForm({ ...form, house: e.target.value })} placeholder="e.g. 204, Skyline Apartments" className="mt-1" />
             </div>
             <div className="sm:col-span-2">
-              <label className="text-xs font-medium text-zinc-600">Street / Locality / Area</label>
-              <Input value={form.street} onChange={(e) => setForm({ ...form, street: e.target.value })} placeholder="e.g. MG Road, Sector 5 (optional)" className="mt-1" />
+              <label className="text-xs font-medium text-zinc-600">Street / Locality / Area *</label>
+              <Input value={form.street} onChange={(e) => setForm({ ...form, street: e.target.value })} placeholder="e.g. MG Road, Sector 5" className="mt-1" />
             </div>
             <div>
               <label className="text-xs font-medium text-zinc-600">Pincode *</label>
@@ -236,8 +243,12 @@ export default function AccountAddressesPage() {
               <Input value={form.town} onChange={(e) => setForm({ ...form, town: e.target.value })} placeholder={pincodeLoading ? "Fetching..." : "Town or City"} className="mt-1" readOnly={pincodeLoading} />
             </div>
             <div>
-              <label className="text-xs font-medium text-zinc-600">District</label>
-              <Input value={form.district} onChange={(e) => setForm({ ...form, district: e.target.value })} placeholder="District (optional)" className="mt-1" />
+              <label className="text-xs font-medium text-zinc-600">District *</label>
+              <Input value={form.district} onChange={(e) => setForm({ ...form, district: e.target.value })} placeholder={pincodeLoading ? "Fetching..." : "District"} className="mt-1" readOnly={pincodeLoading} />
+            </div>
+            <div>
+              <label className="text-xs font-medium text-zinc-600">Taluk *</label>
+              <Input value={form.taluk} onChange={(e) => setForm({ ...form, taluk: e.target.value })} placeholder={pincodeLoading ? "Fetching..." : "Taluk"} className="mt-1" readOnly={pincodeLoading} />
             </div>
             <div>
               <label className="text-xs font-medium text-zinc-600">State *</label>

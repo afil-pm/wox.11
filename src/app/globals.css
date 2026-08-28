@@ -90,6 +90,26 @@ body {
   80% { transform: translateX(4px); }
 }
 
+@keyframes shake-field {
+  0%, 100% { transform: translateX(0); border-color: #dc2626; }
+  15% { transform: translateX(-5px); border-color: #dc2626; }
+  30% { transform: translateX(5px); border-color: #dc2626; }
+  45% { transform: translateX(-3px); border-color: #dc2626; }
+  60% { transform: translateX(3px); border-color: #dc2626; }
+  75% { transform: translateX(-1px); border-color: #dc2626; }
+}
+
+.animate-shake-field {
+  animation: shake-field 0.4s ease-in-out;
+  border-color: #dc2626 !important;
+  box-shadow: 0 0 0 1px #dc2626 !important;
+}
+
+.field-error {
+  border-color: #dc2626 !important;
+  box-shadow: 0 0 0 1px #dc2626 !important;
+}
+
 @layer utilities {
   .animate-gradient {
     animation: gradient 1.5s ease-in-out infinite;
