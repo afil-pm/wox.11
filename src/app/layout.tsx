@@ -37,8 +37,8 @@ export const metadata: Metadata = {
     images: [
       {
         url: "/opengraph-image",
-        width: 1200,
-        height: 630,
+        width: 1024,
+        height: 1024,
         alt: "WOX.11 - Modern Essentials for Men & Boys",
         type: "image/png",
       },
@@ -52,8 +52,8 @@ export const metadata: Metadata = {
     images: [
       {
         url: "/twitter-image",
-        width: 1200,
-        height: 630,
+        width: 1024,
+        height: 1024,
         alt: "WOX.11 - Modern Essentials for Men & Boys",
       },
     ],
