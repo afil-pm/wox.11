@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import Link from "next/link";
 import dynamic from "next/dynamic";
-import { Search, User, Heart, ShoppingBag, Menu, X, LogOut, Package, Settings, ChevronRight } from "lucide-react";
+import { Search, User, Heart, ShoppingBag, Menu, X, LogOut, Package, Settings, ChevronRight, Shield } from "lucide-react";
 import { cn } from "@/lib/utils";
 import SearchModal from "@/components/search/search-modal";
 
@@ -54,6 +54,7 @@ export default function Header() {
   const [searchOpen, setSearchOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [user, setUser] = useState<{ name: string; email: string; role: string } | null>(null);
+  const [showSignOutModal, setShowSignOutModal] = useState(false);
   const userMenuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -86,10 +87,16 @@ export default function Header() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [userMenuOpen]);
 
+  const handleLogoutClick = () => {
+    setUserMenuOpen(false);
+    setShowSignOutModal(true);
+  };
+
   const handleLogout = () => {
     localStorage.removeItem("wox-user");
     window.dispatchEvent(new Event("auth-change"));
-    setUserMenuOpen(false);
+    setUser(null);
+    setShowSignOutModal(false);
     window.location.href = "/";
   };
 
@@ -253,7 +260,7 @@ export default function Header() {
                   <div className="border-t border-zinc-100 py-1">
                     <button
                       type="button"
-                      onClick={handleLogout}
+                      onClick={handleLogoutClick}
                       className="flex w-full items-center gap-3 px-4 py-2.5 text-sm text-red-600 transition-colors hover:bg-red-50"
                     >
                       <LogOut className="h-4 w-4" />
@@ -361,7 +368,7 @@ export default function Header() {
                       <User className="h-4 w-4" strokeWidth={1.5} />
                       {user.name}
                     </Link>
-                    <button type="button" onClick={() => { handleLogout(); setMobileOpen(false); }} className="flex w-full items-center gap-3 rounded-md px-3 py-2.5 text-sm font-medium text-red-600 transition-colors hover:bg-red-50">
+                    <button type="button" onClick={() => { handleLogoutClick(); setMobileOpen(false); }} className="flex w-full items-center gap-3 rounded-md px-3 py-2.5 text-sm font-medium text-red-600 transition-colors hover:bg-red-50">
                       <LogOut className="h-4 w-4" strokeWidth={1.5} />
                       Sign Out
                     </button>
@@ -379,6 +386,46 @@ export default function Header() {
       </div>
 
       <SearchModal isOpen={searchOpen} onClose={() => setSearchOpen(false)} />
+
+      {/* Sign Out Confirmation Modal */}
+      {showSignOutModal && (
+        <div
+          className="fixed inset-0 z-[70] flex items-center justify-center bg-black/50 px-4"
+          onClick={() => setShowSignOutModal(false)}
+        >
+          <div
+            className="w-full max-w-sm overflow-hidden rounded-2xl bg-white shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex flex-col items-center px-6 pt-8 pb-6 text-center">
+              <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-zinc-100">
+                <Shield className="h-8 w-8 text-zinc-600" />
+              </div>
+              <h2 className="text-xl font-bold tracking-tight text-zinc-900">
+                See you soon, {user?.name?.split(" ")[0] || "there"}
+              </h2>
+              <p className="mt-2 text-sm text-zinc-500">
+                You&apos;re about to sign out of your account. Your cart and wishlist will be saved.
+              </p>
+            </div>
+            <div className="flex border-t border-zinc-100">
+              <button
+                onClick={() => setShowSignOutModal(false)}
+                className="flex-1 px-4 py-3.5 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-50"
+              >
+                Stay Signed In
+              </button>
+              <div className="w-px bg-zinc-100" />
+              <button
+                onClick={handleLogout}
+                className="flex-1 px-4 py-3.5 text-sm font-medium text-red-600 transition-colors hover:bg-red-50"
+              >
+                Sign Out
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }
