@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { products as staticProducts } from "@/lib/data/products";
 import { connectMongoDB } from "@/lib/mongodb";
 import Product from "@/lib/models/product";
+import Review from "@/lib/models/review";
 
 export async function GET(request: NextRequest) {
   try {
@@ -9,26 +9,6 @@ export async function GET(request: NextRequest) {
     const category = searchParams.get("category") || "";
     const gender = searchParams.get("gender") || "";
     const currentSlug = searchParams.get("exclude") || "";
-
-    const staticRelated = staticProducts
-      .filter(
-        (p) =>
-          p.slug !== currentSlug &&
-          p.category.name.toLowerCase() === category.toLowerCase() &&
-          p.category.gender.toLowerCase() === gender.toLowerCase()
-      )
-      .slice(0, 8)
-      .map((p) => ({
-        id: p.id,
-        name: p.name,
-        slug: p.slug,
-        basePrice: p.basePrice,
-        salePrice: p.salePrice,
-        averageRating: p.averageRating,
-        reviewCount: p.reviewCount,
-        images: p.images.map((img) => ({ url: img.url, alt: img.alt })),
-        category: { name: p.category.name, gender: p.category.gender },
-      }));
 
     await connectMongoDB();
     const mongoProducts = await Product.find({ isActive: true })
@@ -45,23 +25,30 @@ export async function GET(request: NextRequest) {
           cat.gender.toLowerCase() === gender.toLowerCase()
         );
       })
-      .slice(0, 8)
-      .map((p) => {
+      .slice(0, 8);
+
+    const related = await Promise.all(
+      mongoRelated.map(async (p) => {
         const cat = p.categoryId as unknown as { name: string; gender: string } | null;
+
+        const reviews = await Review.find({ productId: p._id }).lean();
+        const avgFromReviews = reviews.length > 0
+          ? reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length
+          : 0;
+
         return {
           id: String(p._id),
           name: p.name,
           slug: p.slug,
           basePrice: p.basePrice,
           salePrice: p.salePrice || null,
-          averageRating: 0,
-          reviewCount: 0,
+          averageRating: reviews.length > 0 ? Math.round(avgFromReviews * 10) / 10 : (p.averageRating as number) || 0,
+          reviewCount: reviews.length > 0 ? reviews.length : (p.reviewCount as number) || 0,
           images: (p.images || []).map((img: { url: string; alt?: string }) => ({ url: img.url, alt: img.alt || "" })),
           category: { name: cat?.name || "Uncategorized", gender: cat?.gender || "men" },
         };
-      });
-
-    const related = [...staticRelated, ...mongoRelated].slice(0, 8);
+      })
+    );
 
     return NextResponse.json({ products: related });
   } catch (error) {
