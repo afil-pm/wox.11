@@ -14,6 +14,8 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import WoxLoader from "@/components/ui/wox-loader";
+import SignOutModal from "@/components/ui/sign-out-modal";
+import { useSignOutStore } from "@/lib/stores/sign-out";
 
 const navItems = [
   { label: "Dashboard", icon: LayoutDashboard, href: "/admin" },
@@ -31,6 +33,7 @@ export default function AdminLayout({
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [authorized, setAuthorized] = useState<boolean | null>(null);
   const checked = useRef(false);
+  const openSignOut = useSignOutStore((s) => s.open);
 
   const isLoginPage = pathname === "/admin/login";
 
@@ -66,12 +69,6 @@ export default function AdminLayout({
         <WoxLoader />
       </div>
     );
-  }
-
-  function handleLogout() {
-    localStorage.removeItem("wox-user");
-    window.dispatchEvent(new Event("auth-change"));
-    window.location.href = "/admin/login";
   }
 
   // Login page — minimal layout, no sidebar
@@ -155,7 +152,7 @@ export default function AdminLayout({
               </span>
             </div>
             <button
-              onClick={handleLogout}
+              onClick={() => openSignOut()}
               className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm text-gray-500 hover:bg-red-50 hover:text-red-600"
             >
               <LogOut className="h-4 w-4" />
@@ -166,6 +163,7 @@ export default function AdminLayout({
 
         <main className="flex-1 overflow-y-auto p-4 lg:p-6">{children}</main>
       </div>
+      <SignOutModal />
     </div>
   );
 }

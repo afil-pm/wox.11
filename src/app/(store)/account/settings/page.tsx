@@ -2,17 +2,17 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { ArrowLeft, Save } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { useSignOutStore } from "@/lib/stores/sign-out";
 
 export default function AccountSettingsPage() {
-  const router = useRouter();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
   const [saved, setSaved] = useState(false);
+  const openSignOut = useSignOutStore((s) => s.open);
 
   useEffect(() => {
     const stored = localStorage.getItem("wox-user");
@@ -77,11 +77,7 @@ export default function AccountSettingsPage() {
         <Button
           variant="outline"
           className="mt-4 text-red-600 hover:bg-red-50 hover:text-red-700"
-          onClick={() => {
-            localStorage.removeItem("wox-user");
-            window.dispatchEvent(new Event("auth-change"));
-            router.push("/");
-          }}
+          onClick={() => openSignOut()}
         >
           Sign Out
         </Button>

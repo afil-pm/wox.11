@@ -2,6 +2,7 @@ import { Suspense } from "react";
 import Header from "@/components/layout/header";
 import { Footer } from "@/components/layout/footer";
 import BottomNav from "@/components/layout/bottom-nav";
+import StoreProviders from "@/components/layout/store-providers";
 
 export default function StoreLayout({
   children,
@@ -9,13 +10,13 @@ export default function StoreLayout({
   children: React.ReactNode;
 }) {
   return (
-    <>
+    <StoreProviders>
       <Header />
       <main className="flex-1 pb-16 lg:pb-0">{children}</main>
       <Footer />
       <Suspense>
         <BottomNav />
       </Suspense>
-    </>
+    </StoreProviders>
   );
 }

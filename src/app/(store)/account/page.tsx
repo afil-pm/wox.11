@@ -2,10 +2,10 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { User, LogOut, Package, Heart, MapPin, Settings } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import WoxLoader from "@/components/ui/wox-loader";
+import { useSignOutStore } from "@/lib/stores/sign-out";
 
 type UserData = {
   id: string;
@@ -16,9 +16,9 @@ type UserData = {
 };
 
 export default function AccountPage() {
-  const router = useRouter();
   const [user, setUser] = useState<UserData | null>(null);
   const [loading, setLoading] = useState(true);
+  const openSignOut = useSignOutStore((s) => s.open);
 
   useEffect(() => {
     const stored = localStorage.getItem("wox-user");
@@ -31,12 +31,6 @@ export default function AccountPage() {
     }
     setLoading(false);
   }, []);
-
-  const handleLogout = () => {
-    localStorage.removeItem("wox-user");
-    window.dispatchEvent(new Event("auth-change"));
-    router.push("/");
-  };
 
   if (loading) {
     return (
@@ -84,7 +78,7 @@ export default function AccountPage() {
             </span>
 
             <Button
-              onClick={handleLogout}
+              onClick={() => openSignOut(user.name)}
               variant="outline"
               className="mt-6 w-full text-red-600 hover:bg-red-50 hover:text-red-700"
             >
