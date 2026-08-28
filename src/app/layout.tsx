@@ -40,6 +40,7 @@ export const metadata: Metadata = {
         width: 1200,
         height: 630,
         alt: "WOX.11 - Modern Essentials for Men & Boys",
+        type: "image/png",
       },
     ],
   },
