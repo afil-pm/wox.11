@@ -3,7 +3,7 @@
 import { useEffect, useState, use } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { ArrowLeft, XCircle, RotateCcw, Truck, CheckCircle2, Clock, Box } from "lucide-react";
+import { ArrowLeft, XCircle, RotateCcw, Truck, CheckCircle2, Clock, Box, Star } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { cn, formatPrice } from "@/lib/utils";
@@ -88,6 +88,11 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
   const [order, setOrder] = useState<Order | null>(null);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
+  const [reviewItem, setReviewItem] = useState<OrderItem | null>(null);
+  const [reviewRating, setReviewRating] = useState(5);
+  const [reviewComment, setReviewComment] = useState("");
+  const [reviewLoading, setReviewLoading] = useState(false);
+  const [reviewedSlugs, setReviewedSlugs] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     async function fetchOrder() {
@@ -156,6 +161,56 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
       alert("Failed to request return");
     } finally {
       setActionLoading(false);
+    }
+  }
+
+  async function handleSubmitReview() {
+    if (!order || !reviewItem) return;
+    const stored = localStorage.getItem("wox-user");
+    const user = stored ? JSON.parse(stored) : null;
+    if (!user?.id) {
+      alert("Please log in to submit a review");
+      return;
+    }
+
+    setReviewLoading(true);
+    try {
+      const productRes = await fetch(`/api/products/all?search=${encodeURIComponent(reviewItem.name)}&limit=1`);
+      const productData = await productRes.json();
+      const product = productData.products?.[0];
+      if (!product) {
+        alert("Product not found");
+        return;
+      }
+
+      const res = await fetch("/api/reviews/from-order", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          orderId: order._id,
+          productId: product._id,
+          userId: user.id,
+          userName: user.name,
+          userEmail: user.email,
+          rating: reviewRating,
+          comment: reviewComment,
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        alert(data.error || "Failed to submit review");
+        return;
+      }
+
+      setReviewedSlugs((prev) => new Set([...prev, reviewItem.slug]));
+      setReviewItem(null);
+      setReviewRating(5);
+      setReviewComment("");
+    } catch {
+      alert("Failed to submit review");
+    } finally {
+      setReviewLoading(false);
     }
   }
 
@@ -262,27 +317,41 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
       <div className="mt-4 rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
         <h2 className="mb-4 text-sm font-semibold text-zinc-900">Items ({order.items.length})</h2>
         <div className="space-y-3">
-          {order.items.map((item, i) => (
-            <div key={i} className="flex items-center gap-4 rounded-xl border border-zinc-100 p-4">
-              <div className="relative h-20 w-20 flex-shrink-0 overflow-hidden rounded-lg bg-zinc-100">
-                {item.image ? (
-                  <Image src={item.image} alt={item.name} fill className="object-cover" sizes="80px" />
-                ) : (
-                  <div className="flex h-full items-center justify-center text-[10px] text-zinc-400">No Image</div>
-                )}
+          {order.items.map((item, i) => {
+            const canReview = order.status === "DELIVERED" && (order.paymentStatus === "PAID" || order.paymentStatus === "COMPLETED");
+            const isReviewed = reviewedSlugs.has(item.slug);
+            return (
+              <div key={i} className="flex items-center gap-4 rounded-xl border border-zinc-100 p-4">
+                <div className="relative h-20 w-20 flex-shrink-0 overflow-hidden rounded-lg bg-zinc-100">
+                  {item.image ? (
+                    <Image src={item.image} alt={item.name} fill className="object-cover" sizes="80px" />
+                  ) : (
+                    <div className="flex h-full items-center justify-center text-[10px] text-zinc-400">No Image</div>
+                  )}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-zinc-900 line-clamp-1">
+                    {item.name}
+                  </p>
+                  <p className="mt-0.5 text-xs text-zinc-500">Size: {item.size} · Qty: {item.quantity}</p>
+                  <p className="text-xs text-zinc-500">{formatPrice(item.price)} each</p>
+                  {canReview && (
+                    <button
+                      onClick={() => { setReviewItem(item); setReviewRating(5); setReviewComment(""); }}
+                      disabled={isReviewed}
+                      className={`mt-1.5 inline-flex items-center gap-1 text-xs font-medium ${isReviewed ? "text-green-600" : "text-amber-600 hover:text-amber-700"}`}
+                    >
+                      <Star className={`h-3 w-3 ${isReviewed ? "fill-green-600" : "fill-amber-500"}`} />
+                      {isReviewed ? "Reviewed" : "Write Review"}
+                    </button>
+                  )}
+                </div>
+                <span className="text-sm font-semibold text-zinc-900">
+                  {formatPrice(item.price * item.quantity)}
+                </span>
               </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-zinc-900 line-clamp-1">
-                  {item.name}
-                </p>
-                <p className="mt-0.5 text-xs text-zinc-500">Size: {item.size} · Qty: {item.quantity}</p>
-                <p className="text-xs text-zinc-500">{formatPrice(item.price)} each</p>
-              </div>
-              <span className="text-sm font-semibold text-zinc-900">
-                {formatPrice(item.price * item.quantity)}
-              </span>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
 
@@ -331,6 +400,79 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
               {actionLoading ? "Processing..." : "Request Return"}
             </Button>
           )}
+        </div>
+      )}
+
+      {/* Review Form Modal */}
+      {reviewItem && (
+        <div
+          className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 p-4"
+          onClick={() => { setReviewItem(null); setReviewRating(5); setReviewComment(""); }}
+        >
+          <div
+            className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between">
+              <h3 className="text-lg font-bold text-zinc-900">Write a Review</h3>
+              <button
+                onClick={() => { setReviewItem(null); setReviewRating(5); setReviewComment(""); }}
+                className="text-zinc-400 hover:text-zinc-600 text-xl"
+              >
+                &times;
+              </button>
+            </div>
+            <p className="mt-1 text-sm text-zinc-500">{reviewItem.name}</p>
+
+            <div className="mt-4">
+              <label className="text-sm font-medium text-zinc-700">Rating</label>
+              <div className="mt-1 flex gap-1">
+                {[1, 2, 3, 4, 5].map((star) => (
+                  <button
+                    key={star}
+                    onClick={() => setReviewRating(star)}
+                    className="focus:outline-none"
+                  >
+                    <Star
+                      className={`h-7 w-7 ${
+                        star <= reviewRating
+                          ? "fill-amber-400 text-amber-400"
+                          : "text-zinc-200"
+                      }`}
+                    />
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="mt-4">
+              <label className="text-sm font-medium text-zinc-700">Comment (optional)</label>
+              <textarea
+                value={reviewComment}
+                onChange={(e) => setReviewComment(e.target.value)}
+                rows={3}
+                placeholder="Share your experience with this product..."
+                className="mt-1 w-full rounded-xl border border-zinc-200 px-3 py-2 text-sm focus:border-zinc-400 focus:outline-none focus:ring-1 focus:ring-zinc-400"
+              />
+            </div>
+
+            <div className="mt-5 flex gap-3">
+              <Button
+                variant="outline"
+                className="flex-1"
+                onClick={() => { setReviewItem(null); setReviewRating(5); setReviewComment(""); }}
+              >
+                Cancel
+              </Button>
+              <Button
+                className="flex-1 bg-zinc-900 text-white hover:bg-zinc-800"
+                disabled={reviewLoading}
+                onClick={handleSubmitReview}
+              >
+                {reviewLoading ? "Submitting..." : "Submit Review"}
+              </Button>
+            </div>
+          </div>
         </div>
       )}
     </div>

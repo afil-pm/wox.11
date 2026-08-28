@@ -46,6 +46,9 @@ export interface IOrder extends Document {
     | "CANCELLED"
     | "RETURNED";
   notes: string;
+  paymentConfirmedAt?: Date;
+  paymentConfirmedBy?: string;
+  paymentConfirmationMethod?: "online" | "manual";
   createdAt: Date;
   updatedAt: Date;
 }
@@ -113,6 +116,12 @@ const OrderSchema = new Schema<IOrder>(
       default: "PENDING",
     },
     notes: { type: String, default: "" },
+    paymentConfirmedAt: { type: Date },
+    paymentConfirmedBy: { type: String, default: "" },
+    paymentConfirmationMethod: {
+      type: String,
+      enum: ["online", "manual"],
+    },
   },
   { timestamps: true }
 );

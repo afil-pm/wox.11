@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn, formatPrice } from "@/lib/utils";
-import { RefreshCw, Eye, Trash2, Lock, IndianRupee, TrendingUp, Calendar, BarChart3 } from "lucide-react";
+import { RefreshCw, Eye, Trash2, Lock, IndianRupee, TrendingUp, Calendar, BarChart3, BadgeCheck } from "lucide-react";
 import WoxLoader from "@/components/ui/wox-loader";
 import { adminFetch } from "@/lib/admin-api";
 
@@ -541,6 +541,46 @@ export default function AdminOrdersPage() {
                 </span>
               </div>
             </div>
+
+            {selectedOrder.paymentMethod === "cod" && selectedOrder.paymentStatus === "PENDING" && (
+              <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-3">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-amber-800">COD Payment Pending</p>
+                    <p className="text-xs text-amber-600">Confirm once you&apos;ve received the cash from customer</p>
+                  </div>
+                  <Button
+                    size="sm"
+                    className="bg-green-600 text-white hover:bg-green-700 gap-1.5"
+                    onClick={async () => {
+                      try {
+                        await adminFetch(`/api/admin/orders/${selectedOrder._id}/confirm-cod`, {
+                          method: "POST",
+                        });
+                        setSelectedOrder((prev) =>
+                          prev ? { ...prev, paymentStatus: "PAID" } : null
+                        );
+                        fetchOrders();
+                      } catch (e) {
+                        console.error("Failed to confirm COD:", e);
+                        alert("Failed to confirm payment");
+                      }
+                    }}
+                  >
+                    <BadgeCheck className="h-4 w-4" />
+                    Confirm Payment
+                  </Button>
+                </div>
+              </div>
+            )}
+            {selectedOrder.paymentMethod === "cod" && selectedOrder.paymentStatus === "PAID" && (
+              <div className="mt-3 rounded-lg border border-green-200 bg-green-50 p-3">
+                <div className="flex items-center gap-2">
+                  <BadgeCheck className="h-4 w-4 text-green-600" />
+                  <p className="text-sm font-medium text-green-800">COD Payment Confirmed</p>
+                </div>
+              </div>
+            )}
 
             {nextStatuses[selectedOrder.status]?.length > 0 && (
               <div className="mt-4 border-t pt-4 pb-2">
