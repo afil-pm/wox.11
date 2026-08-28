@@ -36,7 +36,7 @@ export const metadata: Metadata = {
     locale: "en_US",
     images: [
       {
-        url: "/opengraph-image",
+        url: "/opengraph-image.png",
         width: 1024,
         height: 1024,
         alt: "WOX.11 - Modern Essentials for Men & Boys",
@@ -51,7 +51,7 @@ export const metadata: Metadata = {
       "Premium men's and boys fashion. Shop shirts, t-shirts, and pants crafted for the modern wardrobe.",
     images: [
       {
-        url: "/twitter-image",
+        url: "/opengraph-image.png",
         width: 1024,
         height: 1024,
         alt: "WOX.11 - Modern Essentials for Men & Boys",
