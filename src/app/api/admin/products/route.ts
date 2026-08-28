@@ -207,7 +207,10 @@ export async function PUT(request: NextRequest) {
       }));
     }
 
-    const product = await Product.findByIdAndUpdate(id, data, { new: true })
+    const product = await Product.findByIdAndUpdate(id, {
+      ...data,
+      salePrice: data.salePrice !== undefined && data.salePrice !== null && data.salePrice !== "" ? Number(data.salePrice) : 0,
+    }, { new: true })
       .populate("categoryId", "name slug gender type");
 
     return NextResponse.json({ product });

@@ -1,124 +1,12 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { ChevronDown, SlidersHorizontal, X, Search } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { ProductCard, type Product } from "@/components/product/product-card";
 import PremiumSelect from "@/components/ui/premium-select";
-
-const products: Product[] = [
-  {
-    id: "1",
-    name: "WOX Men's Rust Plaid Flannel Shirt",
-    slug: "wox-rust-plaid-flannel-shirt",
-    basePrice: 2199,
-    salePrice: 1799,
-    images: [{ url: "/images/products/men/shirts/wox-rust-plaid-flannel-shirt-1.png", alt: "WOX Men's Rust Plaid Flannel Shirt" }],
-    averageRating: 4.7,
-    reviewCount: 18,
-    category: { name: "Shirts", gender: "men" },
-  },
-  {
-    id: "2",
-    name: "WOX Men's Red Plaid Flannel Shirt",
-    slug: "wox-red-plaid-flannel-shirt",
-    basePrice: 1999,
-    salePrice: 1599,
-    images: [{ url: "/images/products/men/shirts/wox-red-plaid-flannel-shirt-1.png", alt: "WOX Men's Red Plaid Flannel Shirt" }],
-    averageRating: 4.5,
-    reviewCount: 12,
-    category: { name: "Shirts", gender: "men" },
-  },
-  {
-    id: "3",
-    name: "WOX Men's Lavender Polo Shirt",
-    slug: "wox-lavender-polo-shirt",
-    basePrice: 1299,
-    salePrice: 999,
-    images: [{ url: "/images/products/men/t-shirts/wox-lavender-polo-shirt-1.png", alt: "WOX Men's Lavender Polo Shirt" }],
-    averageRating: 4.6,
-    reviewCount: 8,
-    category: { name: "T-Shirts", gender: "men" },
-  },
-  {
-    id: "4",
-    name: "WOX Men's Black Formal Trousers",
-    slug: "wox-black-formal-trousers",
-    basePrice: 2499,
-    salePrice: 1999,
-    images: [{ url: "/images/products/men/pants/wox-black-formal-trousers-1.png", alt: "WOX Men's Black Formal Trousers" }],
-    averageRating: 4.8,
-    reviewCount: 15,
-    category: { name: "Pants", gender: "men" },
-  },
-  {
-    id: "5",
-    name: "WOX Boys' Pink Oversized Tee",
-    slug: "wox-boys-pink-tee",
-    basePrice: 799,
-    salePrice: 599,
-    images: [{ url: "/images/products/boys/t-shirts/wox-boys-pink-tee-1.png", alt: "WOX Boys' Pink Oversized Tee" }],
-    averageRating: 4.4,
-    reviewCount: 6,
-    category: { name: "T-Shirts", gender: "boys" },
-  },
-  {
-    id: "6",
-    name: "WOX Boys' Maroon Solid Shirt",
-    slug: "wox-boys-maroon-shirt",
-    basePrice: 1199,
-    salePrice: null,
-    images: [{ url: "/images/products/boys/shirts/wox-boys-maroon-shirt-1.png", alt: "WOX Boys' Maroon Solid Shirt" }],
-    averageRating: 4.3,
-    reviewCount: 9,
-    category: { name: "Shirts", gender: "boys" },
-  },
-  {
-    id: "7",
-    name: "WOX Boys' White Wide-Leg Pants",
-    slug: "wox-boys-white-wide-leg",
-    basePrice: 1199,
-    salePrice: 899,
-    images: [{ url: "/images/products/boys/pants/wox-boys-white-wide-leg-1.png", alt: "WOX Boys' White Wide-Leg Pants" }],
-    averageRating: 4.5,
-    reviewCount: 11,
-    category: { name: "Pants", gender: "boys" },
-  },
-  {
-    id: "8",
-    name: "WOX Boys' Light Blue Wide-Leg Jeans",
-    slug: "wox-boys-light-blue-jeans",
-    basePrice: 1299,
-    salePrice: 999,
-    images: [{ url: "/images/products/boys/pants/wox-boys-light-blue-jeans-1.png", alt: "WOX Boys' Light Blue Wide-Leg Jeans" }],
-    averageRating: 4.6,
-    reviewCount: 7,
-    category: { name: "Pants", gender: "boys" },
-  },
-  {
-    id: "9",
-    name: "WOX Men's Olive Casual Chinos",
-    slug: "wox-olive-casual-chinos",
-    basePrice: 1899,
-    salePrice: 1499,
-    images: [{ url: "/images/products/men/pants/wox-olive-casual-chinos-1.png", alt: "WOX Men's Olive Casual Chinos" }],
-    averageRating: 4.4,
-    reviewCount: 14,
-    category: { name: "Pants", gender: "men" },
-  },
-  {
-    id: "10",
-    name: "WOX Boys' Black Oversized Tee",
-    slug: "wox-boys-black-tee",
-    basePrice: 799,
-    salePrice: 599,
-    images: [{ url: "/images/products/boys/t-shirts/wox-boys-black-tee-1.png", alt: "WOX Boys' Black Oversized Tee" }],
-    averageRating: 4.7,
-    reviewCount: 10,
-    category: { name: "T-Shirts", gender: "boys" },
-  },
-];
+import WoxLoader from "@/components/ui/wox-loader";
 
 const categories = ["All", "Shirts", "T-Shirts", "Pants"];
 const genders = ["All", "Men", "Boys"];
@@ -139,6 +27,8 @@ const priceRanges = [
 const PRODUCTS_PER_PAGE = 8;
 
 export default function NewArrivalsPage() {
+  const [products, setProducts] = useState<Product[]>([]);
+  const [loading, setLoading] = useState(true);
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState("All");
   const [selectedGender, setSelectedGender] = useState("All");
@@ -150,6 +40,21 @@ export default function NewArrivalsPage() {
     gender: true,
     price: true,
   });
+
+  useEffect(() => {
+    async function load() {
+      try {
+        const res = await fetch("/api/products/all?sort=newest&limit=50");
+        const data = await res.json();
+        setProducts(data.products || []);
+      } catch {
+        console.error("Failed to load products");
+      } finally {
+        setLoading(false);
+      }
+    }
+    load();
+  }, []);
 
   const toggleSection = (section: keyof typeof expandedSections) => {
     setExpandedSections((prev) => ({
@@ -189,11 +94,6 @@ export default function NewArrivalsPage() {
 
     switch (sortBy) {
       case "newest":
-        result.sort((a, b) => {
-          const aIsSale = a.salePrice !== null ? 1 : 0;
-          const bIsSale = b.salePrice !== null ? 1 : 0;
-          return bIsSale - aIsSale;
-        });
         break;
       case "price-low":
         result.sort((a, b) => (a.salePrice ?? a.basePrice) - (b.salePrice ?? b.basePrice));
@@ -206,7 +106,7 @@ export default function NewArrivalsPage() {
     }
 
     return result;
-  }, [selectedCategory, selectedGender, selectedPriceRanges, sortBy]);
+  }, [products, selectedCategory, selectedGender, selectedPriceRanges, sortBy]);
 
   const totalPages = Math.ceil(filteredProducts.length / PRODUCTS_PER_PAGE);
   const paginatedProducts = filteredProducts.slice(
@@ -357,6 +257,14 @@ export default function NewArrivalsPage() {
       )}
     </div>
   );
+
+  if (loading) {
+    return (
+      <div className="flex min-h-[60vh] items-center justify-center">
+        <WoxLoader />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-white">

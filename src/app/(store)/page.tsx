@@ -1,102 +1,12 @@
+"use client";
+
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { Shield, Truck, RotateCcw, Headphones } from "lucide-react";
 import { ProductCard, type Product } from "@/components/product/product-card";
 import RecentlyViewed from "@/components/product/recently-viewed";
 import CategorySection from "@/components/category/CategorySection";
-
-const newArrivals: Product[] = [
-  {
-    id: "1",
-    name: "WOX Men's Peach Polo Shirt",
-    slug: "wox-peach-polo-shirt",
-    basePrice: 1299,
-    salePrice: 999,
-    averageRating: 4.5,
-    reviewCount: 128,
-    images: [{ url: "/images/products/men/t-shirts/wox-peach-polo-shirt-1.png", alt: "Peach Polo Shirt" }],
-    category: { name: "T-Shirts", gender: "men" },
-  },
-  {
-    id: "2",
-    name: "WOX Men's Green Plaid Flannel Shirt",
-    slug: "wox-green-plaid-flannel-shirt",
-    basePrice: 2499,
-    salePrice: 1999,
-    averageRating: 4.8,
-    reviewCount: 256,
-    images: [{ url: "/images/products/men/shirts/wox-green-plaid-flannel-shirt-1.png", alt: "Green Plaid Flannel Shirt" }],
-    category: { name: "Shirts", gender: "men" },
-  },
-  {
-    id: "3",
-    name: "WOX Men's Khaki Cargo Pants",
-    slug: "wox-khaki-cargo-pants",
-    basePrice: 2199,
-    salePrice: 1799,
-    averageRating: 4.3,
-    reviewCount: 89,
-    images: [{ url: "/images/products/men/pants/wox-khaki-cargo-pants-1.png", alt: "Khaki Cargo Pants" }],
-    category: { name: "Pants", gender: "men" },
-  },
-  {
-    id: "4",
-    name: "WOX Men's Wine Polo Shirt",
-    slug: "wox-wine-polo-shirt",
-    basePrice: 1299,
-    salePrice: 999,
-    averageRating: 4.6,
-    reviewCount: 167,
-    images: [{ url: "/images/products/men/t-shirts/wox-wine-polo-shirt-1.png", alt: "Wine Polo Shirt" }],
-    category: { name: "T-Shirts", gender: "men" },
-  },
-];
-
-const bestSellers: Product[] = [
-  {
-    id: "5",
-    name: "WOX Men's Brown Plaid Flannel Shirt",
-    slug: "wox-brown-plaid-flannel-shirt",
-    basePrice: 2299,
-    salePrice: 1899,
-    averageRating: 4.7,
-    reviewCount: 312,
-    images: [{ url: "/images/products/men/shirts/wox-brown-plaid-flannel-shirt-1.png", alt: "Brown Plaid Flannel Shirt" }],
-    category: { name: "Shirts", gender: "men" },
-  },
-  {
-    id: "6",
-    name: "WOX Men's Navy Formal Chinos",
-    slug: "wox-navy-formal-chinos",
-    basePrice: 1999,
-    salePrice: 1599,
-    averageRating: 4.4,
-    reviewCount: 201,
-    images: [{ url: "/images/products/men/pants/wox-navy-formal-chinos-1.png", alt: "Navy Formal Chinos" }],
-    category: { name: "Pants", gender: "men" },
-  },
-  {
-    id: "7",
-    name: "WOX Men's Lavender Polo Shirt",
-    slug: "wox-lavender-polo-shirt",
-    basePrice: 1299,
-    salePrice: 999,
-    averageRating: 4.2,
-    reviewCount: 95,
-    images: [{ url: "/images/products/men/t-shirts/wox-lavender-polo-shirt-1.png", alt: "Lavender Polo Shirt" }],
-    category: { name: "T-Shirts", gender: "men" },
-  },
-  {
-    id: "8",
-    name: "WOX Men's Rust Plaid Flannel Shirt",
-    slug: "wox-rust-plaid-flannel-shirt",
-    basePrice: 2199,
-    salePrice: 1799,
-    averageRating: 4.9,
-    reviewCount: 178,
-    images: [{ url: "/images/products/men/shirts/wox-rust-plaid-flannel-shirt-1.png", alt: "Rust Plaid Flannel Shirt" }],
-    category: { name: "Shirts", gender: "men" },
-  },
-];
+import WoxLoader from "@/components/ui/wox-loader";
 
 const trustItems = [
   { icon: Shield, title: "Secure Payments", description: "100% secure payment methods" },
@@ -106,6 +16,30 @@ const trustItems = [
 ];
 
 export default function Home() {
+  const [newArrivals, setNewArrivals] = useState<Product[]>([]);
+  const [bestSellers, setBestSellers] = useState<Product[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function load() {
+      try {
+        const [newRes, bestRes] = await Promise.all([
+          fetch("/api/products/all?sort=newest&limit=4"),
+          fetch("/api/products/all?sort=popular&limit=4"),
+        ]);
+        const newData = await newRes.json();
+        const bestData = await bestRes.json();
+        setNewArrivals(newData.products || []);
+        setBestSellers(bestData.products || []);
+      } catch {
+        console.error("Failed to load products");
+      } finally {
+        setLoading(false);
+      }
+    }
+    load();
+  }, []);
+
   return (
     <div className="flex flex-col">
       {/* Hero Section */}
@@ -159,11 +93,17 @@ export default function Home() {
               View All
             </Link>
           </div>
-          <div className="mt-10 grid grid-cols-2 gap-4 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-4">
-            {newArrivals.map((product) => (
-              <ProductCard key={product.id} product={product} />
-            ))}
-          </div>
+          {loading ? (
+            <div className="flex items-center justify-center py-16">
+              <WoxLoader />
+            </div>
+          ) : (
+            <div className="mt-10 grid grid-cols-2 gap-4 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-4">
+              {newArrivals.map((product) => (
+                <ProductCard key={product.id} product={product} />
+              ))}
+            </div>
+          )}
         </div>
       </section>
 
@@ -193,11 +133,17 @@ export default function Home() {
               View All
             </Link>
           </div>
-          <div className="mt-10 grid grid-cols-2 gap-4 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-4">
-            {bestSellers.map((product) => (
-              <ProductCard key={product.id} product={product} />
-            ))}
-          </div>
+          {loading ? (
+            <div className="flex items-center justify-center py-16">
+              <WoxLoader />
+            </div>
+          ) : (
+            <div className="mt-10 grid grid-cols-2 gap-4 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-4">
+              {bestSellers.map((product) => (
+                <ProductCard key={product.id} product={product} />
+              ))}
+            </div>
+          )}
         </div>
       </section>
 
