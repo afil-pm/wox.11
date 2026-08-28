@@ -56,7 +56,7 @@ export default function AdminDashboard() {
 
   const fetchData = useCallback(async () => {
     try {
-      const res = await fetch("/api/mongo/orders?limit=50");
+      const res = await adminFetch("/api/mongo/orders?limit=50");
       const data = await res.json();
       const allOrders: Order[] = data.orders || [];
 
