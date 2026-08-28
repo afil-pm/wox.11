@@ -7,6 +7,7 @@ export interface IMessage extends Document {
   message: string;
   status: "pending" | "reviewing" | "resolved" | "rejected";
   adminReply: string;
+  keyDeliveredAt?: Date;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -23,6 +24,7 @@ const MessageSchema = new Schema<IMessage>(
       default: "pending",
     },
     adminReply: { type: String, default: "" },
+    keyDeliveredAt: { type: Date },
   },
   { timestamps: true }
 );

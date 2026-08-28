@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Eye, EyeOff, KeyRound, ArrowLeft, Copy, Check, MessageCircle, X, Send, Loader2, Inbox, Clock, CheckCircle2, XCircle, RefreshCw } from "lucide-react";
+import { Eye, EyeOff, KeyRound, ArrowLeft, Copy, Check, MessageCircle, X, Send, Loader2, Inbox, Clock, CheckCircle2, Shield } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
@@ -15,6 +15,7 @@ interface StatusMessage {
   message: string;
   status: "pending" | "reviewing" | "resolved" | "rejected";
   adminReply: string;
+  keyDeliveredAt?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -50,6 +51,8 @@ function RecoveryPanel({ onClose }: { onClose: () => void }) {
   const [checkLoading, setCheckLoading] = useState(false);
   const [checkError, setCheckError] = useState("");
   const [checkResults, setCheckResults] = useState<StatusMessage[]>([]);
+  const [copiedKeys, setCopiedKeys] = useState<Set<string>>(new Set());
+  const [confirmingId, setConfirmingId] = useState<string | null>(null);
 
   async function handleSend(e: React.FormEvent) {
     e.preventDefault();
@@ -97,6 +100,30 @@ function RecoveryPanel({ onClose }: { onClose: () => void }) {
       setCheckError("Something went wrong. Please try again.");
     } finally {
       setCheckLoading(false);
+    }
+  }
+
+  function copyRecoveryKey(msgId: string, key: string) {
+    navigator.clipboard.writeText(key);
+    setCopiedKeys((prev) => new Set([...prev, msgId]));
+  }
+
+  async function confirmReceipt(msgId: string) {
+    setConfirmingId(msgId);
+    try {
+      const res = await fetch("/api/messages/confirm-receipt", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ messageId: msgId, senderEmail: checkEmail.trim() }),
+      });
+
+      if (res.ok) {
+        setCheckResults((prev) => prev.filter((m) => m._id !== msgId));
+      }
+    } catch {
+      // silently fail
+    } finally {
+      setConfirmingId(null);
     }
   }
 
@@ -358,6 +385,42 @@ function RecoveryPanel({ onClose }: { onClose: () => void }) {
                   <div className="rounded-lg bg-zinc-50 border border-zinc-200 p-3">
                     <p className="text-[11px] font-semibold text-zinc-500 uppercase tracking-wider mb-1">Admin Reply</p>
                     <p className="text-sm text-zinc-800 whitespace-pre-wrap">{msg.adminReply}</p>
+
+                    {!msg.keyDeliveredAt && (
+                      <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-3">
+                        <div className="flex items-center gap-2 mb-2">
+                          <Shield className="h-4 w-4 text-amber-600" />
+                          <p className="text-xs font-semibold text-amber-800">Recovery Key — Copy Required</p>
+                        </div>
+                        <p className="text-[11px] text-amber-700 mb-3">
+                          Copy the recovery key above, then click &quot;Received&quot; to confirm. This conversation will be permanently deleted after confirmation.
+                        </p>
+                        <div className="flex gap-2">
+                          <Button
+                            size="sm"
+                            variant={copiedKeys.has(msg._id) ? "default" : "outline"}
+                            className={copiedKeys.has(msg._id) ? "bg-green-600 text-white hover:bg-green-700 gap-1.5" : "gap-1.5"}
+                            onClick={() => copyRecoveryKey(msg._id, msg.adminReply)}
+                          >
+                            {copiedKeys.has(msg._id) ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
+                            {copiedKeys.has(msg._id) ? "Copied" : "Copy Recovery Key"}
+                          </Button>
+                          <Button
+                            size="sm"
+                            disabled={!copiedKeys.has(msg._id) || confirmingId === msg._id}
+                            className="bg-zinc-900 text-white hover:bg-zinc-800 gap-1.5"
+                            onClick={() => confirmReceipt(msg._id)}
+                          >
+                            {confirmingId === msg._id ? (
+                              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                            ) : (
+                              <CheckCircle2 className="h-3.5 w-3.5" />
+                            )}
+                            Received
+                          </Button>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 ) : msg.status === "pending" ? (
                   <p className="text-xs text-zinc-400 italic">Waiting for admin review...</p>
@@ -481,9 +544,10 @@ export default function ResetPasswordPage() {
             <div className="mt-6">
               <Button
                 onClick={() => router.push("/auth/login")}
+                disabled={!copied}
                 className="w-full bg-zinc-900 text-white hover:bg-zinc-800"
               >
-                Sign In with New Password
+                {copied ? "Sign In with New Password" : "Copy Recovery Code to Continue"}
               </Button>
             </div>
           </div>

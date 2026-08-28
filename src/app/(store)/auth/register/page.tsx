@@ -93,9 +93,10 @@ export default function RegisterPage() {
             <div className="mt-6">
               <Button
                 onClick={() => router.push("/account")}
+                disabled={!copied}
                 className="w-full bg-zinc-900 text-white hover:bg-zinc-800"
               >
-                Continue to My Account
+                {copied ? "Continue to My Account" : "Copy Recovery Code to Continue"}
               </Button>
             </div>
           </div>

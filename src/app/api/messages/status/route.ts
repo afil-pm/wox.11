@@ -18,7 +18,7 @@ export async function GET(request: NextRequest) {
       type: "account-recovery",
     })
       .sort({ createdAt: -1 })
-      .select("senderEmail senderName message status adminReply createdAt updatedAt")
+      .select("senderEmail senderName message status adminReply keyDeliveredAt createdAt updatedAt")
       .lean();
 
     return NextResponse.json({ messages });
