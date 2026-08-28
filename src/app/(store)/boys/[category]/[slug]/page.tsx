@@ -28,6 +28,7 @@ import { useWishlistStore } from "@/lib/stores/wishlist";
 import { useRecentlyViewed } from "@/lib/hooks/use-recently-viewed";
 import BuyNowModal from "@/components/product/buy-now-modal";
 import RelatedProducts from "@/components/product/related-products";
+import OgMeta from "@/components/ui/og-meta";
 
 type ProductImage = { url: string; alt: string | null };
 type ColorVariant = { id: string; name: string; color: string | null; colorCode: string | null; images: ProductImage[] };
@@ -250,6 +251,13 @@ export default function ProductDetailPage({ params }: { params: Promise<{ catego
 
   return (
     <div className="min-h-screen bg-white">
+      <OgMeta
+        title={`${product.name} | WOX.11`}
+        description={product.description || `Shop ${product.name} at WOX.11 - Premium boys fashion`}
+        image={product.images[0]?.url}
+        url={`https://wox11.vercel.app/boys/${product.category.slug}/${product.slug}`}
+        type="product"
+      />
       <div className="mx-auto max-w-7xl px-4 py-4 sm:px-6 lg:px-8">
         {/* Breadcrumb */}
         <nav className="mb-4 flex items-center gap-1.5 overflow-x-auto text-xs text-zinc-500">
