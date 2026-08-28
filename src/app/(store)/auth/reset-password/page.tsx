@@ -3,21 +3,58 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Eye, EyeOff, KeyRound, ArrowLeft, Copy, Check, MessageCircle, X, Send, Loader2 } from "lucide-react";
+import { Eye, EyeOff, KeyRound, ArrowLeft, Copy, Check, MessageCircle, X, Send, Loader2, Inbox, Clock, CheckCircle2, XCircle, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { cn } from "@/lib/utils";
+
+interface StatusMessage {
+  _id: string;
+  senderEmail: string;
+  senderName: string;
+  message: string;
+  status: "pending" | "reviewing" | "resolved" | "rejected";
+  adminReply: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+const statusStyles: Record<string, string> = {
+  pending: "bg-yellow-100 text-yellow-800",
+  reviewing: "bg-blue-100 text-blue-800",
+  resolved: "bg-green-100 text-green-800",
+  rejected: "bg-red-100 text-red-800",
+};
+
+const statusLabels: Record<string, string> = {
+  pending: "Pending",
+  reviewing: "Reviewing",
+  resolved: "Resolved",
+  rejected: "Rejected",
+};
+
+type PanelView = "menu" | "send" | "sent" | "check" | "results";
 
 function RecoveryPanel({ onClose }: { onClose: () => void }) {
+  const [view, setView] = useState<PanelView>("menu");
+
+  // Send form state
   const [senderEmail, setSenderEmail] = useState("");
   const [senderName, setSenderName] = useState("");
   const [message, setMessage] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
-  const [sent, setSent] = useState(false);
+  const [sendLoading, setSendLoading] = useState(false);
+  const [sendError, setSendError] = useState("");
+
+  // Check status state
+  const [checkEmail, setCheckEmail] = useState("");
+  const [checkLoading, setCheckLoading] = useState(false);
+  const [checkError, setCheckError] = useState("");
+  const [checkResults, setCheckResults] = useState<StatusMessage[]>([]);
 
   async function handleSend(e: React.FormEvent) {
     e.preventDefault();
-    setError("");
-    setLoading(true);
+    setSendError("");
+    setSendLoading(true);
 
     try {
       const res = await fetch("/api/messages/recovery", {
@@ -28,110 +65,335 @@ function RecoveryPanel({ onClose }: { onClose: () => void }) {
 
       const data = await res.json();
       if (!res.ok) {
-        setError(data.error || "Failed to send request");
+        setSendError(data.error || "Failed to send request");
         return;
       }
 
-      setSent(true);
+      setView("sent");
     } catch {
-      setError("Something went wrong. Please try again.");
+      setSendError("Something went wrong. Please try again.");
     } finally {
-      setLoading(false);
+      setSendLoading(false);
     }
   }
 
-  if (sent) {
+  async function handleCheck(e: React.FormEvent) {
+    e.preventDefault();
+    setCheckError("");
+    setCheckLoading(true);
+
+    try {
+      const res = await fetch(`/api/messages/status?email=${encodeURIComponent(checkEmail.trim())}`);
+      const data = await res.json();
+
+      if (!res.ok) {
+        setCheckError(data.error || "Failed to check status");
+        return;
+      }
+
+      setCheckResults(data.messages || []);
+      setView("results");
+    } catch {
+      setCheckError("Something went wrong. Please try again.");
+    } finally {
+      setCheckLoading(false);
+    }
+  }
+
+  // Menu view
+  if (view === "menu") {
     return (
-      <div className="flex flex-col items-center py-8 px-6 text-center">
-        <div className="flex h-12 w-12 items-center justify-center rounded-full bg-green-100 mb-4">
-          <Check className="h-6 w-6 text-green-600" />
+      <div>
+        <div className="flex items-center justify-between border-b border-zinc-200 px-5 py-4">
+          <div className="flex items-center gap-2">
+            <MessageCircle className="h-5 w-5 text-zinc-700" />
+            <h3 className="font-bold text-zinc-900">Need Help?</h3>
+          </div>
+          <button type="button" onClick={onClose} className="text-zinc-400 hover:text-zinc-600">
+            <X className="h-5 w-5" />
+          </button>
         </div>
-        <h3 className="text-lg font-bold text-zinc-900">Request Sent</h3>
-        <p className="mt-2 text-sm text-zinc-500">
-          Your account recovery request has been received. The admin will review your case and contact you if needed.
-        </p>
-        <Button onClick={onClose} variant="outline" className="mt-6 w-full">
-          Close
-        </Button>
+        <div className="px-5 py-4 space-y-3">
+          <p className="text-xs text-zinc-500 leading-relaxed">
+            Choose an option below to get help with your account.
+          </p>
+          <button
+            onClick={() => setView("send")}
+            className="w-full rounded-xl border border-zinc-200 bg-white p-4 text-left transition-colors hover:bg-zinc-50"
+          >
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-zinc-100">
+                <Send className="h-5 w-5 text-zinc-600" />
+              </div>
+              <div>
+                <p className="text-sm font-medium text-zinc-900">Send Recovery Request</p>
+                <p className="text-xs text-zinc-500">Lost access? Send a message to the admin</p>
+              </div>
+            </div>
+          </button>
+          <button
+            onClick={() => setView("check")}
+            className="w-full rounded-xl border border-zinc-200 bg-white p-4 text-left transition-colors hover:bg-zinc-50"
+          >
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-zinc-100">
+                <Inbox className="h-5 w-5 text-zinc-600" />
+              </div>
+              <div>
+                <p className="text-sm font-medium text-zinc-900">Check Request Status</p>
+                <p className="text-xs text-zinc-500">See admin replies to your request</p>
+              </div>
+            </div>
+          </button>
+        </div>
       </div>
     );
   }
 
-  return (
-    <form onSubmit={handleSend} className="flex flex-col">
-      <div className="flex items-center justify-between border-b border-zinc-200 px-5 py-4">
-        <div className="flex items-center gap-2">
-          <MessageCircle className="h-5 w-5 text-zinc-700" />
-          <h3 className="font-bold text-zinc-900">Contact Admin</h3>
-        </div>
-        <button type="button" onClick={onClose} className="text-zinc-400 hover:text-zinc-600">
-          <X className="h-5 w-5" />
-        </button>
-      </div>
-
-      <div className="px-5 py-4 space-y-4">
-        <p className="text-xs text-zinc-500 leading-relaxed">
-          Lost access to your password and recovery code? Send a request to the admin. Provide enough detail so the admin can verify you are the legitimate account owner.
-        </p>
-
-        {error && (
-          <div className="rounded-lg bg-red-50 p-3 text-xs text-red-600">{error}</div>
-        )}
-
-        <div>
-          <label className="mb-1 block text-xs font-medium text-zinc-700">Your Email</label>
-          <input
-            type="email"
-            value={senderEmail}
-            onChange={(e) => setSenderEmail(e.target.value)}
-            required
-            className="w-full rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-900 placeholder:text-zinc-400 outline-none focus:border-zinc-900 focus:ring-1 focus:ring-zinc-900"
-            placeholder="you@example.com"
-          />
+  // Send view
+  if (view === "send") {
+    return (
+      <form onSubmit={handleSend} className="flex flex-col">
+        <div className="flex items-center justify-between border-b border-zinc-200 px-5 py-4">
+          <div className="flex items-center gap-2">
+            <button type="button" onClick={() => setView("menu")} className="text-zinc-400 hover:text-zinc-600">
+              <ArrowLeft className="h-4 w-4" />
+            </button>
+            <h3 className="font-bold text-zinc-900">Send Recovery Request</h3>
+          </div>
+          <button type="button" onClick={onClose} className="text-zinc-400 hover:text-zinc-600">
+            <X className="h-5 w-5" />
+          </button>
         </div>
 
-        <div>
-          <label className="mb-1 block text-xs font-medium text-zinc-700">Your Name</label>
-          <input
-            type="text"
-            value={senderName}
-            onChange={(e) => setSenderName(e.target.value)}
-            required
-            className="w-full rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-900 placeholder:text-zinc-400 outline-none focus:border-zinc-900 focus:ring-1 focus:ring-zinc-900"
-            placeholder="John Doe"
-          />
-        </div>
+        <div className="px-5 py-4 space-y-4">
+          <p className="text-xs text-zinc-500 leading-relaxed">
+            Provide enough detail so the admin can verify you are the legitimate account owner.
+          </p>
 
-        <div>
-          <label className="mb-1 block text-xs font-medium text-zinc-700">Message</label>
-          <textarea
-            value={message}
-            onChange={(e) => setMessage(e.target.value)}
-            required
-            rows={4}
-            className="w-full rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-900 placeholder:text-zinc-400 outline-none focus:border-zinc-900 focus:ring-1 focus:ring-zinc-900 resize-none"
-            placeholder="Explain your situation. E.g., registered email, approximate account creation date, any orders you remember..."
-          />
-          <p className="mt-1 text-[11px] text-zinc-400">10-2000 characters</p>
-        </div>
-      </div>
-
-      <div className="border-t border-zinc-200 px-5 py-4">
-        <Button
-          type="submit"
-          disabled={loading}
-          className="w-full bg-zinc-900 text-white hover:bg-zinc-800 gap-2"
-        >
-          {loading ? (
-            <Loader2 className="h-4 w-4 animate-spin" />
-          ) : (
-            <Send className="h-4 w-4" />
+          {sendError && (
+            <div className="rounded-lg bg-red-50 p-3 text-xs text-red-600">{sendError}</div>
           )}
-          {loading ? "Sending..." : "Send Recovery Request"}
-        </Button>
+
+          <div>
+            <label className="mb-1 block text-xs font-medium text-zinc-700">Your Email</label>
+            <input
+              type="email"
+              value={senderEmail}
+              onChange={(e) => setSenderEmail(e.target.value)}
+              required
+              className="w-full rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-900 placeholder:text-zinc-400 outline-none focus:border-zinc-900 focus:ring-1 focus:ring-zinc-900"
+              placeholder="you@example.com"
+            />
+          </div>
+
+          <div>
+            <label className="mb-1 block text-xs font-medium text-zinc-700">Your Name</label>
+            <input
+              type="text"
+              value={senderName}
+              onChange={(e) => setSenderName(e.target.value)}
+              required
+              className="w-full rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-900 placeholder:text-zinc-400 outline-none focus:border-zinc-900 focus:ring-1 focus:ring-zinc-900"
+              placeholder="John Doe"
+            />
+          </div>
+
+          <div>
+            <label className="mb-1 block text-xs font-medium text-zinc-700">Message</label>
+            <textarea
+              value={message}
+              onChange={(e) => setMessage(e.target.value)}
+              required
+              rows={4}
+              className="w-full rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-900 placeholder:text-zinc-400 outline-none focus:border-zinc-900 focus:ring-1 focus:ring-zinc-900 resize-none"
+              placeholder="E.g., registered email, approximate account creation date, any orders you remember..."
+            />
+            <p className="mt-1 text-[11px] text-zinc-400">10-2000 characters</p>
+          </div>
+        </div>
+
+        <div className="border-t border-zinc-200 px-5 py-4">
+          <Button
+            type="submit"
+            disabled={sendLoading}
+            className="w-full bg-zinc-900 text-white hover:bg-zinc-800 gap-2"
+          >
+            {sendLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+            {sendLoading ? "Sending..." : "Send Recovery Request"}
+          </Button>
+        </div>
+      </form>
+    );
+  }
+
+  // Sent confirmation view
+  if (view === "sent") {
+    return (
+      <div>
+        <div className="flex items-center justify-between border-b border-zinc-200 px-5 py-4">
+          <div className="flex items-center gap-2">
+            <CheckCircle2 className="h-5 w-5 text-green-600" />
+            <h3 className="font-bold text-zinc-900">Request Sent</h3>
+          </div>
+          <button type="button" onClick={onClose} className="text-zinc-400 hover:text-zinc-600">
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+        <div className="px-5 py-6 space-y-4 text-center">
+          <p className="text-sm text-zinc-500 leading-relaxed">
+            Your account recovery request has been received. The admin will review your case and reply soon.
+          </p>
+          <p className="text-xs text-zinc-400">
+            Use <strong>{senderEmail}</strong> to check the status anytime.
+          </p>
+          <div className="flex gap-3">
+            <Button
+              onClick={() => { setCheckEmail(senderEmail); setView("check"); }}
+              variant="outline"
+              className="flex-1 gap-2"
+            >
+              <Inbox className="h-4 w-4" />
+              Check Status
+            </Button>
+            <Button onClick={onClose} className="flex-1 bg-zinc-900 text-white hover:bg-zinc-800">
+              Close
+            </Button>
+          </div>
+        </div>
       </div>
-    </form>
-  );
+    );
+  }
+
+  // Check status view
+  if (view === "check") {
+    return (
+      <form onSubmit={handleCheck} className="flex flex-col">
+        <div className="flex items-center justify-between border-b border-zinc-200 px-5 py-4">
+          <div className="flex items-center gap-2">
+            <button type="button" onClick={() => setView("menu")} className="text-zinc-400 hover:text-zinc-600">
+              <ArrowLeft className="h-4 w-4" />
+            </button>
+            <h3 className="font-bold text-zinc-900">Check Request Status</h3>
+          </div>
+          <button type="button" onClick={onClose} className="text-zinc-400 hover:text-zinc-600">
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+
+        <div className="px-5 py-4 space-y-4">
+          <p className="text-xs text-zinc-500 leading-relaxed">
+            Enter the email you used to send the recovery request to see admin replies.
+          </p>
+
+          {checkError && (
+            <div className="rounded-lg bg-red-50 p-3 text-xs text-red-600">{checkError}</div>
+          )}
+
+          <div>
+            <label className="mb-1 block text-xs font-medium text-zinc-700">Your Email</label>
+            <input
+              type="email"
+              value={checkEmail}
+              onChange={(e) => setCheckEmail(e.target.value)}
+              required
+              className="w-full rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-900 placeholder:text-zinc-400 outline-none focus:border-zinc-900 focus:ring-1 focus:ring-zinc-900"
+              placeholder="you@example.com"
+            />
+          </div>
+        </div>
+
+        <div className="border-t border-zinc-200 px-5 py-4">
+          <Button
+            type="submit"
+            disabled={checkLoading}
+            className="w-full bg-zinc-900 text-white hover:bg-zinc-800 gap-2"
+          >
+            {checkLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Inbox className="h-4 w-4" />}
+            {checkLoading ? "Checking..." : "Check Status"}
+          </Button>
+        </div>
+      </form>
+    );
+  }
+
+  // Results view
+  if (view === "results") {
+    return (
+      <div>
+        <div className="flex items-center justify-between border-b border-zinc-200 px-5 py-4">
+          <div className="flex items-center gap-2">
+            <button type="button" onClick={() => setView("check")} className="text-zinc-400 hover:text-zinc-600">
+              <ArrowLeft className="h-4 w-4" />
+            </button>
+            <h3 className="font-bold text-zinc-900">Your Requests</h3>
+          </div>
+          <button type="button" onClick={onClose} className="text-zinc-400 hover:text-zinc-600">
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+
+        <div className="max-h-[60vh] overflow-y-auto px-5 py-4 space-y-3">
+          {checkResults.length === 0 ? (
+            <div className="text-center py-6">
+              <Inbox className="mx-auto h-8 w-8 text-zinc-300" />
+              <p className="mt-2 text-sm text-zinc-500">No requests found for this email.</p>
+            </div>
+          ) : (
+            checkResults.map((msg) => (
+              <div key={msg._id} className="rounded-xl border border-zinc-200 bg-white p-4">
+                <div className="flex items-start justify-between gap-2 mb-2">
+                  <Badge className={cn("text-[10px]", statusStyles[msg.status])}>
+                    {statusLabels[msg.status]}
+                  </Badge>
+                  <span className="text-[11px] text-zinc-400 whitespace-nowrap flex items-center gap-1">
+                    <Clock className="h-3 w-3" />
+                    {new Date(msg.createdAt).toLocaleDateString("en-IN", { day: "numeric", month: "short" })}
+                  </span>
+                </div>
+
+                <p className="text-xs text-zinc-600 mb-3 line-clamp-2">{msg.message}</p>
+
+                {msg.adminReply ? (
+                  <div className="rounded-lg bg-zinc-50 border border-zinc-200 p-3">
+                    <p className="text-[11px] font-semibold text-zinc-500 uppercase tracking-wider mb-1">Admin Reply</p>
+                    <p className="text-sm text-zinc-800 whitespace-pre-wrap">{msg.adminReply}</p>
+                  </div>
+                ) : msg.status === "pending" ? (
+                  <p className="text-xs text-zinc-400 italic">Waiting for admin review...</p>
+                ) : msg.status === "reviewing" ? (
+                  <p className="text-xs text-blue-500 italic">Admin is reviewing your request...</p>
+                ) : msg.status === "rejected" ? (
+                  <div className="rounded-lg bg-red-50 border border-red-200 p-3">
+                    <p className="text-xs text-red-600">This request was not approved. If you believe this is an error, please send a new request with more details.</p>
+                  </div>
+                ) : null}
+              </div>
+            ))
+          )}
+        </div>
+
+        <div className="border-t border-zinc-200 px-5 py-3">
+          <div className="flex gap-3">
+            <Button
+              onClick={() => setView("send")}
+              variant="outline"
+              className="flex-1 gap-2 text-sm"
+              size="sm"
+            >
+              <Send className="h-3.5 w-3.5" />
+              New Request
+            </Button>
+            <Button onClick={onClose} className="flex-1 bg-zinc-900 text-white hover:bg-zinc-800 text-sm" size="sm">
+              Close
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return null;
 }
 
 export default function ResetPasswordPage() {
@@ -335,7 +597,7 @@ export default function ResetPasswordPage() {
           onClick={() => setShowPanel(false)}
         >
           <div
-            className="w-full max-w-sm rounded-2xl bg-white shadow-2xl sm:mr-8 animate-in slide-in-from-bottom-4 sm:slide-in-from-right-4 duration-200"
+            className="w-full max-w-sm rounded-2xl bg-white shadow-2xl sm:mr-8"
             onClick={(e) => e.stopPropagation()}
           >
             <RecoveryPanel onClose={() => setShowPanel(false)} />
