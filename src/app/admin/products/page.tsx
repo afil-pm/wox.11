@@ -30,6 +30,7 @@ type ApiProduct = {
   reviewCount: number;
   category: { name: string; slug: string; gender: string; type: string };
   categoryId: string | null;
+  store: string;
   images: { url: string; alt: string | null; position?: number }[];
   variants: ProductVariant[];
   source: "static" | "mongo";
@@ -309,6 +310,7 @@ export default function AdminProductsPage() {
                 <th className="p-4">Product</th>
                 <th className="p-4">SKU</th>
                 <th className="p-4">Category</th>
+                <th className="p-4">Store</th>
                 <th className="p-4">Price</th>
                 <th className="p-4">Stock</th>
                 <th className="p-4">Source</th>
@@ -355,6 +357,7 @@ export default function AdminProductsPage() {
                     </td>
                     <td className="p-4 font-mono text-xs text-gray-500">{product.sku}</td>
                     <td className="p-4 text-gray-600">{product.category.name}</td>
+                    <td className="p-4 text-gray-600">{product.store || "—"}</td>
                     <td className="p-4">
                       {product.salePrice && product.salePrice > 0 ? (
                         <div>

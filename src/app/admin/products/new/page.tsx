@@ -48,6 +48,7 @@ export default function NewProductPage() {
     salePrice: "",
     sku: "",
     categoryId: "",
+    store: "",
     averageRating: "0",
     reviewCount: "0",
     isFeatured: false,
@@ -119,6 +120,7 @@ export default function NewProductPage() {
         salePrice: formData.salePrice ? Number(formData.salePrice) : undefined,
         sku: formData.sku,
         categoryId: formData.categoryId,
+        store: formData.store,
         averageRating: Number(formData.averageRating) || 0,
         reviewCount: Number(formData.reviewCount) || 0,
         isFeatured: formData.isFeatured,
@@ -205,6 +207,12 @@ export default function NewProductPage() {
                 placeholder="Select category"
               />
             </div>
+          </div>
+
+          <div>
+            <label className="mb-1 block text-sm font-medium text-gray-700">Store</label>
+            <Input name="store" value={formData.store} onChange={handleChange} placeholder="e.g. WOX Main Store, WOX Outlet" />
+            <p className="mt-1 text-xs text-gray-400">Assign this product to a store location</p>
           </div>
 
           {/* Variants & Sizes */}

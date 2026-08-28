@@ -42,7 +42,7 @@ export async function GET(request: NextRequest) {
     }
 
     const formatted = products.map((p) => {
-      const obj = p as unknown as { _id: string; name: string; slug: string; description: string; basePrice: number; salePrice: number; sku: string; categoryId: unknown; images: unknown; variants: unknown; isFeatured: boolean; isActive: boolean; averageRating: number; reviewCount: number; createdAt: unknown };
+      const obj = p as unknown as { _id: string; name: string; slug: string; description: string; basePrice: number; salePrice: number; sku: string; categoryId: unknown; store: string; images: unknown; variants: unknown; isFeatured: boolean; isActive: boolean; averageRating: number; reviewCount: number; createdAt: unknown };
       const cat = obj.categoryId ? catMap[String(obj.categoryId)] : null;
       return {
         id: String(obj._id),
@@ -52,6 +52,7 @@ export async function GET(request: NextRequest) {
         basePrice: obj.basePrice,
         salePrice: obj.salePrice ?? 0,
         sku: obj.sku,
+        store: obj.store ?? "",
         category: cat ?? { name: "Uncategorized", slug: "uncategorized", gender: "men", type: "shirts" },
         categoryId: obj.categoryId ? String(obj.categoryId) : null,
         images: (obj.images ?? []) as { url: string; alt: string; position: number }[],
@@ -87,7 +88,7 @@ export async function POST(request: NextRequest) {
     await connectMongoDB();
     const body = await request.json();
 
-    const { name, description, basePrice, salePrice, sku, categoryId, isFeatured, isActive, images, variants } = body;
+    const { name, description, basePrice, salePrice, sku, categoryId, store, isFeatured, isActive, images, variants } = body;
 
     if (!name || !basePrice || !sku || !categoryId) {
       return NextResponse.json(
@@ -141,6 +142,7 @@ export async function POST(request: NextRequest) {
       salePrice: salePrice ? Number(salePrice) : 0,
       sku: sku.toUpperCase(),
       categoryId,
+      store: store || "",
       isFeatured: isFeatured || false,
       isActive: isActive !== false,
       images: productImages,

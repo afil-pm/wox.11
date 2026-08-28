@@ -18,6 +18,7 @@ type ProductData = {
   salePrice: number | null;
   sku: string;
   categoryId: string;
+  store: string;
   isFeatured: boolean;
   isActive: boolean;
   source: "static" | "mongo";
@@ -56,6 +57,7 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
     salePrice: "",
     sku: "",
     categoryId: "",
+    store: "",
     averageRating: "",
     reviewCount: "",
     isFeatured: false,
@@ -84,6 +86,7 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
           salePrice: product.salePrice != null && product.salePrice > 0 ? String(product.salePrice) : "",
           sku: product.sku,
           categoryId: product.categoryId ?? "",
+          store: (product as unknown as Record<string, unknown>).store as string ?? "",
           averageRating: String((product as Record<string, unknown>).averageRating ?? 0),
           reviewCount: String((product as Record<string, unknown>).reviewCount ?? 0),
           isFeatured: product.isFeatured,
@@ -170,6 +173,7 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
         salePrice: formData.salePrice ? Number(formData.salePrice) : undefined,
         sku: formData.sku,
         categoryId: formData.categoryId,
+        store: formData.store,
         averageRating: Number(formData.averageRating) || 0,
         reviewCount: Number(formData.reviewCount) || 0,
         isFeatured: formData.isFeatured,
@@ -252,6 +256,12 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
                   placeholder="Select category"
                 />
               </div>
+            </div>
+
+            <div>
+              <label className="mb-1 block text-sm font-medium text-gray-700">Store</label>
+              <Input name="store" value={formData.store} onChange={handleChange} placeholder="e.g. WOX Main Store, WOX Outlet" />
+              <p className="mt-1 text-xs text-gray-400">Assign this product to a store location</p>
             </div>
 
             {/* Variants & Sizes */}

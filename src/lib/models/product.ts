@@ -26,6 +26,7 @@ export interface IProduct extends Document {
   salePrice: number;
   sku: string;
   categoryId: mongoose.Types.ObjectId;
+  store: string;
   images: IProductImage[];
   variants: IProductVariant[];
   averageRating: number;
@@ -72,6 +73,7 @@ const ProductSchema = new Schema<IProduct>(
     salePrice: { type: Number, default: 0 },
     sku: { type: String, required: true, unique: true },
     categoryId: { type: Schema.Types.ObjectId, ref: "Category", required: true },
+    store: { type: String, default: "" },
     images: { type: [ProductImageSchema], default: [] },
     variants: { type: [ProductVariantSchema], default: [] },
     averageRating: { type: Number, default: 0, min: 0, max: 5 },
