@@ -11,6 +11,7 @@ export interface IOrderItem {
 
 export interface IOrder extends Document {
   orderNumber: string;
+  userId: string;
   customerName: string;
   customerEmail: string;
   customerPhone: string;
@@ -62,6 +63,7 @@ const OrderItemSchema = new Schema<IOrderItem>(
 const OrderSchema = new Schema<IOrder>(
   {
     orderNumber: { type: String, required: true, unique: true },
+    userId: { type: String, default: "" },
     customerName: { type: String, required: true },
     customerEmail: { type: String, default: "" },
     customerPhone: { type: String, required: true },
@@ -112,6 +114,7 @@ const OrderSchema = new Schema<IOrder>(
 );
 
 OrderSchema.index({ orderNumber: 1 }, { unique: true });
+OrderSchema.index({ userId: 1, createdAt: -1 });
 OrderSchema.index({ createdAt: -1 });
 
 let Order: Model<IOrder>;

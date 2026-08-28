@@ -3,6 +3,14 @@ import { connectMongoDB } from "@/lib/mongodb";
 import Order from "@/lib/models/order";
 import { sendNewOrderEmail } from "@/lib/email";
 
+function isAdmin(request: NextRequest): boolean {
+  const adminHeader = request.headers.get("x-admin-email");
+  if (!adminHeader) return false;
+  const adminEmail = process.env.ADMIN_EMAIL || "";
+  if (!adminEmail) return true;
+  return adminHeader.toLowerCase() === adminEmail.toLowerCase();
+}
+
 export async function GET(request: NextRequest) {
   try {
     await connectMongoDB();
@@ -10,10 +18,18 @@ export async function GET(request: NextRequest) {
     const limit = parseInt(searchParams.get("limit") || "50", 10);
     const skip = parseInt(searchParams.get("skip") || "0", 10);
     const status = searchParams.get("status");
+    const userId = request.headers.get("x-user-id") || searchParams.get("userId") || "";
+
+    if (!userId && !isAdmin(request)) {
+      return NextResponse.json({ orders: [], total: 0 });
+    }
 
     const filter: Record<string, unknown> = {};
     if (status && status !== "ALL") {
       filter.status = status;
+    }
+    if (!isAdmin(request) && userId) {
+      filter.userId = userId;
     }
 
     const [orders, total] = await Promise.all([
@@ -35,6 +51,7 @@ export async function POST(request: NextRequest) {
 
     const {
       orderNumber,
+      userId,
       customerName,
       customerPhone,
       customerEmail,
@@ -57,7 +74,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Validate all items have valid prices
     const hasInvalidItems = items.some(
       (item: { price: number; quantity: number }) => !item.price || item.price <= 0 || !item.quantity || item.quantity <= 0
     );
@@ -68,7 +84,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Validate total > 0
     if (!total || total <= 0) {
       return NextResponse.json(
         { error: "Order total must be greater than ₹0" },
@@ -78,6 +93,7 @@ export async function POST(request: NextRequest) {
 
     const order = await Order.create({
       orderNumber,
+      userId: userId || "",
       customerName: customerName || address.name,
       customerPhone: customerPhone || address.phone,
       customerEmail: customerEmail || "",

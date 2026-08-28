@@ -90,28 +90,19 @@ export default function AccountOrdersPage() {
         return;
       }
       const user = JSON.parse(stored);
-      const res = await fetch("/api/mongo/orders");
-      const data = await res.json();
-      const allOrders: Order[] = data.orders || [];
-
-      const userEmail = (user.email || "").toLowerCase().trim();
-      const userName = (user.name || "").toLowerCase().trim();
-
-      const myOrders = allOrders.filter((o) => {
-        const orderEmail = (o.customerEmail || "").toLowerCase().trim();
-        const orderName = (o.customerName || "").toLowerCase().trim();
-        const orderPhone = (o.customerPhone || "").trim();
-
-        if (userEmail && orderEmail && orderEmail === userEmail) return true;
-        if (userName && orderName && orderName === userName) return true;
-        if (orderPhone && o.address?.phone && orderPhone === o.address.phone) return true;
-        if (userEmail && orderEmail === "") {
-          if (userName && orderName === userName) return true;
-        }
-        return false;
+      if (!user?.id) {
+        setOrders([]);
+        setLoading(false);
+        return;
+      }
+      const res = await fetch("/api/mongo/orders", {
+        headers: {
+          "Content-Type": "application/json",
+          "x-user-id": user.id,
+        },
       });
-
-      setOrders(myOrders);
+      const data = await res.json();
+      setOrders(data.orders || []);
     } catch {
       // silent
     } finally {

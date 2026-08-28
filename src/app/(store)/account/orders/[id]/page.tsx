@@ -88,20 +88,27 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
   const [actionLoading, setActionLoading] = useState(false);
 
   useEffect(() => {
-    async function fetchOrders() {
+    async function fetchOrder() {
       try {
-        const res = await fetch("/api/mongo/orders");
+        const stored = localStorage.getItem("wox-user");
+        const user = stored ? JSON.parse(stored) : null;
+        const headers: Record<string, string> = { "Content-Type": "application/json" };
+        if (user?.id) headers["x-user-id"] = user.id;
+
+        const res = await fetch(`/api/mongo/orders/${id}`, { headers });
+        if (!res.ok) {
+          setOrder(null);
+          return;
+        }
         const data = await res.json();
-        const allOrders: Order[] = data.orders || [];
-        const found = allOrders.find((o) => o._id === id);
-        setOrder(found || null);
+        setOrder(data.order || null);
       } catch {
         setOrder(null);
       } finally {
         setLoading(false);
       }
     }
-    fetchOrders();
+    fetchOrder();
   }, [id]);
 
   async function handleCancelOrder() {
@@ -109,9 +116,14 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
     if (!confirm("Are you sure you want to cancel this order?")) return;
     setActionLoading(true);
     try {
+      const stored = localStorage.getItem("wox-user");
+      const user = stored ? JSON.parse(stored) : null;
+      const headers: Record<string, string> = { "Content-Type": "application/json" };
+      if (user?.id) headers["x-user-id"] = user.id;
+
       await fetch(`/api/mongo/orders/${order._id}`, {
         method: "PATCH",
-        headers: { "Content-Type": "application/json" },
+        headers,
         body: JSON.stringify({ status: "CANCELLED" }),
       });
       setOrder((prev) => prev ? { ...prev, status: "CANCELLED" } : null);
@@ -127,9 +139,14 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
     if (!confirm("Are you sure you want to request a return?")) return;
     setActionLoading(true);
     try {
+      const stored = localStorage.getItem("wox-user");
+      const user = stored ? JSON.parse(stored) : null;
+      const headers: Record<string, string> = { "Content-Type": "application/json" };
+      if (user?.id) headers["x-user-id"] = user.id;
+
       await fetch(`/api/mongo/orders/${order._id}`, {
         method: "PATCH",
-        headers: { "Content-Type": "application/json" },
+        headers,
         body: JSON.stringify({ status: "RETURNED" }),
       });
       setOrder((prev) => prev ? { ...prev, status: "RETURNED" } : null);
