@@ -27,8 +27,8 @@ export default function OgMeta({ title, description, image, url, type = "website
       const fullImage = image.startsWith("http") ? image : `https://wox11.vercel.app${image}`;
       metas.push(
         { property: "og:image", content: fullImage },
-        { property: "og:image:width", content: "1200" },
-        { property: "og:image:height", content: "630" },
+        { property: "og:image:width", content: "1024" },
+        { property: "og:image:height", content: "1024" },
         { name: "twitter:image", content: fullImage }
       );
     }
