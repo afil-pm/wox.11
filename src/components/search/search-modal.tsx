@@ -7,129 +7,6 @@ import Image from "next/image";
 import { Search, X, Clock, TrendingUp } from "lucide-react";
 import { cn, formatPrice } from "@/lib/utils";
 
-const products = [
-  {
-    id: "1",
-    name: "WOX Men's Peach Polo Shirt",
-    slug: "wox-peach-polo-shirt",
-    price: 999,
-    image: "/images/products/men/t-shirts/wox-peach-polo-shirt-1.png",
-    category: "Men's T-Shirts",
-    gender: "men",
-    categorySlug: "t-shirts",
-  },
-  {
-    id: "2",
-    name: "WOX Men's Green Plaid Flannel Shirt",
-    slug: "wox-green-plaid-flannel-shirt",
-    price: 1999,
-    image: "/images/products/men/shirts/wox-green-plaid-flannel-shirt-1.png",
-    category: "Men's Shirts",
-    gender: "men",
-    categorySlug: "shirts",
-  },
-  {
-    id: "3",
-    name: "WOX Men's Khaki Cargo Pants",
-    slug: "wox-khaki-cargo-pants",
-    price: 1799,
-    image: "/images/products/men/pants/wox-khaki-cargo-pants-1.png",
-    category: "Men's Pants",
-    gender: "men",
-    categorySlug: "pants",
-  },
-  {
-    id: "4",
-    name: "WOX Men's Lavender Polo Shirt",
-    slug: "wox-lavender-polo-shirt",
-    price: 999,
-    image: "/images/products/men/t-shirts/wox-lavender-polo-shirt-1.png",
-    category: "Men's T-Shirts",
-    gender: "men",
-    categorySlug: "t-shirts",
-  },
-  {
-    id: "5",
-    name: "WOX Men's Wine Polo Shirt",
-    slug: "wox-wine-polo-shirt",
-    price: 999,
-    image: "/images/products/men/t-shirts/wox-wine-polo-shirt-1.png",
-    category: "Men's T-Shirts",
-    gender: "men",
-    categorySlug: "t-shirts",
-  },
-  {
-    id: "6",
-    name: "WOX Men's Navy Formal Chinos",
-    slug: "wox-navy-formal-chinos",
-    price: 1599,
-    image: "/images/products/men/pants/wox-navy-formal-chinos-1.png",
-    category: "Men's Pants",
-    gender: "men",
-    categorySlug: "pants",
-  },
-  {
-    id: "7",
-    name: "WOX Men's Brown Plaid Flannel Shirt",
-    slug: "wox-brown-plaid-flannel-shirt",
-    price: 1899,
-    image: "/images/products/men/shirts/wox-brown-plaid-flannel-shirt-1.png",
-    category: "Men's Shirts",
-    gender: "men",
-    categorySlug: "shirts",
-  },
-  {
-    id: "8",
-    name: "WOX Men's Sage Polo Shirt",
-    slug: "wox-sage-polo-shirt",
-    price: 999,
-    image: "/images/products/men/t-shirts/wox-sage-polo-shirt-1.png",
-    category: "Men's T-Shirts",
-    gender: "men",
-    categorySlug: "t-shirts",
-  },
-  {
-    id: "9",
-    name: "WOX Boys' Denim Shirt",
-    slug: "wox-boys-denim-shirt",
-    price: 1099,
-    image: "/images/products/boys/shirts/wox-boys-denim-shirt-1.png",
-    category: "Boys' Shirts",
-    gender: "boys",
-    categorySlug: "shirts",
-  },
-  {
-    id: "10",
-    name: "WOX Boys' Grey Textured Sweatshirt",
-    slug: "wox-boys-grey-sweatshirt",
-    price: 799,
-    image: "/images/products/boys/t-shirts/wox-boys-grey-sweatshirt-1.png",
-    category: "Boys' T-Shirts",
-    gender: "boys",
-    categorySlug: "t-shirts",
-  },
-  {
-    id: "11",
-    name: "WOX Boys' Black Wide-Leg Jeans",
-    slug: "wox-boys-black-wide-leg-jeans",
-    price: 1199,
-    image: "/images/products/boys/pants/wox-boys-black-wide-leg-jeans-1.png",
-    category: "Boys' Pants",
-    gender: "boys",
-    categorySlug: "pants",
-  },
-  {
-    id: "12",
-    name: "WOX Boys' Grey Flame Print Joggers",
-    slug: "wox-boys-grey-flame-joggers",
-    price: 1099,
-    image: "/images/products/boys/pants/wox-boys-grey-flame-joggers-1.png",
-    category: "Boys' Pants",
-    gender: "boys",
-    categorySlug: "pants",
-  },
-];
-
 const popularSearches = [
   "Oversized T-Shirt",
   "Hoodies",
@@ -137,6 +14,18 @@ const popularSearches = [
   "Jeans",
   "New Arrivals",
 ];
+
+interface SearchResult {
+  id: string;
+  name: string;
+  slug: string;
+  basePrice: number;
+  salePrice: number;
+  image: string;
+  category: string;
+  gender: string;
+  categorySlug: string;
+}
 
 interface SearchModalProps {
   isOpen: boolean;
@@ -146,6 +35,8 @@ interface SearchModalProps {
 export default function SearchModal({ isOpen, onClose }: SearchModalProps) {
   const [query, setQuery] = useState("");
   const [debouncedQuery, setDebouncedQuery] = useState("");
+  const [results, setResults] = useState<SearchResult[]>([]);
+  const [loading, setLoading] = useState(false);
   const [recentSearches, setRecentSearches] = useState<string[]>([]);
   const inputRef = useRef<HTMLInputElement>(null);
   const modalRef = useRef<HTMLDivElement>(null);
@@ -163,6 +54,47 @@ export default function SearchModal({ isOpen, onClose }: SearchModalProps) {
     }, 300);
     return () => clearTimeout(timer);
   }, [query]);
+
+  useEffect(() => {
+    if (!debouncedQuery.trim()) {
+      setResults([]);
+      return;
+    }
+    let cancelled = false;
+    setLoading(true);
+    fetch(`/api/products/all?search=${encodeURIComponent(debouncedQuery)}&limit=20`)
+      .then((r) => r.json())
+      .then((data) => {
+        if (cancelled) return;
+        const mapped = (data.products || []).map((p: {
+          id: string;
+          name: string;
+          slug: string;
+          basePrice: number;
+          salePrice: number;
+          images: { url: string; alt: string }[];
+          category: { name: string; slug: string; gender: string; type: string };
+        }) => ({
+          id: p.id,
+          name: p.name,
+          slug: p.slug,
+          basePrice: p.basePrice,
+          salePrice: p.salePrice,
+          image: p.images?.[0]?.url || "/images/placeholder.png",
+          category: `${p.category?.gender === "men" ? "Men's" : "Boys'"} ${p.category?.name || ""}`,
+          gender: p.category?.gender || "men",
+          categorySlug: p.category?.type || "shirts",
+        }));
+        setResults(mapped);
+      })
+      .catch(() => {
+        if (!cancelled) setResults([]);
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => { cancelled = true; };
+  }, [debouncedQuery]);
 
   const saveRecentSearch = useCallback(
     (term: string) => {
@@ -183,14 +115,6 @@ export default function SearchModal({ isOpen, onClose }: SearchModalProps) {
     },
     [recentSearches]
   );
-
-  const results = debouncedQuery.trim()
-    ? products.filter(
-        (p) =>
-          p.name.toLowerCase().includes(debouncedQuery.toLowerCase()) ||
-          p.category.toLowerCase().includes(debouncedQuery.toLowerCase())
-      )
-    : [];
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -235,6 +159,8 @@ export default function SearchModal({ isOpen, onClose }: SearchModalProps) {
     if (e.target === e.currentTarget) onClose();
   };
 
+  const hasDiscount = (p: SearchResult) => p.salePrice > 0 && p.salePrice < p.basePrice;
+
   return (
     <div
       className={cn(
@@ -258,7 +184,6 @@ export default function SearchModal({ isOpen, onClose }: SearchModalProps) {
         aria-modal="true"
         aria-label="Search"
       >
-        {/* Search Header */}
         <form onSubmit={handleSubmit} className="flex items-center gap-3 border-b border-zinc-200 px-5 py-4">
           <Search className="h-5 w-5 shrink-0 text-zinc-400" strokeWidth={1.5} />
           <input
@@ -279,16 +204,19 @@ export default function SearchModal({ isOpen, onClose }: SearchModalProps) {
           </button>
         </form>
 
-        {/* Content */}
         <div className="max-h-[60vh] overflow-y-auto p-5">
-          {/* Results */}
           {debouncedQuery.trim() ? (
-            results.length > 0 ? (
+            loading ? (
+              <div className="flex flex-col items-center justify-center py-12 text-center">
+                <div className="h-6 w-6 animate-spin rounded-full border-2 border-zinc-300 border-t-zinc-900" />
+                <p className="mt-3 text-xs text-zinc-500">Searching...</p>
+              </div>
+            ) : results.length > 0 ? (
               <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
                 {results.map((product) => (
                   <Link
                     key={product.id}
-                    href={`/${product.gender || "men"}/${product.categorySlug || "shirts"}/${product.slug}`}
+                    href={`/${product.gender}/${product.categorySlug}/${product.slug}`}
                     onClick={() => handleResultClick(product.name)}
                     className="group flex flex-col overflow-hidden rounded-xl border border-zinc-200 transition-all hover:border-zinc-300 hover:shadow-md"
                   >
@@ -300,6 +228,11 @@ export default function SearchModal({ isOpen, onClose }: SearchModalProps) {
                         className="object-cover transition-transform duration-300 group-hover:scale-105"
                         sizes="(max-width: 640px) 50vw, 33vw"
                       />
+                      {hasDiscount(product) && (
+                        <span className="absolute left-2 top-2 rounded-full bg-zinc-900 px-2 py-0.5 text-[10px] font-semibold text-white">
+                          -{Math.round(((product.basePrice - product.salePrice) / product.basePrice) * 100)}%
+                        </span>
+                      )}
                     </div>
                     <div className="flex flex-col gap-1 p-3">
                       <p className="text-[10px] font-medium uppercase tracking-wider text-zinc-500">
@@ -308,9 +241,16 @@ export default function SearchModal({ isOpen, onClose }: SearchModalProps) {
                       <h3 className="line-clamp-2 text-xs font-medium text-zinc-900 group-hover:text-zinc-600">
                         {product.name}
                       </h3>
-                      <span className="mt-auto text-sm font-semibold text-zinc-900">
-                        {formatPrice(product.price)}
-                      </span>
+                      <div className="mt-auto flex items-center gap-2">
+                        <span className="text-sm font-semibold text-zinc-900">
+                          {formatPrice(hasDiscount(product) ? product.salePrice : product.basePrice)}
+                        </span>
+                        {hasDiscount(product) && (
+                          <span className="text-[10px] text-zinc-400 line-through">
+                            {formatPrice(product.basePrice)}
+                          </span>
+                        )}
+                      </div>
                     </div>
                   </Link>
                 ))}
@@ -326,7 +266,6 @@ export default function SearchModal({ isOpen, onClose }: SearchModalProps) {
             )
           ) : (
             <div className="space-y-6">
-              {/* Recent Searches */}
               {recentSearches.length > 0 && (
                 <div>
                   <div className="mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-zinc-500">
@@ -360,7 +299,6 @@ export default function SearchModal({ isOpen, onClose }: SearchModalProps) {
                 </div>
               )}
 
-              {/* Popular Searches */}
               <div>
                 <div className="mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-zinc-500">
                   <TrendingUp className="h-3.5 w-3.5" strokeWidth={1.5} />
@@ -383,7 +321,6 @@ export default function SearchModal({ isOpen, onClose }: SearchModalProps) {
           )}
         </div>
 
-        {/* Footer */}
         <div className="border-t border-zinc-200 px-5 py-3 text-center">
           <p className="text-[11px] text-zinc-400">
             Press <kbd className="mx-0.5 rounded border border-zinc-300 bg-zinc-100 px-1.5 py-0.5 font-mono text-[10px] font-medium text-zinc-600">ESC</kbd> to close

@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
+    const search = searchParams.get("search") || "";
     const sort = searchParams.get("sort") || "newest";
     const limit = parseInt(searchParams.get("limit") || "50", 10);
 
@@ -23,7 +24,15 @@ export async function GET(request: Request) {
     else if (sort === "rating") sortQuery = { averageRating: -1 };
     else if (sort === "popular") sortQuery = { reviewCount: -1 };
 
-    const rawDocs = await Product.find({ isActive: true })
+    const filter: Record<string, unknown> = { isActive: true };
+    if (search) {
+      filter.$or = [
+        { name: { $regex: search, $options: "i" } },
+        { sku: { $regex: search, $options: "i" } },
+      ];
+    }
+
+    const rawDocs = await Product.find(filter)
       .sort(sortQuery)
       .limit(limit)
       .lean();
