@@ -175,10 +175,10 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
 
     setReviewLoading(true);
     try {
-      const productRes = await fetch(`/api/products/all?search=${encodeURIComponent(reviewItem.name)}&limit=1`);
+      const productRes = await fetch(`/api/products/${reviewItem.slug}`);
       const productData = await productRes.json();
-      const product = productData.products?.[0];
-      if (!product) {
+      const product = productData.product;
+      if (!product?.id) {
         alert("Product not found");
         return;
       }
@@ -188,7 +188,7 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           orderId: order._id,
-          productId: product._id,
+          productId: product.id,
           userId: user.id,
           userName: user.name,
           userEmail: user.email,
