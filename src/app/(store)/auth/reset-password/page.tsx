@@ -3,8 +3,136 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Eye, EyeOff, KeyRound, ArrowLeft, Copy, Check } from "lucide-react";
+import { Eye, EyeOff, KeyRound, ArrowLeft, Copy, Check, MessageCircle, X, Send, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+
+function RecoveryPanel({ onClose }: { onClose: () => void }) {
+  const [senderEmail, setSenderEmail] = useState("");
+  const [senderName, setSenderName] = useState("");
+  const [message, setMessage] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [sent, setSent] = useState(false);
+
+  async function handleSend(e: React.FormEvent) {
+    e.preventDefault();
+    setError("");
+    setLoading(true);
+
+    try {
+      const res = await fetch("/api/messages/recovery", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ senderEmail, senderName, message }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.error || "Failed to send request");
+        return;
+      }
+
+      setSent(true);
+    } catch {
+      setError("Something went wrong. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  if (sent) {
+    return (
+      <div className="flex flex-col items-center py-8 px-6 text-center">
+        <div className="flex h-12 w-12 items-center justify-center rounded-full bg-green-100 mb-4">
+          <Check className="h-6 w-6 text-green-600" />
+        </div>
+        <h3 className="text-lg font-bold text-zinc-900">Request Sent</h3>
+        <p className="mt-2 text-sm text-zinc-500">
+          Your account recovery request has been received. The admin will review your case and contact you if needed.
+        </p>
+        <Button onClick={onClose} variant="outline" className="mt-6 w-full">
+          Close
+        </Button>
+      </div>
+    );
+  }
+
+  return (
+    <form onSubmit={handleSend} className="flex flex-col">
+      <div className="flex items-center justify-between border-b border-zinc-200 px-5 py-4">
+        <div className="flex items-center gap-2">
+          <MessageCircle className="h-5 w-5 text-zinc-700" />
+          <h3 className="font-bold text-zinc-900">Contact Admin</h3>
+        </div>
+        <button type="button" onClick={onClose} className="text-zinc-400 hover:text-zinc-600">
+          <X className="h-5 w-5" />
+        </button>
+      </div>
+
+      <div className="px-5 py-4 space-y-4">
+        <p className="text-xs text-zinc-500 leading-relaxed">
+          Lost access to your password and recovery code? Send a request to the admin. Provide enough detail so the admin can verify you are the legitimate account owner.
+        </p>
+
+        {error && (
+          <div className="rounded-lg bg-red-50 p-3 text-xs text-red-600">{error}</div>
+        )}
+
+        <div>
+          <label className="mb-1 block text-xs font-medium text-zinc-700">Your Email</label>
+          <input
+            type="email"
+            value={senderEmail}
+            onChange={(e) => setSenderEmail(e.target.value)}
+            required
+            className="w-full rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-900 placeholder:text-zinc-400 outline-none focus:border-zinc-900 focus:ring-1 focus:ring-zinc-900"
+            placeholder="you@example.com"
+          />
+        </div>
+
+        <div>
+          <label className="mb-1 block text-xs font-medium text-zinc-700">Your Name</label>
+          <input
+            type="text"
+            value={senderName}
+            onChange={(e) => setSenderName(e.target.value)}
+            required
+            className="w-full rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-900 placeholder:text-zinc-400 outline-none focus:border-zinc-900 focus:ring-1 focus:ring-zinc-900"
+            placeholder="John Doe"
+          />
+        </div>
+
+        <div>
+          <label className="mb-1 block text-xs font-medium text-zinc-700">Message</label>
+          <textarea
+            value={message}
+            onChange={(e) => setMessage(e.target.value)}
+            required
+            rows={4}
+            className="w-full rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-900 placeholder:text-zinc-400 outline-none focus:border-zinc-900 focus:ring-1 focus:ring-zinc-900 resize-none"
+            placeholder="Explain your situation. E.g., registered email, approximate account creation date, any orders you remember..."
+          />
+          <p className="mt-1 text-[11px] text-zinc-400">10-2000 characters</p>
+        </div>
+      </div>
+
+      <div className="border-t border-zinc-200 px-5 py-4">
+        <Button
+          type="submit"
+          disabled={loading}
+          className="w-full bg-zinc-900 text-white hover:bg-zinc-800 gap-2"
+        >
+          {loading ? (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          ) : (
+            <Send className="h-4 w-4" />
+          )}
+          {loading ? "Sending..." : "Send Recovery Request"}
+        </Button>
+      </div>
+    </form>
+  );
+}
 
 export default function ResetPasswordPage() {
   const router = useRouter();
@@ -17,6 +145,7 @@ export default function ResetPasswordPage() {
   const [success, setSuccess] = useState(false);
   const [newRecoveryCode, setNewRecoveryCode] = useState("");
   const [copied, setCopied] = useState(false);
+  const [showPanel, setShowPanel] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -190,6 +319,29 @@ export default function ResetPasswordPage() {
           </p>
         </div>
       </div>
+
+      {/* Floating Contact Admin Button */}
+      <button
+        onClick={() => setShowPanel(true)}
+        className="fixed bottom-24 right-5 z-50 flex h-14 w-14 items-center justify-center rounded-full bg-zinc-900 text-white shadow-lg transition-all hover:bg-zinc-800 hover:shadow-xl lg:bottom-8 lg:right-8"
+      >
+        <MessageCircle className="h-6 w-6" />
+      </button>
+
+      {/* Contact Admin Panel */}
+      {showPanel && (
+        <div
+          className="fixed inset-0 z-[60] flex items-end justify-end bg-black/40 p-4 sm:items-center sm:justify-end"
+          onClick={() => setShowPanel(false)}
+        >
+          <div
+            className="w-full max-w-sm rounded-2xl bg-white shadow-2xl sm:mr-8 animate-in slide-in-from-bottom-4 sm:slide-in-from-right-4 duration-200"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <RecoveryPanel onClose={() => setShowPanel(false)} />
+          </div>
+        </div>
+      )}
     </div>
   );
 }

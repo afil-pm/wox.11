@@ -7,6 +7,7 @@ import {
   LayoutDashboard,
   Package,
   ShoppingCart,
+  MessageSquare,
   ArrowLeft,
   Menu,
   X,
@@ -21,6 +22,7 @@ const navItems = [
   { label: "Dashboard", icon: LayoutDashboard, href: "/admin" },
   { label: "Products", icon: Package, href: "/admin/products" },
   { label: "Orders", icon: ShoppingCart, href: "/admin/orders" },
+  { label: "Messages", icon: MessageSquare, href: "/admin/messages" },
 ];
 
 export default function AdminLayout({
