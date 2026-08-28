@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
@@ -17,13 +17,32 @@ import { cn } from "@/lib/utils";
 import WoxLoader from "@/components/ui/wox-loader";
 import SignOutModal from "@/components/ui/sign-out-modal";
 import { useSignOutStore } from "@/lib/stores/sign-out";
+import { useUnreadCounts } from "@/hooks/use-unread-counts";
 
 const navItems = [
-  { label: "Dashboard", icon: LayoutDashboard, href: "/admin" },
-  { label: "Products", icon: Package, href: "/admin/products" },
-  { label: "Orders", icon: ShoppingCart, href: "/admin/orders" },
-  { label: "Messages", icon: MessageSquare, href: "/admin/messages" },
+  { label: "Dashboard", icon: LayoutDashboard, href: "/admin", section: "" },
+  { label: "Products", icon: Package, href: "/admin/products", section: "" },
+  { label: "Orders", icon: ShoppingCart, href: "/admin/orders", section: "orders" },
+  { label: "Messages", icon: MessageSquare, href: "/admin/messages", section: "messages" },
 ];
+
+function Badge({ count }: { count: number }) {
+  if (count <= 0) return null;
+  return (
+    <span className="ml-auto inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1.5 text-[10px] font-bold text-white">
+      {count > 99 ? "99+" : count}
+    </span>
+  );
+}
+
+function TotalBadge({ count }: { count: number }) {
+  if (count <= 0) return null;
+  return (
+    <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[9px] font-bold text-white">
+      {count > 99 ? "99+" : count}
+    </span>
+  );
+}
 
 export default function AdminLayout({
   children,
@@ -36,6 +55,9 @@ export default function AdminLayout({
   const [authorized, setAuthorized] = useState<boolean | null>(null);
   const checked = useRef(false);
   const openSignOut = useSignOutStore((s) => s.open);
+
+  const isAdminPage = pathname.startsWith("/admin") && pathname !== "/admin/login";
+  const { counts, markAsRead } = useUnreadCounts(isAdminPage);
 
   const isLoginPage = pathname === "/admin/login";
 
@@ -64,6 +86,19 @@ export default function AdminLayout({
       router.replace("/admin/login");
     }
   }, [isLoginPage, router]);
+
+  useEffect(() => {
+    if (!isAdminPage || authorized !== true) return;
+
+    const matched = navItems.find((item) => {
+      if (item.href === "/admin") return pathname === "/admin";
+      return pathname.startsWith(item.href);
+    });
+
+    if (matched?.section) {
+      markAsRead(matched.section);
+    }
+  }, [pathname, isAdminPage, authorized, markAsRead]);
 
   if (authorized === null) {
     return (
@@ -120,6 +155,7 @@ export default function AdminLayout({
               >
                 <item.icon className="h-5 w-5" />
                 {item.label}
+                {item.section && <Badge count={counts[item.section as keyof typeof counts] || 0} />}
               </Link>
             );
           })}
@@ -145,10 +181,11 @@ export default function AdminLayout({
           </button>
           <div className="ml-4 flex-1 lg:ml-0" />
           <div className="flex items-center gap-3">
-            <div className="flex items-center gap-2 rounded-lg p-1.5">
+            <div className="relative flex items-center gap-2 rounded-lg p-1.5">
               <div className="flex h-8 w-8 items-center justify-center rounded-full bg-zinc-900 text-xs font-medium text-white">
                 A
               </div>
+              <TotalBadge count={counts.total} />
               <span className="hidden text-sm font-medium md:block">
                 Admin
               </span>
