@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { cn, formatPrice } from "@/lib/utils";
 import { RefreshCw, Eye, Trash2, Lock, IndianRupee, TrendingUp, Calendar, BarChart3 } from "lucide-react";
 import WoxLoader from "@/components/ui/wox-loader";
+import { adminFetch } from "@/lib/admin-api";
 
 interface OrderItem {
   name: string;
@@ -107,7 +108,7 @@ export default function AdminOrdersPage() {
         filter === "ALL"
           ? "/api/mongo/orders"
           : `/api/mongo/orders?status=${filter}`;
-      const res = await fetch(url);
+      const res = await adminFetch(url);
       const data = await res.json();
       setOrders(data.orders || []);
       setLastUpdated(new Date());
@@ -136,7 +137,7 @@ export default function AdminOrdersPage() {
 
   async function updateOrderStatus(orderId: string, newStatus: string) {
     try {
-      await fetch(`/api/mongo/orders/${orderId}`, {
+      await adminFetch(`/api/mongo/orders/${orderId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ status: newStatus }),

@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Eye, EyeOff, UserPlus, Download, Shield, AlertTriangle } from "lucide-react";
+import { Eye, EyeOff, UserPlus, Download, Shield, AlertTriangle, KeyRound, CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 export default function RegisterPage() {
@@ -17,7 +17,10 @@ export default function RegisterPage() {
   const [loading, setLoading] = useState(false);
   const [registered, setRegistered] = useState(false);
   const [downloaded, setDownloaded] = useState(false);
+  const [recoveryCode, setRecoveryCode] = useState("");
+  const [warningDismissCount, setWarningDismissCount] = useState(0);
   const [showWarning, setShowWarning] = useState(false);
+  const [warningDismissed, setWarningDismissed] = useState(false);
   const downloadTriggered = useRef(false);
 
   function generateCredentialFile() {
@@ -27,13 +30,19 @@ export default function RegisterPage() {
 
   Name:     ${name}
   Email:    ${email}
-  Password: ${password}
 ${phone ? `  Phone:    ${phone}` : ""}
 
 ───────────────────────────────────────────
-  IMPORTANT: Keep this file safe.
-  You cannot reset your password.
-  Store this file somewhere secure.
+  RECOVERY CODE (keep this secret):
+  ${recoveryCode}
+───────────────────────────────────────────
+
+  ⚠ IMPORTANT:
+  • Your password is encrypted and cannot be recovered.
+  • Use this recovery code only if you lose access.
+  • Store this file in a secure password manager.
+  • Never share this file with anyone.
+
 ───────────────────────────────────────────
 
   Generated: ${new Date().toLocaleString("en-IN")}
@@ -80,6 +89,7 @@ ${phone ? `  Phone:    ${phone}` : ""}
         return;
       }
 
+      setRecoveryCode(data.recoveryCode || "");
       localStorage.setItem("wox-user", JSON.stringify(data.user));
       window.dispatchEvent(new Event("auth-change"));
       setRegistered(true);
@@ -92,10 +102,24 @@ ${phone ? `  Phone:    ${phone}` : ""}
 
   function handleContinue() {
     if (!downloaded) {
-      setShowWarning(true);
+      if (warningDismissCount < 3) {
+        setShowWarning(true);
+      } else {
+        setWarningDismissed(true);
+        router.push("/account");
+      }
       return;
     }
     router.push("/account");
+  }
+
+  function handleDismissWarning() {
+    const newCount = warningDismissCount + 1;
+    setWarningDismissCount(newCount);
+    setShowWarning(false);
+    if (newCount >= 3) {
+      setWarningDismissed(true);
+    }
   }
 
   if (registered) {
@@ -116,10 +140,30 @@ ${phone ? `  Phone:    ${phone}` : ""}
                 <div className="flex items-start gap-3">
                   <AlertTriangle className="h-5 w-5 text-amber-500 mt-0.5 shrink-0" />
                   <div className="text-left">
-                    <p className="text-sm font-medium text-amber-800">You must download your credentials</p>
-                    <p className="mt-1 text-xs text-amber-700">
-                      This store cannot reset your password. Download the file now or you will be locked out forever.
-                    </p>
+                    {warningDismissCount === 0 && (
+                      <>
+                        <p className="text-sm font-medium text-amber-800">Please save your credentials</p>
+                        <p className="mt-1 text-xs text-amber-700">
+                          Your password is encrypted and cannot be recovered. Download the file now to keep your account safe.
+                        </p>
+                      </>
+                    )}
+                    {warningDismissCount === 1 && (
+                      <>
+                        <p className="text-sm font-medium text-amber-800">This is important — download recommended</p>
+                        <p className="mt-1 text-xs text-amber-700">
+                          Without your credentials file, you may lose access to your account permanently. We strongly recommend downloading it now.
+                        </p>
+                      </>
+                    )}
+                    {warningDismissCount === 2 && (
+                      <>
+                        <p className="text-sm font-medium text-amber-800">Final reminder — your account security matters</p>
+                        <p className="mt-1 text-xs text-amber-700">
+                          This is the last time we will remind you. After this, you can continue without downloading, but your account cannot be recovered if you lose access.
+                        </p>
+                      </>
+                    )}
                   </div>
                 </div>
               </div>
@@ -135,20 +179,52 @@ ${phone ? `  Phone:    ${phone}` : ""}
                   Download Credentials File
                 </Button>
               ) : (
-                <div className="rounded-lg bg-green-50 p-3 text-sm text-green-700">
+                <div className="rounded-lg bg-green-50 p-3 text-sm text-green-700 flex items-center gap-2">
+                  <CheckCircle2 className="h-4 w-4" />
                   File downloaded successfully
                 </div>
               )}
 
-              <Button
-                onClick={handleContinue}
-                variant="outline"
-                className="w-full"
-                disabled={!downloaded}
-              >
-                {downloaded ? "Continue to My Account" : "Download First to Continue"}
-              </Button>
+              {downloaded ? (
+                <Button
+                  onClick={() => router.push("/account")}
+                  className="w-full bg-zinc-900 text-white hover:bg-zinc-800"
+                >
+                  Continue to My Account
+                </Button>
+              ) : warningDismissed ? (
+                <Button
+                  onClick={() => router.push("/account")}
+                  variant="outline"
+                  className="w-full"
+                >
+                  Continue Without Downloading
+                </Button>
+              ) : (
+                <Button
+                  onClick={handleContinue}
+                  variant="outline"
+                  className="w-full"
+                >
+                  {warningDismissCount < 3
+                    ? `Skip Download (${3 - warningDismissCount} warning${3 - warningDismissCount !== 1 ? "s" : ""} left)`
+                    : "Continue to My Account"}
+                </Button>
+              )}
             </div>
+
+            {recoveryCode && (
+              <div className="mt-6 rounded-lg border border-zinc-200 bg-zinc-50 p-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <KeyRound className="h-4 w-4 text-zinc-600" />
+                  <span className="text-xs font-semibold text-zinc-700 uppercase tracking-wider">Recovery Code</span>
+                </div>
+                <p className="font-mono text-sm text-zinc-900 break-all">{recoveryCode}</p>
+                <p className="mt-2 text-[11px] text-zinc-500">
+                  Keep this code secret. Use it only if you lose access to your account.
+                </p>
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -226,7 +302,7 @@ ${phone ? `  Phone:    ${phone}` : ""}
               </div>
               <p className="mt-1.5 text-xs text-amber-600 flex items-center gap-1">
                 <AlertTriangle className="h-3 w-3" />
-                Password cannot be reset. You will receive a file to save it.
+                Password is encrypted. You will receive a recovery file to save.
               </p>
             </div>
 

@@ -1,7 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
+import crypto from "crypto";
 import { connectMongoDB } from "@/lib/mongodb";
 import User from "@/lib/models/user";
+
+function generateRecoveryCode(): string {
+  const bytes = crypto.randomBytes(16);
+  return bytes.toString("hex").match(/.{1,4}/g)!.join("-").toUpperCase();
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -23,6 +29,7 @@ export async function POST(request: NextRequest) {
     }
 
     const passwordHash = await bcrypt.hash(password, 12);
+    const recoveryCode = generateRecoveryCode();
 
     const user = await User.create({
       name,
@@ -30,10 +37,12 @@ export async function POST(request: NextRequest) {
       password: passwordHash,
       phone: phone || undefined,
       role: "CUSTOMER",
+      recoveryCode,
     });
 
     return NextResponse.json({
       user: { id: user._id, name: user.name, email: user.email, role: user.role },
+      recoveryCode,
     }, { status: 201 });
   } catch (error) {
     console.error("[REGISTER_POST]", error);
