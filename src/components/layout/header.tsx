@@ -7,6 +7,7 @@ import { Search, User, Heart, ShoppingBag, Menu, X, LogOut, Package, Settings, C
 import { cn } from "@/lib/utils";
 import SearchModal from "@/components/search/search-modal";
 import { useSignOutStore } from "@/lib/stores/sign-out";
+import { useUnreadCounts } from "@/hooks/use-unread-counts";
 
 const CartCount = dynamic(
   () =>
@@ -57,6 +58,8 @@ export default function Header() {
   const [user, setUser] = useState<{ name: string; email: string; role: string } | null>(null);
   const userMenuRef = useRef<HTMLDivElement>(null);
   const openSignOut = useSignOutStore((s) => s.open);
+  const isAdmin = user?.role === "ADMIN";
+  const { counts } = useUnreadCounts(isAdmin);
 
   useEffect(() => {
     const checkAuth = () => {
@@ -199,8 +202,13 @@ export default function Header() {
                     userMenuOpen ? "bg-zinc-200 text-zinc-900" : "bg-zinc-100 text-zinc-700 hover:bg-zinc-200"
                   )}
                 >
-                  <span className="flex h-6 w-6 items-center justify-center rounded-full bg-zinc-900 text-[10px] font-bold text-white">
+                  <span className="relative flex h-6 w-6 items-center justify-center rounded-full bg-zinc-900 text-[10px] font-bold text-white">
                     {user.name?.charAt(0)?.toUpperCase() || "U"}
+                    {counts.total > 0 && (
+                      <span className="absolute -right-1.5 -top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-green-500 px-1 text-[9px] font-bold text-white">
+                        {counts.total > 99 ? "99+" : counts.total}
+                      </span>
+                    )}
                   </span>
                   <span className="hidden xl:inline">{user.name}</span>
                   <ChevronRight className={cn("h-3 w-3 transition-transform", userMenuOpen && "rotate-90")} />
@@ -358,7 +366,14 @@ export default function Header() {
                 {user ? (
                   <>
                     <Link href={user.role === "ADMIN" ? "/admin" : "/account"} className="flex items-center gap-3 rounded-md px-3 py-2.5 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-50 hover:text-zinc-900" onClick={() => setMobileOpen(false)}>
-                      <User className="h-4 w-4" strokeWidth={1.5} />
+                      <span className="relative">
+                        <User className="h-4 w-4" strokeWidth={1.5} />
+                        {isAdmin && counts.total > 0 && (
+                          <span className="absolute -right-1.5 -top-1.5 flex h-3.5 min-w-3.5 items-center justify-center rounded-full bg-green-500 px-1 text-[8px] font-bold text-white">
+                            {counts.total > 99 ? "99+" : counts.total}
+                          </span>
+                        )}
+                      </span>
                       {user.name}
                     </Link>
                     <button type="button" onClick={() => { handleLogoutClick(); setMobileOpen(false); }} className="flex w-full items-center gap-3 rounded-md px-3 py-2.5 text-sm font-medium text-red-600 transition-colors hover:bg-red-50">
