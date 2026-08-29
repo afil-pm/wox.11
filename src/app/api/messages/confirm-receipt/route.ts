@@ -19,7 +19,7 @@ export async function POST(request: NextRequest) {
     const message = await Message.findById(messageId);
 
     if (!message) {
-      return NextResponse.json({ error: "Message not found or already confirmed" }, { status: 404 });
+      return NextResponse.json({ error: "Message not found" }, { status: 404 });
     }
 
     if (message.senderEmail !== senderEmail.trim().toLowerCase()) {
@@ -30,17 +30,15 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "No admin reply to confirm" }, { status: 400 });
     }
 
-    if (message.keyDeliveredAt) {
-      await Message.findByIdAndDelete(messageId);
-      return NextResponse.json({ message: "Recovery confirmed and conversation deleted" });
+    if (message.status === "received") {
+      return NextResponse.json({ message: "Already confirmed" });
     }
 
-    message.keyDeliveredAt = new Date();
+    message.status = "received";
+    message.keyDeliveredAt = message.keyDeliveredAt || new Date();
     await message.save();
 
-    await Message.findByIdAndDelete(messageId);
-
-    return NextResponse.json({ message: "Recovery confirmed and conversation deleted" });
+    return NextResponse.json({ message: "Receipt confirmed" });
   } catch (error) {
     console.error("POST /api/messages/confirm-receipt error:", error);
     return NextResponse.json({ error: "Failed to confirm receipt" }, { status: 500 });

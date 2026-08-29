@@ -13,7 +13,7 @@ interface StatusMessage {
   senderEmail: string;
   senderName: string;
   message: string;
-  status: "pending" | "reviewing" | "resolved" | "rejected";
+  status: "pending" | "reviewing" | "resolved" | "rejected" | "received";
   adminReply: string;
   keyDeliveredAt?: string;
   createdAt: string;
@@ -25,6 +25,7 @@ const statusStyles: Record<string, string> = {
   reviewing: "bg-blue-100 text-blue-800",
   resolved: "bg-green-100 text-green-800",
   rejected: "bg-red-100 text-red-800",
+  received: "bg-zinc-100 text-zinc-600",
 };
 
 const statusLabels: Record<string, string> = {
@@ -32,6 +33,7 @@ const statusLabels: Record<string, string> = {
   reviewing: "Reviewing",
   resolved: "Resolved",
   rejected: "Rejected",
+  received: "Received",
 };
 
 type PanelView = "menu" | "send" | "sent" | "check" | "results";
@@ -393,7 +395,7 @@ function RecoveryPanel({ onClose }: { onClose: () => void }) {
                           <p className="text-xs font-semibold text-amber-800">Recovery Key — Copy Required</p>
                         </div>
                         <p className="text-[11px] text-amber-700 mb-3">
-                          Copy the recovery key above, then click &quot;Received&quot; to confirm. This conversation will be permanently deleted after confirmation.
+                          Copy the recovery key above, then click &quot;Received&quot; to confirm. This conversation will be archived after confirmation.
                         </p>
                         <div className="flex gap-2">
                           <Button
