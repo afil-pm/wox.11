@@ -1,6 +1,9 @@
 import type { MetadataRoute } from "next";
+import { connectMongoDB } from "@/lib/mongodb";
+import Product from "@/lib/models/product";
+import Category from "@/lib/models/category";
 
-export default function sitemap(): MetadataRoute.Sitemap {
+export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://wox11.vercel.app";
 
   const staticPages: MetadataRoute.Sitemap = [
@@ -16,7 +19,6 @@ export default function sitemap(): MetadataRoute.Sitemap {
     { url: `${baseUrl}/terms`, lastModified: new Date(), changeFrequency: "yearly", priority: 0.3 },
     { url: `${baseUrl}/refund-policy`, lastModified: new Date(), changeFrequency: "yearly", priority: 0.3 },
     { url: `${baseUrl}/shipping-policy`, lastModified: new Date(), changeFrequency: "yearly", priority: 0.3 },
-
   ];
 
   const subcategoryPages: MetadataRoute.Sitemap = [
@@ -28,5 +30,32 @@ export default function sitemap(): MetadataRoute.Sitemap {
     { url: `${baseUrl}/boys/pants`, lastModified: new Date(), changeFrequency: "weekly", priority: 0.8 },
   ];
 
-  return [...staticPages, ...subcategoryPages];
+  let productPages: MetadataRoute.Sitemap = [];
+
+  try {
+    await connectMongoDB();
+
+    const products = await Product.find({ isActive: true })
+      .select("slug categoryId updatedAt seo.noindex")
+      .populate("categoryId", "slug gender")
+      .lean() as unknown as {
+        slug: string;
+        updatedAt: Date;
+        categoryId: { slug: string; gender: string } | null;
+        seo?: { noindex?: boolean };
+      }[];
+
+    productPages = products
+      .filter((p) => p.categoryId && !p.seo?.noindex)
+      .map((p) => ({
+        url: `${baseUrl}/${p.categoryId!.gender}/${p.categoryId!.slug}/${p.slug}`,
+        lastModified: p.updatedAt instanceof Date ? p.updatedAt : new Date(),
+        changeFrequency: "weekly" as const,
+        priority: 0.7,
+      }));
+  } catch (error) {
+    console.error("Sitemap: Failed to fetch products:", error);
+  }
+
+  return [...staticPages, ...subcategoryPages, ...productPages];
 }

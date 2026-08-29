@@ -18,6 +18,18 @@ export interface IProductVariant {
   sizes: IProductSize[];
 }
 
+export interface IProductSeo {
+  metaTitle: string;
+  metaDescription: string;
+  keywords: string[];
+  ogTitle: string;
+  ogDescription: string;
+  ogImage: string;
+  canonicalUrl: string;
+  noindex: boolean;
+  slugHistory: string[];
+}
+
 export interface IProduct extends Document {
   name: string;
   slug: string;
@@ -33,6 +45,7 @@ export interface IProduct extends Document {
   reviewCount: number;
   isFeatured: boolean;
   isActive: boolean;
+  seo: IProductSeo;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -64,6 +77,21 @@ const ProductVariantSchema = new Schema<IProductVariant>(
   { _id: false }
 );
 
+const ProductSeoSchema = new Schema<IProductSeo>(
+  {
+    metaTitle: { type: String, default: "" },
+    metaDescription: { type: String, default: "" },
+    keywords: { type: [String], default: [] },
+    ogTitle: { type: String, default: "" },
+    ogDescription: { type: String, default: "" },
+    ogImage: { type: String, default: "" },
+    canonicalUrl: { type: String, default: "" },
+    noindex: { type: Boolean, default: false },
+    slugHistory: { type: [String], default: [] },
+  },
+  { _id: false }
+);
+
 const ProductSchema = new Schema<IProduct>(
   {
     name: { type: String, required: true, trim: true },
@@ -80,6 +108,7 @@ const ProductSchema = new Schema<IProduct>(
     reviewCount: { type: Number, default: 0, min: 0 },
     isFeatured: { type: Boolean, default: false },
     isActive: { type: Boolean, default: true },
+    seo: { type: ProductSeoSchema, default: () => ({}) },
   },
   { timestamps: true }
 );

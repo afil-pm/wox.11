@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { generateProductSlug } from "@/lib/seo";
 
 function isAdmin(req: NextRequest): boolean {
   const adminHeader = req.headers.get("x-admin-email");
@@ -50,7 +51,7 @@ export async function GET(request: NextRequest) {
     }
 
     const formatted = products.map((p) => {
-      const obj = p as unknown as { _id: string; name: string; slug: string; description: string; basePrice: number; salePrice: number; sku: string; categoryId: unknown; store: string; images: unknown; variants: unknown; isFeatured: boolean; isActive: boolean; averageRating: number; reviewCount: number; createdAt: unknown };
+      const obj = p as unknown as { _id: string; name: string; slug: string; description: string; basePrice: number; salePrice: number; sku: string; categoryId: unknown; store: string; images: unknown; variants: unknown; isFeatured: boolean; isActive: boolean; averageRating: number; reviewCount: number; seo: unknown; createdAt: unknown };
       const cat = obj.categoryId ? catMap[String(obj.categoryId)] : null;
       return {
         id: String(obj._id),
@@ -69,6 +70,7 @@ export async function GET(request: NextRequest) {
         isActive: obj.isActive ?? true,
         averageRating: obj.averageRating ?? 0,
         reviewCount: obj.reviewCount ?? 0,
+        seo: obj.seo || {},
         source: "mongo" as const,
         createdAt: String(obj.createdAt ?? new Date().toISOString()),
       };
@@ -96,11 +98,11 @@ export async function POST(request: NextRequest) {
     await connectMongoDB();
     const body = await request.json();
 
-    const { name, description, basePrice, salePrice, sku, categoryId, store, isFeatured, isActive, images, variants } = body;
+    const { name, description, basePrice, salePrice, sku, categoryId, store, isFeatured, isActive, images, variants, seo: adminSeo } = body;
 
     if (!name || !basePrice || !sku || !categoryId) {
       return NextResponse.json(
-        { error: `Missing required fields. Got: name=${!!name}, basePrice=${!!basePrice}, sku=${!!sku}, categoryId=${!!categoryId}` },
+        { error: "Missing required fields" },
         { status: 400 }
       );
     }
@@ -110,10 +112,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: `Category not found for ID: ${categoryId}` }, { status: 404 });
     }
 
-    let slug = name
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, "-")
-      .replace(/(^-|-$)/g, "");
+    let slug = generateProductSlug(name);
 
     const existingSlug = await Product.findOne({ slug });
     if (existingSlug) {
@@ -122,7 +121,7 @@ export async function POST(request: NextRequest) {
 
     const existingSku = await Product.findOne({ sku: sku.toUpperCase() });
     if (existingSku) {
-      return NextResponse.json({ error: `SKU "${sku.toUpperCase()}" already exists` }, { status: 400 });
+      return NextResponse.json({ error: "SKU already exists" }, { status: 400 });
     }
 
     const productImages = Array.isArray(images)
@@ -142,6 +141,19 @@ export async function POST(request: NextRequest) {
         }))
       : [];
 
+    const price = salePrice ? Number(salePrice) : Number(basePrice);
+    const autoSeo = {
+      metaTitle: adminSeo?.metaTitle || `${name} | Buy Online at WOX.11`,
+      metaDescription: adminSeo?.metaDescription || `${(description || `Shop ${name} at WOX.11`).replace(/<[^>]*>/g, "").slice(0, 155)}. Starting at ₹${price}.`,
+      keywords: adminSeo?.keywords?.length ? adminSeo.keywords : [name.toLowerCase(), existingCategory.name.toLowerCase(), existingCategory.gender, "wox11", "fashion"],
+      ogTitle: adminSeo?.ogTitle || `${name} | WOX.11`,
+      ogDescription: adminSeo?.ogDescription || `${(description || `Shop ${name} at WOX.11`).replace(/<[^>]*>/g, "").slice(0, 200)}`,
+      ogImage: adminSeo?.ogImage || productImages[0]?.url || "",
+      canonicalUrl: adminSeo?.canonicalUrl || "",
+      noindex: adminSeo?.noindex || false,
+      slugHistory: [] as string[],
+    };
+
     const product = await Product.create({
       name,
       slug,
@@ -155,6 +167,7 @@ export async function POST(request: NextRequest) {
       isActive: isActive !== false,
       images: productImages,
       variants: productVariants,
+      seo: autoSeo,
     });
 
     return NextResponse.json({ product }, { status: 201 });
@@ -186,16 +199,19 @@ export async function PUT(request: NextRequest) {
     }
 
     if (data.name && data.name !== existingProduct.name) {
-      data.slug = data.name
-        .toLowerCase()
-        .replace(/[^a-z0-9]+/g, "-")
-        .replace(/(^-|-$)/g, "");
+      const newSlug = generateProductSlug(data.name);
+      if (newSlug !== existingProduct.slug) {
+        const slugHistory = [...(existingProduct.seo?.slugHistory || []), existingProduct.slug];
+        data.slug = newSlug;
+        if (!data.seo) data.seo = {};
+        data.seo.slugHistory = slugHistory;
+      }
     }
 
     if (data.sku && data.sku !== existingProduct.sku) {
       const existingSku = await Product.findOne({ sku: data.sku });
       if (existingSku) {
-        return NextResponse.json({ error: `SKU "${data.sku}" already exists` }, { status: 400 });
+        return NextResponse.json({ error: "SKU already exists" }, { status: 400 });
       }
     }
 
@@ -214,6 +230,21 @@ export async function PUT(request: NextRequest) {
         colorCode: v.colorCode || "",
         sizes: Array.isArray(v.sizes) ? v.sizes.map((s) => ({ name: s.name, quantity: s.quantity || 0 })) : [],
       }));
+    }
+
+    if (data.seo && typeof data.seo === "object") {
+      const existingSeo = existingProduct.seo || {};
+      data.seo = {
+        metaTitle: data.seo.metaTitle !== undefined ? data.seo.metaTitle : existingSeo.metaTitle || "",
+        metaDescription: data.seo.metaDescription !== undefined ? data.seo.metaDescription : existingSeo.metaDescription || "",
+        keywords: data.seo.keywords !== undefined ? data.seo.keywords : existingSeo.keywords || [],
+        ogTitle: data.seo.ogTitle !== undefined ? data.seo.ogTitle : existingSeo.ogTitle || "",
+        ogDescription: data.seo.ogDescription !== undefined ? data.seo.ogDescription : existingSeo.ogDescription || "",
+        ogImage: data.seo.ogImage !== undefined ? data.seo.ogImage : existingSeo.ogImage || "",
+        canonicalUrl: data.seo.canonicalUrl !== undefined ? data.seo.canonicalUrl : existingSeo.canonicalUrl || "",
+        noindex: data.seo.noindex !== undefined ? data.seo.noindex : existingSeo.noindex || false,
+        slugHistory: data.seo.slugHistory || existingSeo.slugHistory || [],
+      };
     }
 
     const product = await Product.findByIdAndUpdate(id, {

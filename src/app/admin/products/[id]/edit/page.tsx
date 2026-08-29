@@ -63,6 +63,16 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
     isFeatured: false,
     isActive: true,
   });
+  const [seo, setSeo] = useState({
+    metaTitle: "",
+    metaDescription: "",
+    keywords: [] as string[],
+    ogTitle: "",
+    ogDescription: "",
+    ogImage: "",
+    noindex: false,
+  });
+  const [keywordInput, setKeywordInput] = useState("");
 
   useEffect(() => {
     async function load() {
@@ -93,6 +103,18 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
           isActive: product.isActive,
         });
         setExistingImages(product.images ?? []);
+        if (product.seo && typeof product.seo === "object") {
+          const s = product.seo as Record<string, unknown>;
+          setSeo({
+            metaTitle: (s.metaTitle as string) || "",
+            metaDescription: (s.metaDescription as string) || "",
+            keywords: Array.isArray(s.keywords) ? s.keywords : [],
+            ogTitle: (s.ogTitle as string) || "",
+            ogDescription: (s.ogDescription as string) || "",
+            ogImage: (s.ogImage as string) || "",
+            noindex: (s.noindex as boolean) || false,
+          });
+        }
         if (product.variants && product.variants.length > 0) {
           setVariants(product.variants.map((v: { name: string; color: string; sizes: { name: string; quantity: number }[] }) => ({
             name: v.name,
@@ -185,6 +207,15 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
           colorCode: "",
           sizes: v.sizes.filter((s) => s.quantity > 0 || s.name),
         })),
+        seo: {
+          metaTitle: seo.metaTitle || undefined,
+          metaDescription: seo.metaDescription || undefined,
+          keywords: seo.keywords.length > 0 ? seo.keywords : undefined,
+          ogTitle: seo.ogTitle || undefined,
+          ogDescription: seo.ogDescription || undefined,
+          ogImage: seo.ogImage || undefined,
+          noindex: seo.noindex || undefined,
+        },
       };
       const res = await adminFetch("/api/admin/products", {
         method: "PUT",
@@ -383,6 +414,75 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
                 <input type="checkbox" name="isActive" checked={formData.isActive} onChange={handleChange} className="h-4 w-4 rounded border-gray-300" />
                 <span className="text-sm font-medium text-gray-700">Active</span>
               </label>
+            </div>
+
+            {/* SEO Section */}
+            <div className="rounded-lg border border-zinc-200 p-4">
+              <label className="mb-3 block text-sm font-medium text-gray-700">SEO (Auto-generated if left empty)</label>
+              <div className="space-y-3">
+                <div>
+                  <label className="mb-1 block text-xs text-gray-500">Meta Title</label>
+                  <input
+                    type="text"
+                    value={seo.metaTitle}
+                    onChange={(e) => setSeo({ ...seo, metaTitle: e.target.value })}
+                    placeholder="Auto: Product Name | Buy Online at WOX.11"
+                    className="w-full rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm"
+                  />
+                  <p className="mt-1 text-xs text-gray-400">{seo.metaTitle.length}/60</p>
+                </div>
+                <div>
+                  <label className="mb-1 block text-xs text-gray-500">Meta Description</label>
+                  <textarea
+                    value={seo.metaDescription}
+                    onChange={(e) => setSeo({ ...seo, metaDescription: e.target.value })}
+                    placeholder="Auto-generated from product description"
+                    rows={2}
+                    className="w-full rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm"
+                  />
+                  <p className="mt-1 text-xs text-gray-400">{seo.metaDescription.length}/160</p>
+                </div>
+                <div>
+                  <label className="mb-1 block text-xs text-gray-500">Keywords</label>
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={keywordInput}
+                      onChange={(e) => setKeywordInput(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          e.preventDefault();
+                          if (keywordInput.trim() && !seo.keywords.includes(keywordInput.trim())) {
+                            setSeo({ ...seo, keywords: [...seo.keywords, keywordInput.trim()] });
+                            setKeywordInput("");
+                          }
+                        }
+                      }}
+                      placeholder="Add keyword..."
+                      className="flex-1 rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm"
+                    />
+                  </div>
+                  {seo.keywords.length > 0 && (
+                    <div className="mt-2 flex flex-wrap gap-1">
+                      {seo.keywords.map((kw) => (
+                        <span key={kw} className="inline-flex items-center gap-1 px-2 py-0.5 bg-gray-100 rounded text-xs">
+                          {kw}
+                          <button type="button" onClick={() => setSeo({ ...seo, keywords: seo.keywords.filter((k) => k !== kw) })} className="text-gray-500 hover:text-red-500">&times;</button>
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={seo.noindex}
+                    onChange={(e) => setSeo({ ...seo, noindex: e.target.checked })}
+                    className="h-4 w-4 rounded border-gray-300"
+                  />
+                  <span className="text-xs text-gray-500">Noindex (hide from search engines)</span>
+                </div>
+              </div>
             </div>
 
             <div className="flex items-center gap-3 border-t pt-4">

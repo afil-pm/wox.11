@@ -12,6 +12,7 @@ import {
   Menu,
   X,
   LogOut,
+  Search,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import WoxLoader from "@/components/ui/wox-loader";
@@ -24,6 +25,7 @@ const navItems = [
   { label: "Products", icon: Package, href: "/admin/products", section: "" },
   { label: "Orders", icon: ShoppingCart, href: "/admin/orders", section: "orders" },
   { label: "Messages", icon: MessageSquare, href: "/admin/messages", section: "messages" },
+  { label: "SEO", icon: Search, href: "/admin/seo", section: "" },
 ];
 
 function Badge({ count }: { count: number }) {
