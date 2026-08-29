@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Eye, EyeOff, KeyRound, ArrowLeft, Copy, Check, MessageCircle, X, Send, Loader2, Inbox, Clock, CheckCircle2, Shield } from "lucide-react";
@@ -38,7 +38,7 @@ const statusLabels: Record<string, string> = {
 
 type PanelView = "menu" | "send" | "sent" | "check" | "results";
 
-function RecoveryPanel({ onClose }: { onClose: () => void }) {
+function RecoveryPanel({ onClose, onFlowBlocked }: { onClose: () => void; onFlowBlocked?: (blocked: boolean) => void }) {
   const [view, setView] = useState<PanelView>("menu");
 
   // Send form state
@@ -55,6 +55,17 @@ function RecoveryPanel({ onClose }: { onClose: () => void }) {
   const [checkResults, setCheckResults] = useState<StatusMessage[]>([]);
   const [copiedKeys, setCopiedKeys] = useState<Set<string>>(new Set());
   const [confirmingId, setConfirmingId] = useState<string | null>(null);
+  const [receivedIds, setReceivedIds] = useState<Set<string>>(new Set());
+  const [submittedIds, setSubmittedIds] = useState<Set<string>>(new Set());
+  const [submittingId, setSubmittingId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!onFlowBlocked) return;
+    const hasActiveFlow = checkResults.some(
+      (msg) => msg.adminReply && !submittedIds.has(msg._id)
+    );
+    onFlowBlocked(hasActiveFlow);
+  }, [checkResults, submittedIds, onFlowBlocked]);
 
   async function handleSend(e: React.FormEvent) {
     e.preventDefault();
@@ -120,12 +131,31 @@ function RecoveryPanel({ onClose }: { onClose: () => void }) {
       });
 
       if (res.ok) {
-        setCheckResults((prev) => prev.filter((m) => m._id !== msgId));
+        setReceivedIds((prev) => new Set([...prev, msgId]));
       }
     } catch {
       // silently fail
     } finally {
       setConfirmingId(null);
+    }
+  }
+
+  async function submitReceipt(msgId: string) {
+    setSubmittingId(msgId);
+    try {
+      const res = await fetch("/api/messages/submit-receipt", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ messageId: msgId, senderEmail: checkEmail.trim() }),
+      });
+
+      if (res.ok) {
+        setSubmittedIds((prev) => new Set([...prev, msgId]));
+      }
+    } catch {
+      // silently fail
+    } finally {
+      setSubmittingId(null);
     }
   }
 
@@ -348,6 +378,10 @@ function RecoveryPanel({ onClose }: { onClose: () => void }) {
 
   // Results view
   if (view === "results") {
+    const hasActiveFlow = checkResults.some(
+      (msg) => msg.adminReply && !submittedIds.has(msg._id)
+    );
+
     return (
       <div>
         <div className="flex items-center justify-between border-b border-zinc-200 px-5 py-4">
@@ -357,9 +391,13 @@ function RecoveryPanel({ onClose }: { onClose: () => void }) {
             </button>
             <h3 className="font-bold text-zinc-900">Your Requests</h3>
           </div>
-          <button type="button" onClick={onClose} className="text-zinc-400 hover:text-zinc-600">
-            <X className="h-5 w-5" />
-          </button>
+          {hasActiveFlow ? (
+            <span className="text-[11px] text-zinc-400">Complete all steps to close</span>
+          ) : (
+            <button type="button" onClick={onClose} className="text-zinc-400 hover:text-zinc-600">
+              <X className="h-5 w-5" />
+            </button>
+          )}
         </div>
 
         <div className="max-h-[60vh] overflow-y-auto px-5 py-4 space-y-3">
@@ -388,14 +426,24 @@ function RecoveryPanel({ onClose }: { onClose: () => void }) {
                     <p className="text-[11px] font-semibold text-zinc-500 uppercase tracking-wider mb-1">Admin Reply</p>
                     <p className="text-sm text-zinc-800 whitespace-pre-wrap">{msg.adminReply}</p>
 
-                    {!msg.keyDeliveredAt && (
+                    {!submittedIds.has(msg._id) && (
                       <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-3">
                         <div className="flex items-center gap-2 mb-2">
                           <Shield className="h-4 w-4 text-amber-600" />
-                          <p className="text-xs font-semibold text-amber-800">Recovery Key — Copy Required</p>
+                          <p className="text-xs font-semibold text-amber-800">
+                            {!copiedKeys.has(msg._id)
+                              ? "Step 1 — Copy Recovery Key"
+                              : !receivedIds.has(msg._id)
+                                ? "Step 2 — Confirm Received"
+                                : "Step 3 — Submit to Close"}
+                          </p>
                         </div>
                         <p className="text-[11px] text-amber-700 mb-3">
-                          Copy the recovery key above, then click &quot;Received&quot; to confirm. This conversation will be archived after confirmation.
+                          {!copiedKeys.has(msg._id)
+                            ? "Copy the recovery key above to proceed."
+                            : !receivedIds.has(msg._id)
+                              ? "Click Received to confirm you have saved the key."
+                              : "Click Submit to complete the process."}
                         </p>
                         <div className="flex gap-2">
                           <Button
@@ -407,19 +455,42 @@ function RecoveryPanel({ onClose }: { onClose: () => void }) {
                             {copiedKeys.has(msg._id) ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
                             {copiedKeys.has(msg._id) ? "Copied" : "Copy Recovery Key"}
                           </Button>
-                          <Button
-                            size="sm"
-                            disabled={!copiedKeys.has(msg._id) || confirmingId === msg._id}
-                            className="bg-zinc-900 text-white hover:bg-zinc-800 gap-1.5"
-                            onClick={() => confirmReceipt(msg._id)}
-                          >
-                            {confirmingId === msg._id ? (
-                              <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                            ) : (
-                              <CheckCircle2 className="h-3.5 w-3.5" />
-                            )}
-                            Received
-                          </Button>
+                          {copiedKeys.has(msg._id) && !receivedIds.has(msg._id) && (
+                            <Button
+                              size="sm"
+                              disabled={confirmingId === msg._id}
+                              className="bg-zinc-900 text-white hover:bg-zinc-800 gap-1.5"
+                              onClick={() => confirmReceipt(msg._id)}
+                            >
+                              {confirmingId === msg._id ? (
+                                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                              ) : (
+                                <CheckCircle2 className="h-3.5 w-3.5" />
+                              )}
+                              Received
+                            </Button>
+                          )}
+                          {receivedIds.has(msg._id) && !submittedIds.has(msg._id) && (
+                            <Button
+                              size="sm"
+                              disabled={submittingId === msg._id}
+                              className="bg-zinc-900 text-white hover:bg-zinc-800 gap-1.5"
+                              onClick={() => submitReceipt(msg._id)}
+                            >
+                              {submittingId === msg._id ? (
+                                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                              ) : (
+                                <CheckCircle2 className="h-3.5 w-3.5" />
+                              )}
+                              Submit
+                            </Button>
+                          )}
+                          {submittedIds.has(msg._id) && (
+                            <span className="flex items-center gap-1.5 text-xs text-green-600 font-medium">
+                              <Check className="h-3.5 w-3.5" />
+                              Completed
+                            </span>
+                          )}
                         </div>
                       </div>
                     )}
@@ -449,8 +520,18 @@ function RecoveryPanel({ onClose }: { onClose: () => void }) {
               <Send className="h-3.5 w-3.5" />
               New Request
             </Button>
-            <Button onClick={onClose} className="flex-1 bg-zinc-900 text-white hover:bg-zinc-800 text-sm" size="sm">
-              Close
+            <Button
+              onClick={onClose}
+              disabled={hasActiveFlow}
+              className={cn(
+                "flex-1 text-sm",
+                hasActiveFlow
+                  ? "bg-zinc-300 text-zinc-500 cursor-not-allowed"
+                  : "bg-zinc-900 text-white hover:bg-zinc-800"
+              )}
+              size="sm"
+            >
+              {hasActiveFlow ? "Complete All Steps" : "Close"}
             </Button>
           </div>
         </div>
@@ -473,6 +554,7 @@ export default function ResetPasswordPage() {
   const [newRecoveryCode, setNewRecoveryCode] = useState("");
   const [copied, setCopied] = useState(false);
   const [showPanel, setShowPanel] = useState(false);
+  const [flowBlocked, setFlowBlocked] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -660,13 +742,16 @@ export default function ResetPasswordPage() {
       {showPanel && (
         <div
           className="fixed inset-0 z-[60] flex items-end justify-end bg-black/40 p-4 sm:items-center sm:justify-end"
-          onClick={() => setShowPanel(false)}
+          onClick={() => { if (!flowBlocked) setShowPanel(false); }}
         >
           <div
             className="w-full max-w-sm rounded-2xl bg-white shadow-2xl sm:mr-8"
             onClick={(e) => e.stopPropagation()}
           >
-            <RecoveryPanel onClose={() => setShowPanel(false)} />
+            <RecoveryPanel
+              onClose={() => setShowPanel(false)}
+              onFlowBlocked={setFlowBlocked}
+            />
           </div>
         </div>
       )}
