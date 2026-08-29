@@ -10,7 +10,7 @@ interface UnreadCounts {
 }
 
 const STORAGE_PREFIX = "wox-admin-lastSeen-";
-const POLL_INTERVAL = 30000;
+const POLL_INTERVAL = 10000;
 
 function getTimestamp(section: string): string | null {
   try {
@@ -59,20 +59,29 @@ export function useUnreadCounts(enabled: boolean) {
     if (!enabled) return;
     fetchCounts();
     intervalRef.current = setInterval(fetchCounts, POLL_INTERVAL);
+
+    function onVisible() {
+      if (document.visibilityState === "visible") {
+        fetchCounts();
+      }
+    }
+    document.addEventListener("visibilitychange", onVisible);
+
     return () => {
       if (intervalRef.current) clearInterval(intervalRef.current);
+      document.removeEventListener("visibilitychange", onVisible);
     };
   }, [enabled, fetchCounts]);
 
   const markAsRead = useCallback((section: string) => {
-    const now = new Date().toISOString();
+    const now = lastServerTime || new Date().toISOString();
     setTimestamp(section, now);
     setCounts((prev) => ({
       ...prev,
       [section]: 0,
       total: Math.max(0, prev.total - (prev[section as keyof UnreadCounts] || 0)),
     }));
-  }, []);
+  }, [lastServerTime]);
 
   const resetAll = useCallback(() => {
     try {
