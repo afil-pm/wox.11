@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { Trash2, Plus, Minus, ShoppingBag, Tag, Shield } from "lucide-react";
@@ -8,9 +8,9 @@ import useCartStore from "@/lib/stores/cart";
 import { cn, formatPrice } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { getSavedAddresses } from "@/app/(store)/account/addresses/page";
 
 const FREE_SHIPPING_THRESHOLD = 999;
-const SHIPPING_COST = 99;
 const ESTIMATED_TAX_RATE = 0.05;
 
 export default function CartPage() {
@@ -21,9 +21,38 @@ export default function CartPage() {
     code: string;
     discount: number;
   } | null>(null);
+  const [shippingCost, setShippingCost] = useState<number>(0);
+  const [shippingLoading, setShippingLoading] = useState(false);
+
+  const fetchShipping = useCallback(async () => {
+    try {
+      const addresses = getSavedAddresses();
+      const addr = addresses[0];
+      if (!addr?.pincode || !/^\d{6}$/.test(addr.pincode)) {
+        setShippingCost(0);
+        return;
+      }
+      setShippingLoading(true);
+      const res = await fetch(`/api/shipping/validate-pincode?pincode=${encodeURIComponent(addr.pincode)}`);
+      const data = await res.json();
+      if (data.shippingCost >= 0) {
+        setShippingCost(data.shippingCost);
+      } else {
+        setShippingCost(0);
+      }
+    } catch {
+      setShippingCost(0);
+    } finally {
+      setShippingLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchShipping();
+  }, [fetchShipping, items]);
 
   const isEmpty = items.length === 0;
-  const shipping = subtotal >= FREE_SHIPPING_THRESHOLD ? 0 : SHIPPING_COST;
+  const shipping = isEmpty ? 0 : shippingCost;
   const discount = appliedCoupon?.discount ?? 0;
   const tax = Math.round((subtotal - discount) * ESTIMATED_TAX_RATE);
   const total = Math.max(subtotal - discount + shipping + tax, 0);
@@ -166,7 +195,13 @@ export default function CartPage() {
                 <div className="flex justify-between text-sm">
                   <span className="text-zinc-500">Shipping</span>
                   <span className="font-medium text-zinc-900">
-                    {shipping === 0 ? "Free" : formatPrice(shipping)}
+                    {shippingLoading ? (
+                      <span className="h-4 w-4 inline-block animate-spin rounded-full border-2 border-zinc-400 border-t-transparent" />
+                    ) : shipping === 0 ? (
+                      "Free"
+                    ) : (
+                      formatPrice(shipping)
+                    )}
                   </span>
                 </div>
 
