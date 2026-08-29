@@ -68,8 +68,8 @@ export async function POST(request: NextRequest) {
     const registeredUser = await User.findOne({ email: normalizedEmail }).select("_id").lean();
     if (!registeredUser) {
       return NextResponse.json(
-        { error: "No account found with this email address." },
-        { status: 404 }
+        { message: "If this email is associated with an account, your request has been received." },
+        { status: 201 }
       );
     }
 

@@ -8,8 +8,15 @@ function isAdmin(req: NextRequest): boolean {
   return adminHeader.toLowerCase() === adminEmail.toLowerCase();
 }
 
+function escapeRegex(str: string): string {
+  return str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
 export async function GET(request: NextRequest) {
   try {
+    if (!isAdmin(request)) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
+    }
     const { searchParams } = new URL(request.url);
     const search = searchParams.get("search") || "";
     const limit = parseInt(searchParams.get("limit") || "200", 10);
@@ -22,9 +29,10 @@ export async function GET(request: NextRequest) {
 
     const filter: Record<string, unknown> = {};
     if (search) {
+      const safeSearch = escapeRegex(search);
       filter.$or = [
-        { name: { $regex: search, $options: "i" } },
-        { sku: { $regex: search, $options: "i" } },
+        { name: { $regex: safeSearch, $options: "i" } },
+        { sku: { $regex: safeSearch, $options: "i" } },
       ];
     }
 
@@ -152,8 +160,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ product }, { status: 201 });
   } catch (error) {
     console.error("POST /api/admin/products error:", error);
-    const message = error instanceof Error ? error.message : "Failed to create product";
-    return NextResponse.json({ error: message }, { status: 500 });
+    return NextResponse.json({ error: "Failed to create product" }, { status: 500 });
   }
 }
 
@@ -218,8 +225,7 @@ export async function PUT(request: NextRequest) {
     return NextResponse.json({ product });
   } catch (error) {
     console.error("PUT /api/admin/products error:", error);
-    const message = error instanceof Error ? error.message : "Failed to update product";
-    return NextResponse.json({ error: message }, { status: 500 });
+    return NextResponse.json({ error: "Failed to update product" }, { status: 500 });
   }
 }
 
@@ -248,8 +254,7 @@ export async function DELETE(request: NextRequest) {
     return NextResponse.json({ message: "Product deleted" });
   } catch (error) {
     console.error("DELETE /api/admin/products error:", error);
-    const message = error instanceof Error ? error.message : "Failed to delete product";
-    return NextResponse.json({ error: message }, { status: 500 });
+    return NextResponse.json({ error: "Failed to delete product" }, { status: 500 });
   }
 }
 
@@ -306,7 +311,6 @@ export async function PATCH(request: NextRequest) {
     });
   } catch (error) {
     console.error("PATCH /api/admin/products error:", error);
-    const message = error instanceof Error ? error.message : "Failed to apply discount";
-    return NextResponse.json({ error: message }, { status: 500 });
+    return NextResponse.json({ error: "Failed to apply discount" }, { status: 500 });
   }
 }

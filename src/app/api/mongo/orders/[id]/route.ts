@@ -51,13 +51,50 @@ export async function PATCH(
       return NextResponse.json({ error: "Order not found" }, { status: 404 });
     }
 
-    if (!isAdmin(request) && userId && order.userId !== userId) {
+    const admin = isAdmin(request);
+    if (!admin && userId && order.userId !== userId) {
       return NextResponse.json({ error: "Order not found" }, { status: 404 });
     }
 
+    const validTransitions: Record<string, string[]> = {
+      PENDING: ["CONFIRMED", "CANCELLED"],
+      CONFIRMED: ["PROCESSING", "CANCELLED"],
+      PROCESSING: ["PACKED", "CANCELLED"],
+      PACKED: ["SHIPPED", "CANCELLED"],
+      SHIPPED: ["OUT_FOR_DELIVERY", "RETURNED"],
+      OUT_FOR_DELIVERY: ["DELIVERED", "RETURNED"],
+      DELIVERED: ["RETURNED"],
+      CANCELLED: [],
+      RETURNED: ["REFUNDED"],
+      REFUNDED: [],
+    };
+
     const update: Record<string, unknown> = {};
-    if (status) update.status = status;
-    if (paymentStatus) update.paymentStatus = paymentStatus;
+
+    if (status) {
+      if (!admin) {
+        return NextResponse.json({ error: "Only admin can change order status" }, { status: 403 });
+      }
+      const allowed = validTransitions[order.status] || [];
+      if (!allowed.includes(status)) {
+        return NextResponse.json(
+          { error: `Cannot transition from ${order.status} to ${status}` },
+          { status: 400 }
+        );
+      }
+      update.status = status;
+    }
+
+    if (paymentStatus) {
+      if (!admin) {
+        return NextResponse.json({ error: "Only admin can change payment status" }, { status: 403 });
+      }
+      update.paymentStatus = paymentStatus;
+    }
+
+    if (Object.keys(update).length === 0) {
+      return NextResponse.json({ error: "No valid updates provided" }, { status: 400 });
+    }
 
     const updatedOrder = await Order.findByIdAndUpdate(id, update, { new: true }).lean();
     return NextResponse.json({ order: updatedOrder });

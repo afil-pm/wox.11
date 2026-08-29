@@ -2,8 +2,19 @@ import { NextRequest, NextResponse } from "next/server";
 import { connectMongoDB } from "@/lib/mongodb";
 import Order from "@/lib/models/order";
 
+function isAdmin(request: NextRequest): boolean {
+  const adminHeader = request.headers.get("x-admin-email");
+  if (!adminHeader) return false;
+  const adminEmail = process.env.ADMIN_EMAIL || "";
+  if (!adminEmail) return true;
+  return adminHeader.toLowerCase() === adminEmail.toLowerCase();
+}
+
 export async function GET(request: NextRequest) {
   try {
+    if (!isAdmin(request)) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
+    }
     await connectMongoDB();
     const { searchParams } = new URL(request.url);
     const status = searchParams.get("status");
@@ -31,6 +42,9 @@ export async function GET(request: NextRequest) {
 
 export async function PUT(request: NextRequest) {
   try {
+    if (!isAdmin(request)) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
+    }
     await connectMongoDB();
     const body = await request.json();
     const { orderId, status } = body;

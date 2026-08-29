@@ -1,8 +1,19 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { products as staticProducts } from "@/lib/data/products";
 
-export async function POST() {
+function isAdmin(request: NextRequest): boolean {
+  const adminHeader = request.headers.get("x-admin-email");
+  if (!adminHeader) return false;
+  const adminEmail = process.env.ADMIN_EMAIL || "";
+  if (!adminEmail) return true;
+  return adminHeader.toLowerCase() === adminEmail.toLowerCase();
+}
+
+export async function POST(request: NextRequest) {
   try {
+    if (!isAdmin(request)) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
+    }
     const { connectMongoDB } = await import("@/lib/mongodb");
     const { default: Product } = await import("@/lib/models/product");
     const { default: Category } = await import("@/lib/models/category");

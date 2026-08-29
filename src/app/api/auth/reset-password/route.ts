@@ -4,8 +4,27 @@ import crypto from "crypto";
 import { connectMongoDB } from "@/lib/mongodb";
 import User from "@/lib/models/user";
 
+const resetAttempts = new Map<string, { count: number; resetAt: number }>();
+const MAX_RESET_ATTEMPTS = 5;
+const LOCKOUT_DURATION_MS = 60 * 60 * 1000;
+
+function checkRateLimit(key: string): boolean {
+  const now = Date.now();
+  const record = resetAttempts.get(key);
+  if (!record || now > record.resetAt) {
+    resetAttempts.set(key, { count: 1, resetAt: now + LOCKOUT_DURATION_MS });
+    return true;
+  }
+  if (record.count >= MAX_RESET_ATTEMPTS) return false;
+  record.count++;
+  return true;
+}
+
 export async function POST(request: NextRequest) {
   try {
+    const forwarded = request.headers.get("x-forwarded-for");
+    const ip = forwarded?.split(",")[0]?.trim() || "unknown";
+
     const { email, recoveryCode, newPassword } = await request.json();
 
     if (!email || !recoveryCode || !newPassword) {
@@ -15,9 +34,17 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (newPassword.length < 6) {
+    const rateKey = `${ip}:${email.toLowerCase()}`;
+    if (!checkRateLimit(rateKey)) {
       return NextResponse.json(
-        { error: "Password must be at least 6 characters" },
+        { error: "Too many reset attempts. Please try again later." },
+        { status: 429 }
+      );
+    }
+
+    if (newPassword.length < 8) {
+      return NextResponse.json(
+        { error: "Password must be at least 8 characters" },
         { status: 400 }
       );
     }

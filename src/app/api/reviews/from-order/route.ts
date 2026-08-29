@@ -5,15 +5,41 @@ import Review from "@/lib/models/review";
 import Product from "@/lib/models/product";
 import mongoose from "mongoose";
 
+const reviewAttempts = new Map<string, { count: number; resetAt: number }>();
+const MAX_REVIEW_ATTEMPTS = 10;
+const LOCKOUT_DURATION_MS = 60 * 60 * 1000;
+
+function checkRateLimit(key: string): boolean {
+  const now = Date.now();
+  const record = reviewAttempts.get(key);
+  if (!record || now > record.resetAt) {
+    reviewAttempts.set(key, { count: 1, resetAt: now + LOCKOUT_DURATION_MS });
+    return true;
+  }
+  if (record.count >= MAX_REVIEW_ATTEMPTS) return false;
+  record.count++;
+  return true;
+}
+
 export async function POST(request: NextRequest) {
   try {
     await connectMongoDB();
     const body = await request.json();
-    const { orderId, productId, userId, userName, userEmail, rating, comment } = body;
+    const { orderId, productId, userName, userEmail, rating, comment } = body;
 
-    if (!orderId || !productId || !userId) {
+    const userId = request.headers.get("x-user-id") || "";
+    if (!userId) {
+      return NextResponse.json({ error: "Authentication required" }, { status: 401 });
+    }
+
+    const rateKey = userId;
+    if (!checkRateLimit(rateKey)) {
+      return NextResponse.json({ error: "Too many review attempts. Please try again later." }, { status: 429 });
+    }
+
+    if (!orderId || !productId) {
       return NextResponse.json(
-        { error: "orderId, productId, and userId are required" },
+        { error: "orderId and productId are required" },
         { status: 400 }
       );
     }
@@ -124,7 +150,6 @@ export async function POST(request: NextRequest) {
     });
   } catch (error) {
     console.error("POST /api/reviews/from-order error:", error);
-    const message = error instanceof Error ? error.message : "Failed to submit review";
-    return NextResponse.json({ error: message }, { status: 500 });
+    return NextResponse.json({ error: "Failed to submit review" }, { status: 500 });
   }
 }

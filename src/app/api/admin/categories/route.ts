@@ -1,5 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 
+function isAdmin(request: NextRequest): boolean {
+  const adminHeader = request.headers.get("x-admin-email");
+  if (!adminHeader) return false;
+  const adminEmail = process.env.ADMIN_EMAIL || "";
+  if (!adminEmail) return true;
+  return adminHeader.toLowerCase() === adminEmail.toLowerCase();
+}
+
 const defaultCategories = [
   { id: "cat-men-shirts", name: "Shirts", slug: "shirts", gender: "men", type: "shirts" },
   { id: "cat-men-tshirts", name: "T-Shirts", slug: "t-shirts", gender: "men", type: "t-shirts" },
@@ -30,6 +38,9 @@ async function getMongoCategories() {
 
 export async function GET(request: NextRequest) {
   try {
+    if (!isAdmin(request)) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
+    }
     const mongoCategories = await getMongoCategories();
     const allCategories = mongoCategories.length > 0 ? mongoCategories : defaultCategories;
     return NextResponse.json({ categories: allCategories });
@@ -41,6 +52,9 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
+    if (!isAdmin(request)) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
+    }
     const { connectMongoDB } = await import("@/lib/mongodb");
     const { default: Category } = await import("@/lib/models/category");
     await connectMongoDB();
