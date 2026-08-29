@@ -7,6 +7,13 @@ export async function POST(req: NextRequest) {
   try {
     const { amount, currency, receipt } = await req.json();
 
+    if (!amount || typeof amount !== "number" || amount <= 0) {
+      return NextResponse.json(
+        { error: "Invalid payment amount" },
+        { status: 400 }
+      );
+    }
+
     if (!RAZORPAY_KEY_ID || !RAZORPAY_KEY_SECRET) {
       return NextResponse.json(
         { error: "Razorpay not configured. Add RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET to env." },

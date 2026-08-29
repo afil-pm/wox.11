@@ -183,7 +183,20 @@ export default function CheckoutPage() {
     window.scrollTo({ top: 0, behavior: "auto" });
   }, []);
 
-  const shippingCost = deliveryMethod === "express" ? 49 : 0;
+  const shippingCost = (() => {
+    const state = newAddress.state?.trim().toLowerCase() || "";
+    if (state === "kerala") return 0;
+    if (state && ["andhra pradesh","arunachal pradesh","assam","bihar","chhattisgarh","goa","gujarat","haryana","himachal pradesh","jharkhand","karnataka","madhya pradesh","maharashtra","manipur","meghalaya","mizoram","nagaland","odisha","punjab","rajasthan","sikkim","tamil nadu","telangana","tripura","uttar pradesh","uttarakhand","west bengal","andaman and nicobar islands","chandigarh","dadra and nagar haveli and daman and diu","delhi","jammu and kashmir","ladakh","lakshadweep","puducherry"].includes(state)) return 50;
+    return 0;
+  })();
+
+  const isIndianState = (() => {
+    const state = newAddress.state?.trim().toLowerCase() || "";
+    return state === "kerala" || ["andhra pradesh","arunachal pradesh","assam","bihar","chhattisgarh","goa","gujarat","haryana","himachal pradesh","jharkhand","karnataka","madhya pradesh","maharashtra","manipur","meghalaya","mizoram","nagaland","odisha","punjab","rajasthan","sikkim","tamil nadu","telangana","tripura","uttar pradesh","uttarakhand","west bengal","andaman and nicobar islands","chandigarh","dadra and nagar haveli and daman and diu","delhi","jammu and kashmir","ladakh","lakshadweep","puducherry"].includes(state);
+  })();
+
+  const hasValidAddress = !!(newAddress.name && newAddress.phone && newAddress.line1 && newAddress.city && newAddress.state && newAddress.pincode);
+  const isOutsideIndia = hasValidAddress && !isIndianState;
   const tax = Math.round(subtotal * 0.18);
   const total = subtotal + shippingCost + tax;
   const hasValidItems =
@@ -201,7 +214,7 @@ export default function CheckoutPage() {
       ? { ...newAddress, id: "new" }
       : null;
 
-  const canPlaceOrder = hasValidItems && total > 0 && selectedAddress && termsAccepted;
+  const canPlaceOrder = hasValidItems && total > 0 && selectedAddress && termsAccepted && !isOutsideIndia;
 
   function triggerFieldError(fieldName: string) {
     setFieldErrors((prev) => ({ ...prev, [fieldName]: true }));
@@ -891,7 +904,7 @@ export default function CheckoutPage() {
                           Standard Delivery
                         </span>
                         <span className="text-sm font-semibold text-zinc-900">
-                          Free
+                          {shippingCost === 0 ? "Free" : formatPrice(shippingCost)}
                         </span>
                       </div>
                       <p className="mt-0.5 text-xs text-zinc-500">
@@ -923,7 +936,7 @@ export default function CheckoutPage() {
                           Express Delivery
                         </span>
                         <span className="text-sm font-semibold text-zinc-900">
-                          {formatPrice(149)}
+                          {shippingCost === 0 ? "Free" : formatPrice(shippingCost)}
                         </span>
                       </div>
                       <p className="mt-0.5 text-xs text-zinc-500">
@@ -1228,6 +1241,11 @@ export default function CheckoutPage() {
                 </label>
 
                 {/* Error */}
+                {isOutsideIndia && (
+                  <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-600">
+                    Currently unavailable for this location. We only deliver within India.
+                  </div>
+                )}
                 {orderError && (
                   <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-600">
                     {orderError}

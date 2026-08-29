@@ -1,7 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
 import { connectMongoDB } from "@/lib/mongodb";
 import Order from "@/lib/models/order";
+import Product from "@/lib/models/product";
 import { sendNewOrderEmail } from "@/lib/email";
+
+const INDIAN_STATES = [
+  "kerala","andhra pradesh","arunachal pradesh","assam","bihar","chhattisgarh",
+  "goa","gujarat","haryana","himachal pradesh","jharkhand","karnataka",
+  "madhya pradesh","maharashtra","manipur","meghalaya","mizoram","nagaland",
+  "odisha","punjab","rajasthan","sikkim","tamil nadu","telangana","tripura",
+  "uttar pradesh","uttarakhand","west bengal","andaman and nicobar islands",
+  "chandigarh","dadra and nagar haveli and daman and diu","delhi",
+  "jammu and kashmir","ladakh","lakshadweep","puducherry",
+];
 
 function isAdmin(request: NextRequest): boolean {
   const adminHeader = request.headers.get("x-admin-email");
@@ -9,6 +20,13 @@ function isAdmin(request: NextRequest): boolean {
   const adminEmail = process.env.ADMIN_EMAIL || "";
   if (!adminEmail) return true;
   return adminHeader.toLowerCase() === adminEmail.toLowerCase();
+}
+
+function computeShippingCost(state: string): number {
+  const s = state.trim().toLowerCase();
+  if (s === "kerala") return 0;
+  if (INDIAN_STATES.includes(s)) return 50;
+  return -1;
 }
 
 export async function GET(request: NextRequest) {
@@ -57,13 +75,8 @@ export async function POST(request: NextRequest) {
       customerEmail,
       address,
       items,
-      subtotal,
-      shippingCost,
-      tax,
-      total,
       paymentMethod,
       paymentId,
-      paymentStatus,
       notes,
     } = body;
 
@@ -83,17 +96,45 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const hasInvalidItems = items.some(
-      (item: { price: number; quantity: number }) => !item.price || item.price <= 0 || !item.quantity || item.quantity <= 0
-    );
-    if (hasInvalidItems) {
+    const stateNormalized = address.state.trim().toLowerCase();
+    const shippingCost = computeShippingCost(address.state);
+    if (shippingCost === -1) {
       return NextResponse.json(
-        { error: "All items must have a valid price greater than ₹0" },
+        { error: "Currently unavailable for this location. We only deliver within India." },
         { status: 400 }
       );
     }
 
-    if (!total || total <= 0) {
+    const slugs = items.map((item: { slug?: string }) => item.slug).filter(Boolean);
+    const products = await Product.find({ slug: { $in: slugs } }).lean();
+    const productMap = new Map(products.map((p) => [p.slug, p]));
+
+    let serverSubtotal = 0;
+    const serverItems = items.map((item: { name: string; slug?: string; size: string; quantity: number; image?: string }) => {
+      const product = item.slug ? productMap.get(item.slug) : null;
+      const price = product ? (product.salePrice > 0 ? product.salePrice : product.basePrice) : 0;
+      serverSubtotal += price * item.quantity;
+      return {
+        name: item.name,
+        price,
+        quantity: item.quantity,
+        size: item.size,
+        image: item.image || "",
+        slug: item.slug || "",
+      };
+    });
+
+    if (serverItems.some((item: { price: number; quantity: number }) => item.price <= 0 || item.quantity <= 0)) {
+      return NextResponse.json(
+        { error: "One or more products are unavailable or have invalid pricing" },
+        { status: 400 }
+      );
+    }
+
+    const tax = Math.round(serverSubtotal * 0.18);
+    const total = serverSubtotal + shippingCost + tax;
+
+    if (total <= 0) {
       return NextResponse.json(
         { error: "Order total must be greater than ₹0" },
         { status: 400 }
@@ -107,14 +148,14 @@ export async function POST(request: NextRequest) {
       customerPhone: customerPhone || address.phone,
       customerEmail: customerEmail || "",
       address,
-      items,
-      subtotal: subtotal || 0,
-      shippingCost: shippingCost || 0,
-      tax: tax || 0,
-      total: total || 0,
+      items: serverItems,
+      subtotal: serverSubtotal,
+      shippingCost,
+      tax,
+      total,
       paymentMethod: paymentMethod || "cod",
       paymentId: paymentId || "",
-      paymentStatus: paymentStatus || (paymentMethod === "cod" ? "PENDING" : "PENDING"),
+      paymentStatus: paymentId ? "PAID" : "PENDING",
       status: "PENDING",
       notes: notes || "",
     });
@@ -125,10 +166,10 @@ export async function POST(request: NextRequest) {
       customerPhone: customerPhone || address.phone,
       customerEmail: customerEmail || "",
       address,
-      items,
-      total: total || 0,
+      items: serverItems,
+      total,
       paymentMethod: paymentMethod || "cod",
-      paymentStatus: paymentStatus || "PENDING",
+      paymentStatus: paymentId ? "PAID" : "PENDING",
     }).catch(() => {});
 
     return NextResponse.json({ order }, { status: 201 });

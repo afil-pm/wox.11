@@ -16,7 +16,7 @@ export async function GET(request: NextRequest) {
     const messages = await Message.find({
       senderEmail: email.trim().toLowerCase(),
       type: "account-recovery",
-      status: { $ne: "received" },
+      status: { $nin: ["received", "complete"] },
     })
       .sort({ createdAt: -1 })
       .select("senderEmail senderName message status adminReply keyDeliveredAt createdAt updatedAt")

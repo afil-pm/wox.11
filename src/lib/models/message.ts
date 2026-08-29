@@ -5,7 +5,7 @@ export interface IMessage extends Document {
   senderEmail: string;
   senderName: string;
   message: string;
-  status: "pending" | "reviewing" | "resolved" | "rejected" | "received";
+  status: "pending" | "reviewing" | "resolved" | "rejected" | "received" | "complete";
   adminReply: string;
   keyDeliveredAt?: Date;
   createdAt: Date;
@@ -20,7 +20,7 @@ const MessageSchema = new Schema<IMessage>(
     message: { type: String, required: true, trim: true },
     status: {
       type: String,
-      enum: ["pending", "reviewing", "resolved", "rejected", "received"],
+      enum: ["pending", "reviewing", "resolved", "rejected", "received", "complete"],
       default: "pending",
     },
     adminReply: { type: String, default: "" },

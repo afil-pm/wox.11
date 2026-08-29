@@ -13,7 +13,7 @@ interface StatusMessage {
   senderEmail: string;
   senderName: string;
   message: string;
-  status: "pending" | "reviewing" | "resolved" | "rejected" | "received";
+  status: "pending" | "reviewing" | "resolved" | "rejected" | "received" | "complete";
   adminReply: string;
   keyDeliveredAt?: string;
   createdAt: string;

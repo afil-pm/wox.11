@@ -30,6 +30,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Message must be marked as received before submitting" }, { status: 400 });
     }
 
+    message.status = "complete";
+    await message.save();
+
     return NextResponse.json({ message: "Submit confirmed" });
   } catch (error) {
     console.error("POST /api/messages/submit-receipt error:", error);

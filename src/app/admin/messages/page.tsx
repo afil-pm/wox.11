@@ -14,7 +14,7 @@ interface Message {
   senderEmail: string;
   senderName: string;
   message: string;
-  status: "pending" | "reviewing" | "resolved" | "rejected";
+  status: "pending" | "reviewing" | "resolved" | "rejected" | "received" | "complete";
   adminReply: string;
   createdAt: string;
 }
@@ -24,6 +24,8 @@ const statusStyles: Record<string, string> = {
   reviewing: "bg-blue-100 text-blue-800",
   resolved: "bg-green-100 text-green-800",
   rejected: "bg-red-100 text-red-800",
+  received: "bg-zinc-100 text-zinc-600",
+  complete: "bg-green-100 text-green-800",
 };
 
 const statusLabels: Record<string, string> = {
@@ -31,6 +33,8 @@ const statusLabels: Record<string, string> = {
   reviewing: "Reviewing",
   resolved: "Resolved",
   rejected: "Rejected",
+  received: "Received",
+  complete: "Complete",
 };
 
 export default function AdminMessagesPage() {
@@ -127,7 +131,7 @@ export default function AdminMessagesPage() {
       </div>
 
       <div className="mb-4 flex flex-wrap gap-2">
-        {["all", "pending", "reviewing", "resolved", "rejected"].map((s) => (
+        {["all", "pending", "reviewing", "resolved", "rejected", "received", "complete"].map((s) => (
           <button
             key={s}
             onClick={() => setFilter(s)}
@@ -263,7 +267,7 @@ export default function AdminMessagesPage() {
               <div>
                 <h3 className="text-sm font-medium text-gray-700 mb-2">Status</h3>
                 <div className="flex flex-wrap gap-2">
-                  {(["pending", "reviewing", "resolved", "rejected"] as const).map((s) => (
+                  {(["pending", "reviewing", "resolved", "rejected", "received", "complete"] as const).map((s) => (
                     <Button
                       key={s}
                       size="sm"
