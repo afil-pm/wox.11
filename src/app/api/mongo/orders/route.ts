@@ -177,13 +177,13 @@ export async function POST(request: NextRequest) {
     for (const item of items) {
       if (!item.slug) continue;
       await Product.updateOne(
+        { slug: item.slug },
+        { $inc: { "variants.$[v].sizes.$[s].quantity": -item.quantity } },
         {
-          slug: item.slug,
-          "variants.sizes.name": item.size,
-          "variants.sizes.quantity": { $gte: item.quantity },
-        },
-        {
-          $inc: { "variants.$.sizes.$.quantity": -item.quantity },
+          arrayFilters: [
+            { "v.sizes.name": item.size },
+            { "s.name": item.size, "s.quantity": { $gte: item.quantity } },
+          ],
         }
       );
     }
@@ -222,6 +222,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ order }, { status: 201 });
   } catch (error) {
     console.error("POST /api/mongo/orders error:", error);
-    return NextResponse.json({ error: "Failed to create order" }, { status: 500 });
+    const msg = error instanceof Error ? error.message : "Failed to create order";
+    return NextResponse.json({ error: msg }, { status: 500 });
   }
 }
