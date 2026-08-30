@@ -172,7 +172,7 @@ export default function NotificationBell() {
       {open && (
         <div
           ref={panelRef}
-          className="absolute right-0 top-full mt-2 w-80 overflow-hidden rounded-xl border border-zinc-200 bg-white shadow-xl z-[60]"
+          className="absolute right-0 top-full mt-2 w-[calc(100vw-2rem)] max-w-80 overflow-hidden rounded-xl border border-zinc-200 bg-white shadow-xl z-[60]"
         >
           <div className="flex items-center justify-between border-b border-zinc-100 px-4 py-3">
             <h3 className="text-sm font-semibold text-zinc-900">Notifications</h3>

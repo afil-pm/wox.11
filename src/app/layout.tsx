@@ -89,7 +89,10 @@ export default function RootLayout({
       className={`${geistSans.variable} ${geistMono.variable} antialiased`}
     >
       <head>
+        <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+        <link rel="icon" href="/icons/icon-96x96.png" type="image/png" sizes="96x96" />
         <link rel="apple-touch-icon" href="/icons/icon-192x192.png" />
+        <meta name="application-name" content="WOX.11" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
         <meta name="mobile-web-app-capable" content="yes" />
