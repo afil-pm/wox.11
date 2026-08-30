@@ -9,8 +9,8 @@ export default function robots(): MetadataRoute.Robots {
         userAgent: "*",
         allow: "/",
         disallow: [
-          "/admin",
-          "/admin/",
+          "/wox/admin",
+          "/wox/admin/",
           "/cart",
           "/checkout",
           "/api/",

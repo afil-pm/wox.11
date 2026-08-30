@@ -40,7 +40,7 @@ export default function AdminLoginPage() {
 
       localStorage.setItem("wox-user", JSON.stringify(data.user));
       window.dispatchEvent(new Event("auth-change"));
-      router.push("/admin");
+      router.push("/wox/admin");
     } catch {
       setError("Something went wrong. Please try again.");
     } finally {

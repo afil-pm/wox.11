@@ -135,7 +135,7 @@ export async function POST(request: NextRequest) {
     sendPushToUser("admin-env", {
       title: "New Message",
       body: `${senderName.trim()} sent a new message.`,
-      url: "/admin/messages",
+      url: "/wox/admin/messages",
       tag: "admin-new-message",
     }).catch(() => {});
 

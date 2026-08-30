@@ -143,7 +143,7 @@ export async function POST(request: NextRequest) {
       sendPushToUser("admin-env", {
         title: "Refund Request",
         body: `${order.customerName} requested cancel & refund for order ${order.orderNumber} — ₹${order.total}`,
-        url: "/admin/orders",
+        url: "/wox/admin/orders",
         tag: `refund-request-${orderId}`,
       }).catch(() => {});
     }

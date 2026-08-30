@@ -93,7 +93,7 @@ export default function AdminDashboard() {
     setSeeding(true);
     setSeedResult(null);
     try {
-      const res = await adminFetch("/api/admin/seed", { method: "POST" });
+      const res = await adminFetch("/api/wox/admin/seed", { method: "POST" });
       const data = await res.json();
       if (res.ok) {
         setSeedResult(data.message);
@@ -155,19 +155,19 @@ export default function AdminDashboard() {
       </div>
 
       <div className="mt-6 grid gap-4 sm:grid-cols-4">
-        <Link href="/admin/products/new">
+        <Link href="/wox/admin/products/new">
           <Button className="w-full justify-start gap-2">
             <Plus className="h-4 w-4" />
             Add Product
           </Button>
         </Link>
-        <Link href="/admin/products">
+        <Link href="/wox/admin/products">
           <Button variant="outline" className="w-full justify-start gap-2">
             <Package className="h-4 w-4" />
             View Products
           </Button>
         </Link>
-        <Link href="/admin/orders">
+                        <Link href="/wox/admin/orders">
           <Button variant="outline" className="w-full justify-start gap-2">
             <ShoppingCart className="h-4 w-4" />
             View Orders
@@ -239,7 +239,7 @@ export default function AdminDashboard() {
                     </td>
                     <td className="pb-3">
                       <Button variant="ghost" size="sm" asChild>
-                        <Link href="/admin/orders">
+        <Link href="/wox/admin/orders">
                           <Eye className="mr-1 h-3.5 w-3.5" />
                           View
                         </Link>

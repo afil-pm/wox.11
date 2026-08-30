@@ -49,7 +49,7 @@ export default function AdminMessagesPage() {
 
   const fetchMessages = useCallback(async () => {
     try {
-      const url = filter === "all" ? "/api/admin/messages" : `/api/admin/messages?status=${filter}`;
+      const url = filter === "all" ? "/api/wox/admin/messages" : `/api/wox/admin/messages?status=${filter}`;
       const res = await adminFetch(url);
       const data = await res.json();
       setMessages(data.messages || []);
@@ -79,7 +79,7 @@ export default function AdminMessagesPage() {
 
   async function updateStatus(id: string, newStatus: string) {
     try {
-      await adminFetch(`/api/admin/messages/${id}`, {
+      await adminFetch(`/api/wox/admin/messages/${id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ status: newStatus }),
@@ -97,7 +97,7 @@ export default function AdminMessagesPage() {
     if (!selectedMsg || !replyText.trim()) return;
     setReplyLoading(true);
     try {
-      await adminFetch(`/api/admin/messages/${selectedMsg._id}`, {
+      await adminFetch(`/api/wox/admin/messages/${selectedMsg._id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ adminReply: replyText, status: "reviewing" }),

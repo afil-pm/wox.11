@@ -67,7 +67,7 @@ export default function AdminProductsPage() {
 
   async function fetchProducts() {
     try {
-      const res = await adminFetch("/api/admin/products");
+      const res = await adminFetch("/api/wox/admin/products");
       const text = await res.text();
       const data = JSON.parse(text);
       if (!res.ok) {
@@ -87,7 +87,7 @@ export default function AdminProductsPage() {
 
   async function handleDelete(id: string) {
     try {
-      const res = await adminFetch(`/api/admin/products?id=${id}`, { method: "DELETE" });
+      const res = await adminFetch(`/api/wox/admin/products?id=${id}`, { method: "DELETE" });
       if (res.ok) setProducts((prev) => prev.filter((p) => p.id !== id));
     } catch {
       // silently fail
@@ -136,7 +136,7 @@ export default function AdminProductsPage() {
     setDiscountLoading(true);
     setDiscountResult(null);
     try {
-      const res = await adminFetch("/api/admin/products", {
+      const res = await adminFetch("/api/wox/admin/products", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -178,7 +178,7 @@ export default function AdminProductsPage() {
             <Tag className="mr-2 h-4 w-4" />
             Quick Discount
           </Button>
-          <Link href="/admin/products/new">
+          <Link href="/wox/admin/products/new">
             <Button>
               <Plus className="mr-2 h-4 w-4" />
               Add Product
@@ -393,7 +393,7 @@ export default function AdminProductsPage() {
                         {isMongo ? (
                           <>
                             <Button variant="ghost" size="sm" asChild>
-                              <Link href={`/admin/products/${product.id}/edit`}>
+                              <Link href={`/wox/admin/products/${product.id}/edit`}>
                                 <Edit2 className="h-4 w-4" />
                               </Link>
                             </Button>

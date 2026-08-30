@@ -235,7 +235,7 @@ export default function Header() {
                   </div>
                   <div className="py-1">
                     <Link
-                      href={user.role === "ADMIN" ? "/admin" : "/account"}
+                      href={user.role === "ADMIN" ? "/wox/admin" : "/account"}
                       className="flex items-center gap-3 px-4 py-2.5 text-sm text-zinc-700 transition-colors hover:bg-zinc-50"
                       onClick={() => setUserMenuOpen(false)}
                     >
@@ -244,7 +244,7 @@ export default function Header() {
                     </Link>
                     {user.role === "ADMIN" && (
                       <Link
-                        href="/admin"
+                        href="/wox/admin"
                         className="flex items-center gap-3 px-4 py-2.5 text-sm text-zinc-700 transition-colors hover:bg-zinc-50"
                         onClick={() => setUserMenuOpen(false)}
                       >
@@ -370,7 +370,7 @@ export default function Header() {
               <li>
                 {user ? (
                   <>
-                    <Link href={user.role === "ADMIN" ? "/admin" : "/account"} className="flex items-center gap-3 rounded-md px-3 py-2.5 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-50 hover:text-zinc-900" onClick={() => setMobileOpen(false)}>
+                    <Link href={user.role === "ADMIN" ? "/wox/admin" : "/account"} className="flex items-center gap-3 rounded-md px-3 py-2.5 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-50 hover:text-zinc-900" onClick={() => setMobileOpen(false)}>
                       <span className="relative">
                         <User className="h-4 w-4" strokeWidth={1.5} />
                         {isAdmin && counts.total > 0 && (

@@ -78,8 +78,8 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
     async function load() {
       try {
         const [productRes, catRes] = await Promise.all([
-          adminFetch(`/api/admin/products?search=`),
-          adminFetch("/api/admin/categories"),
+          adminFetch(`/api/wox/admin/products?search=`),
+          adminFetch("/api/wox/admin/categories"),
         ]);
         const catData = await catRes.json();
         setCategories(catData.categories ?? []);
@@ -217,13 +217,13 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
           noindex: seo.noindex || undefined,
         },
       };
-      const res = await adminFetch("/api/admin/products", {
+      const res = await adminFetch("/api/wox/admin/products", {
         method: "PUT",
         body: JSON.stringify(body),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Failed to update product");
-      router.push("/admin/products");
+      router.push("/wox/admin/products");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to update product");
     } finally {
@@ -491,7 +491,7 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
                 {saving ? "Updating..." : "Update Product"}
               </Button>
               <Button type="button" variant="outline" asChild>
-                <Link href="/admin/products">Cancel</Link>
+                <Link href="/wox/admin/products">Cancel</Link>
               </Button>
             </div>
           </div>

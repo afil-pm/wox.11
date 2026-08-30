@@ -45,7 +45,7 @@ export default function AdminCouponsPage() {
 
   async function fetchCoupons() {
     try {
-      const res = await adminFetch("/api/admin/coupons");
+      const res = await adminFetch("/api/wox/admin/coupons");
       const data = await res.json();
       setCoupons(data.coupons || []);
     } catch {
@@ -71,7 +71,7 @@ export default function AdminCouponsPage() {
       };
 
       const method = editingId ? "PUT" : "POST";
-      const res = await adminFetch("/api/admin/coupons", { method, body: JSON.stringify(body) });
+      const res = await adminFetch("/api/wox/admin/coupons", { method, body: JSON.stringify(body) });
       if (!res.ok) {
         const data = await res.json();
         alert(data.error || "Failed");
@@ -89,7 +89,7 @@ export default function AdminCouponsPage() {
   async function handleDelete(id: string) {
     if (!confirm("Delete this coupon?")) return;
     try {
-      await adminFetch(`/api/admin/coupons?id=${id}`, { method: "DELETE" });
+      await adminFetch(`/api/wox/admin/coupons?id=${id}`, { method: "DELETE" });
       fetchCoupons();
     } catch {
       // silent

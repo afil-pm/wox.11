@@ -43,7 +43,7 @@ export function useUnreadCounts(enabled: boolean) {
       if (ordersTs) params.set("orders", ordersTs);
       if (messagesTs) params.set("messages", messagesTs);
 
-      const res = await adminFetch(`/api/admin/unread-counts?${params.toString()}`);
+      const res = await adminFetch(`/api/wox/admin/unread-counts?${params.toString()}`);
       const data = await res.json();
 
       if (data.counts) {

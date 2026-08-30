@@ -37,7 +37,7 @@ export default function LoginPage() {
       window.dispatchEvent(new Event("auth-change"));
 
       if (data.user.role === "ADMIN") {
-        router.push("/admin");
+        router.push("/wox/admin");
       } else {
         router.push("/account");
       }

@@ -245,7 +245,7 @@ export default function AdminOrdersPage() {
       if (refundAdminNotes.trim()) body.adminNotes = refundAdminNotes;
       if (action === "process" && refundReference.trim()) body.refundReferenceNumber = refundReference;
 
-      await adminFetch(`/api/admin/refund-requests/${refundId}`, {
+      await adminFetch(`/api/wox/admin/refund-requests/${refundId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
@@ -797,7 +797,7 @@ export default function AdminOrdersPage() {
                     className="bg-green-600 text-white hover:bg-green-700 gap-1.5"
                     onClick={async () => {
                       try {
-                        await adminFetch(`/api/admin/orders/${selectedOrder._id}/confirm-cod`, {
+                        await adminFetch(`/api/wox/admin/orders/${selectedOrder._id}/confirm-cod`, {
                           method: "POST",
                         });
                         setSelectedOrder((prev) =>

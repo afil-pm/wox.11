@@ -159,7 +159,7 @@ export default function NewProductPage() {
         },
         tax: taxData,
       };
-      const res = await adminFetch("/api/admin/products", {
+      const res = await adminFetch("/api/wox/admin/products", {
         method: "POST",
         body: JSON.stringify(body),
       });
@@ -167,7 +167,7 @@ export default function NewProductPage() {
       let data: Record<string, unknown>;
       try { data = JSON.parse(text); } catch { data = { error: text }; }
       if (!res.ok) throw new Error(String(data.error || "Failed to create product"));
-      router.push("/admin/products");
+      router.push("/wox/admin/products");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to create product. Check all fields and try again.");
     } finally {
@@ -509,7 +509,7 @@ export default function NewProductPage() {
               {loading ? "Saving..." : "Save Product"}
             </Button>
             <Button type="button" variant="outline" asChild>
-              <Link href="/admin/products">Cancel</Link>
+              <Link href="/wox/admin/products">Cancel</Link>
             </Button>
           </div>
         </div>

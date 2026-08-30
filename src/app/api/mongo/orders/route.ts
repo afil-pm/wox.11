@@ -324,7 +324,7 @@ export async function POST(request: NextRequest) {
     sendPushToUser("admin-env", {
       title: "New Order",
       body: `New order ${orderNumber} received from ${customerName || address.name} — ₹${total}`,
-      url: `/admin/orders`,
+      url: `/wox/admin/orders`,
       tag: `admin-order-${order._id}`,
     }).catch(() => {});
 

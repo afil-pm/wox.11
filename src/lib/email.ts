@@ -100,7 +100,7 @@ export async function sendNewOrderEmail(order: {
           </div>
 
           <div style="text-align:center;margin-top:24px">
-            <a href="https://wox11.vercel.app/admin/orders" style="display:inline-block;background:#18181b;color:white;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:600;font-size:14px">
+            <a href="https://wox11.vercel.app/wox/admin/orders" style="display:inline-block;background:#18181b;color:white;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:600;font-size:14px">
               View in Admin Panel →
             </a>
           </div>

@@ -23,12 +23,12 @@ import { useUnreadCounts } from "@/hooks/use-unread-counts";
 import { subscribeToPush } from "@/lib/push-client";
 
 const navItems = [
-  { label: "Dashboard", icon: LayoutDashboard, href: "/admin", section: "" },
-  { label: "Products", icon: Package, href: "/admin/products", section: "" },
-  { label: "Orders", icon: ShoppingCart, href: "/admin/orders", section: "orders" },
-  { label: "Messages", icon: MessageSquare, href: "/admin/messages", section: "messages" },
-  { label: "Coupons", icon: Tag, href: "/admin/coupons", section: "" },
-  { label: "SEO", icon: Search, href: "/admin/seo", section: "" },
+  { label: "Dashboard", icon: LayoutDashboard, href: "/wox/admin", section: "" },
+  { label: "Products", icon: Package, href: "/wox/admin/products", section: "" },
+  { label: "Orders", icon: ShoppingCart, href: "/wox/admin/orders", section: "orders" },
+  { label: "Messages", icon: MessageSquare, href: "/wox/admin/messages", section: "messages" },
+  { label: "Coupons", icon: Tag, href: "/wox/admin/coupons", section: "" },
+  { label: "SEO", icon: Search, href: "/wox/admin/seo", section: "" },
 ];
 
 function Badge({ count }: { count: number }) {
@@ -61,10 +61,10 @@ export default function AdminLayout({
   const checked = useRef(false);
   const openSignOut = useSignOutStore((s) => s.open);
 
-  const isAdminPage = pathname.startsWith("/admin") && pathname !== "/admin/login";
+  const isAdminPage = pathname.startsWith("/wox/admin") && pathname !== "/wox/admin/login";
   const { counts, markAsRead } = useUnreadCounts(isAdminPage);
 
-  const isLoginPage = pathname === "/admin/login";
+  const isLoginPage = pathname === "/wox/admin/login";
 
   useEffect(() => {
     if (isLoginPage) {
@@ -78,17 +78,17 @@ export default function AdminLayout({
     try {
       const raw = localStorage.getItem("wox-user");
       if (!raw) {
-        router.replace("/admin/login");
+        router.replace("/wox/admin/login");
         return;
       }
       const user = JSON.parse(raw);
       if (user.role !== "ADMIN") {
-        router.replace("/admin/login");
+        router.replace("/wox/admin/login");
         return;
       }
       setAuthorized(true);
     } catch {
-      router.replace("/admin/login");
+      router.replace("/wox/admin/login");
     }
   }, [isLoginPage, router]);
 
@@ -116,7 +116,7 @@ export default function AdminLayout({
     if (!isAdminPage || authorized !== true) return;
 
     const matched = navItems.find((item) => {
-      if (item.href === "/admin") return pathname === "/admin";
+      if (item.href === "/wox/admin") return pathname === "/wox/admin";
       return pathname.startsWith(item.href);
     });
 
@@ -164,8 +164,8 @@ export default function AdminLayout({
         <nav className="flex-1 space-y-1 px-3 py-4">
           {navItems.map((item) => {
             const isActive =
-              item.href === "/admin"
-                ? pathname === "/admin"
+              item.href === "/wox/admin"
+                ? pathname === "/wox/admin"
                 : pathname.startsWith(item.href);
             return (
               <Link
