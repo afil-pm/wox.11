@@ -24,7 +24,7 @@ export async function GET(
       return NextResponse.json({ error: "Order not found" }, { status: 404 });
     }
 
-    if (!isAdmin(request) && userId && order.userId !== userId) {
+    if (!isAdmin(request) && order.userId !== userId) {
       return NextResponse.json({ error: "Order not found" }, { status: 404 });
     }
 
@@ -52,7 +52,7 @@ export async function PATCH(
     }
 
     const admin = isAdmin(request);
-    if (!admin && userId && order.userId !== userId) {
+    if (!admin && order.userId !== userId) {
       return NextResponse.json({ error: "Order not found" }, { status: 404 });
     }
 

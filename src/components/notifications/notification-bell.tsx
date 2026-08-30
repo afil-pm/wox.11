@@ -16,6 +16,11 @@ type Notification = {
 
 function getUserId(): string | null {
   if (typeof window === "undefined") return null;
+  try {
+    const stored = localStorage.getItem("wox-user");
+    const user = stored ? JSON.parse(stored) : null;
+    if (user?.id) return user.id;
+  } catch {}
   return localStorage.getItem("wox-user-id");
 }
 
@@ -71,10 +76,12 @@ export default function NotificationBell() {
 
   function getTypeIcon(type: string) {
     switch (type) {
-      case "order_status":
+      case "order_update":
         return <Package className="h-4 w-4 text-blue-500" />;
       case "message_reply":
         return <MessageSquare className="h-4 w-4 text-green-500" />;
+      case "new_product":
+        return <Package className="h-4 w-4 text-purple-500" />;
       default:
         return <Info className="h-4 w-4 text-zinc-400" />;
     }

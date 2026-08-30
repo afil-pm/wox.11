@@ -98,8 +98,14 @@ export async function PUT(request: NextRequest) {
       for (const item of existingOrder.items) {
         if (!item.slug) continue;
         await Product.updateOne(
-          { slug: item.slug, "variants.sizes.name": item.size },
-          { $inc: { "variants.$.sizes.$.quantity": item.quantity } }
+          { slug: item.slug },
+          { $inc: { "variants.$[v].sizes.$[s].quantity": item.quantity } },
+          {
+            arrayFilters: [
+              { "v.sizes.name": item.size },
+              { "s.name": item.size },
+            ],
+          }
         ).catch(() => {});
       }
     }

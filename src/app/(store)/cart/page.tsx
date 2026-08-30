@@ -287,7 +287,18 @@ export default function CartPage() {
               )}
 
               <Button asChild className="mt-5 h-12 w-full text-base">
-                <Link href="/checkout">Proceed to Checkout</Link>
+                <Link
+                  href="/checkout"
+                  onClick={() => {
+                    if (appliedCoupon) {
+                      sessionStorage.setItem("wox-coupon", JSON.stringify(appliedCoupon));
+                    } else {
+                      sessionStorage.removeItem("wox-coupon");
+                    }
+                  }}
+                >
+                  Proceed to Checkout
+                </Link>
               </Button>
 
               <div className="mt-4 text-center">

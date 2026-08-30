@@ -86,13 +86,9 @@ export default function AccountOrdersPage() {
   const fetchOrders = useCallback(async () => {
     try {
       const stored = localStorage.getItem("wox-user");
-      if (!stored) {
-        setOrders([]);
-        setLoading(false);
-        return;
-      }
-      const user = JSON.parse(stored);
-      if (!user?.id) {
+      const user = stored ? JSON.parse(stored) : null;
+      const userId = user?.id || localStorage.getItem("wox-user-id") || "";
+      if (!userId) {
         setOrders([]);
         setLoading(false);
         return;
@@ -100,7 +96,7 @@ export default function AccountOrdersPage() {
       const res = await fetch("/api/mongo/orders", {
         headers: {
           "Content-Type": "application/json",
-          "x-user-id": user.id,
+          "x-user-id": userId,
         },
       });
       const data = await res.json();

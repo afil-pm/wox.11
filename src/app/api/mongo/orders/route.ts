@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { connectMongoDB } from "@/lib/mongodb";
 import Order from "@/lib/models/order";
 import Product from "@/lib/models/product";
+import Coupon from "@/lib/models/coupon";
 import { sendNewOrderEmail } from "@/lib/email";
 
 const INDIAN_STATES = [
@@ -78,6 +79,7 @@ export async function POST(request: NextRequest) {
       paymentMethod,
       paymentId,
       notes,
+      couponCode,
     } = body;
 
     if (!orderNumber || !items?.length || !address) {
@@ -131,8 +133,50 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const tax = Math.round(serverSubtotal * 0.18);
-    const total = serverSubtotal + shippingCost + tax;
+    let couponDiscount = 0;
+    let validatedCouponCode = "";
+    if (couponCode && typeof couponCode === "string" && couponCode.trim()) {
+      const coupon = await Coupon.findOne({ code: couponCode.toUpperCase().trim(), active: true });
+      if (!coupon) {
+        return NextResponse.json({ error: "Invalid coupon code" }, { status: 400 });
+      }
+      if (coupon.expiresAt && new Date() > coupon.expiresAt) {
+        return NextResponse.json({ error: "Invalid coupon code" }, { status: 400 });
+      }
+      if (coupon.usageLimit > 0 && coupon.usedCount >= coupon.usageLimit) {
+        return NextResponse.json({ error: "Invalid coupon code" }, { status: 400 });
+      }
+
+      let applicableSubtotal = 0;
+      if (coupon.allProducts) {
+        applicableSubtotal = serverSubtotal;
+      } else {
+        for (const item of serverItems) {
+          if (coupon.applicableProducts.includes(item.slug)) {
+            applicableSubtotal += item.price * item.quantity;
+          }
+        }
+      }
+
+      if (coupon.minOrderAmount > 0 && applicableSubtotal < coupon.minOrderAmount) {
+        return NextResponse.json({ error: "Invalid coupon code" }, { status: 400 });
+      }
+
+      if (coupon.discountType === "percent") {
+        couponDiscount = Math.round(applicableSubtotal * (coupon.discountValue / 100));
+        if (coupon.maxDiscount > 0 && couponDiscount > coupon.maxDiscount) {
+          couponDiscount = coupon.maxDiscount;
+        }
+      } else {
+        couponDiscount = Math.min(coupon.discountValue, applicableSubtotal);
+      }
+      couponDiscount = Math.max(0, Math.min(couponDiscount, applicableSubtotal));
+      validatedCouponCode = coupon.code;
+    }
+
+    const discountedSubtotal = Math.max(serverSubtotal - couponDiscount, 0);
+    const tax = Math.round(discountedSubtotal * 0.18);
+    const total = discountedSubtotal + shippingCost + tax;
 
     if (total <= 0) {
       return NextResponse.json(
@@ -197,6 +241,8 @@ export async function POST(request: NextRequest) {
       address,
       items: serverItems,
       subtotal: serverSubtotal,
+      couponCode: validatedCouponCode,
+      couponDiscount,
       shippingCost,
       tax,
       total,
@@ -206,6 +252,10 @@ export async function POST(request: NextRequest) {
       status: "PENDING",
       notes: notes || "",
     });
+
+    if (validatedCouponCode && couponDiscount > 0) {
+      Coupon.updateOne({ code: validatedCouponCode }, { $inc: { usedCount: 1 } }).catch(() => {});
+    }
 
     sendNewOrderEmail({
       orderNumber,

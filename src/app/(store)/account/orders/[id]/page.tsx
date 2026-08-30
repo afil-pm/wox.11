@@ -99,8 +99,9 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
       try {
         const stored = localStorage.getItem("wox-user");
         const user = stored ? JSON.parse(stored) : null;
+        const userId = user?.id || localStorage.getItem("wox-user-id") || "";
         const headers: Record<string, string> = { "Content-Type": "application/json" };
-        if (user?.id) headers["x-user-id"] = user.id;
+        if (userId) headers["x-user-id"] = userId;
 
         const res = await fetch(`/api/mongo/orders/${id}`, { headers });
         if (!res.ok) {

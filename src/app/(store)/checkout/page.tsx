@@ -126,16 +126,25 @@ export default function CheckoutPage() {
 
   useEffect(() => {
     const stored = localStorage.getItem("wox-user");
-    if (!stored) {
-      setAuthChecked(true);
-      return;
+    if (stored) {
+      const user = JSON.parse(stored);
+      if (user?.email) {
+        setCurrentUser(user);
+      }
+      setSavedAddresses(getSavedAddresses());
     }
-    const user = JSON.parse(stored);
-    if (user?.email) {
-      setCurrentUser(user);
-    }
-    setSavedAddresses(getSavedAddresses());
     setAuthChecked(true);
+
+    const savedCoupon = sessionStorage.getItem("wox-coupon");
+    if (savedCoupon) {
+      try {
+        const parsed = JSON.parse(savedCoupon);
+        if (parsed?.code && parsed?.discount) {
+          setAppliedCoupon(parsed);
+          setCouponCode(parsed.code);
+        }
+      } catch {}
+    }
   }, []);
 
   const [currentStep, setCurrentStep] = useState(1);
@@ -350,6 +359,7 @@ export default function CheckoutPage() {
     } else {
       clearCart();
     }
+    sessionStorage.removeItem("wox-coupon");
     // Auto-save address to saved addresses if not already saved
     if (newAddress.name && newAddress.phone && newAddress.line1 && newAddress.city && newAddress.taluk && newAddress.district && newAddress.state && newAddress.pincode) {
       const existing = getSavedAddresses();

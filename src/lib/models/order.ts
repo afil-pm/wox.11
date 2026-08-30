@@ -46,6 +46,8 @@ export interface IOrder extends Document {
     | "CANCELLED"
     | "RETURNED";
   notes: string;
+  couponCode: string;
+  couponDiscount: number;
   paymentConfirmedAt?: Date;
   paymentConfirmedBy?: string;
   paymentConfirmationMethod?: "online" | "manual";
@@ -116,6 +118,8 @@ const OrderSchema = new Schema<IOrder>(
       default: "PENDING",
     },
     notes: { type: String, default: "" },
+    couponCode: { type: String, default: "" },
+    couponDiscount: { type: Number, default: 0 },
     paymentConfirmedAt: { type: Date },
     paymentConfirmedBy: { type: String, default: "" },
     paymentConfirmationMethod: {
