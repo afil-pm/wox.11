@@ -3,9 +3,10 @@
 import { useEffect, useState, use } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { ArrowLeft, XCircle, RotateCcw, Truck, CheckCircle2, Clock, Box, Star } from "lucide-react";
+import { ArrowLeft, XCircle, RotateCcw, Truck, CheckCircle2, Clock, Box, Star, Banknote, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
 import { cn, formatPrice } from "@/lib/utils";
 import WoxLoader from "@/components/ui/wox-loader";
 
@@ -56,6 +57,23 @@ interface Order {
   createdAt: string;
 }
 
+interface RefundRequestInfo {
+  _id: string;
+  status: string;
+  amount: number;
+  type: string;
+  reason: string;
+  createdAt: string;
+}
+
+interface SavedBankInfo {
+  accountHolderName: string;
+  accountNumber: string;
+  ifscCode: string;
+  bankName: string;
+  upiId: string;
+}
+
 const statusStyles: Record<string, string> = {
   PENDING: "bg-yellow-100 text-yellow-800",
   CONFIRMED: "bg-blue-100 text-blue-800",
@@ -82,6 +100,22 @@ const statusLabels: Record<string, string> = {
   REFUNDED: "Refunded",
 };
 
+const refundStatusStyles: Record<string, string> = {
+  pending: "bg-yellow-100 text-yellow-800",
+  approved: "bg-blue-100 text-blue-800",
+  rejected: "bg-red-100 text-red-800",
+  processed: "bg-indigo-100 text-indigo-800",
+  completed: "bg-green-100 text-green-800",
+};
+
+const refundStatusLabels: Record<string, string> = {
+  pending: "Under Review",
+  approved: "Approved",
+  rejected: "Rejected",
+  processed: "Refund Processing",
+  completed: "Refund Completed",
+};
+
 const trackingSteps = [
   { key: "PENDING", label: "Order Placed", icon: Clock },
   { key: "CONFIRMED", label: "Confirmed", icon: CheckCircle2 },
@@ -104,6 +138,23 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
   const [reviewLoading, setReviewLoading] = useState(false);
   const [reviewedSlugs, setReviewedSlugs] = useState<Set<string>>(new Set());
 
+  const [refundModal, setRefundModal] = useState<"cancel_refund" | "return_refund" | null>(null);
+  const [refundReason, setRefundReason] = useState("");
+  const [refundBankDetails, setRefundBankDetails] = useState({
+    accountHolderName: "",
+    accountNumber: "",
+    confirmAccountNumber: "",
+    ifscCode: "",
+    bankName: "",
+    upiId: "",
+  });
+  const [saveBankDetails, setSaveBankDetails] = useState(false);
+  const [refundLoading, setRefundLoading] = useState(false);
+  const [refundError, setRefundError] = useState("");
+  const [savedBank, setSavedBank] = useState<SavedBankInfo | null>(null);
+  const [useSavedBank, setUseSavedBank] = useState(false);
+  const [existingRefund, setExistingRefund] = useState<RefundRequestInfo | null>(null);
+
   useEffect(() => {
     async function fetchOrder() {
       try {
@@ -120,6 +171,28 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
         }
         const data = await res.json();
         setOrder(data.order || null);
+
+        if (userId) {
+          const refundRes = await fetch("/api/refund-requests", { headers });
+          if (refundRes.ok) {
+            const refundData = await refundRes.json();
+            const orderRefund = (refundData.refundRequests || []).find(
+              (r: RefundRequestInfo) => r._id && refundData.refundRequests.indexOf(r) >= 0
+            );
+            const thisOrderRefund = (refundData.refundRequests || []).find(
+              (r: RefundRequestInfo) => r.status !== "rejected"
+            );
+            if (thisOrderRefund) setExistingRefund(thisOrderRefund);
+          }
+
+          const bankRes = await fetch("/api/saved-bank-details", { headers });
+          if (bankRes.ok) {
+            const bankData = await bankRes.json();
+            if (bankData.bankDetails) {
+              setSavedBank(bankData.bankDetails);
+            }
+          }
+        }
       } catch {
         setOrder(null);
       } finally {
@@ -129,49 +202,129 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
     fetchOrder();
   }, [id]);
 
-  async function handleCancelOrder() {
-    if (!order) return;
-    if (!confirm("Are you sure you want to cancel this order?")) return;
-    setActionLoading(true);
+  async function fetchRefundStatus() {
     try {
       const stored = localStorage.getItem("wox-user");
       const user = stored ? JSON.parse(stored) : null;
-      const headers: Record<string, string> = { "Content-Type": "application/json" };
-      if (user?.id) headers["x-user-id"] = user.id;
+      const userId = user?.id || "";
+      if (!userId || !order) return;
+      const headers: Record<string, string> = { "Content-Type": "application/json", "x-user-id": userId };
+      const refundRes = await fetch("/api/refund-requests", { headers });
+      if (refundRes.ok) {
+        const refundData = await refundRes.json();
+        const thisOrderRefund = (refundData.refundRequests || []).find(
+          (r: RefundRequestInfo) => r.status !== "rejected"
+        );
+        if (thisOrderRefund) setExistingRefund(thisOrderRefund);
+      }
+    } catch {}
+  }
 
-      await fetch(`/api/mongo/orders/${order._id}`, {
-        method: "PATCH",
-        headers,
-        body: JSON.stringify({ status: "CANCELLED" }),
+  function openRefundModal(type: "cancel_refund" | "return_refund") {
+    setRefundModal(type);
+    setRefundReason("");
+    setRefundError("");
+    if (savedBank) {
+      setUseSavedBank(true);
+      setRefundBankDetails({
+        accountHolderName: savedBank.accountHolderName,
+        accountNumber: "",
+        confirmAccountNumber: "",
+        ifscCode: savedBank.ifscCode,
+        bankName: savedBank.bankName,
+        upiId: savedBank.upiId || "",
       });
-      setOrder((prev) => prev ? { ...prev, status: "CANCELLED" } : null);
-    } catch {
-      alert("Failed to cancel order");
-    } finally {
-      setActionLoading(false);
+    } else {
+      setUseSavedBank(false);
+      setRefundBankDetails({
+        accountHolderName: "",
+        accountNumber: "",
+        confirmAccountNumber: "",
+        ifscCode: "",
+        bankName: "",
+        upiId: "",
+      });
     }
   }
 
-  async function handleReturnOrder() {
-    if (!order) return;
-    if (!confirm("Are you sure you want to request a return?")) return;
-    setActionLoading(true);
+  async function handleSubmitRefund() {
+    if (!order || !refundModal) return;
+    setRefundError("");
+
+    if (refundReason.trim().length < 5) {
+      setRefundError("Please provide a reason (at least 5 characters)");
+      return;
+    }
+
+    if (!useSavedBank) {
+      if (!refundBankDetails.accountHolderName.trim()) {
+        setRefundError("Account holder name is required");
+        return;
+      }
+      if (!refundBankDetails.accountNumber.trim()) {
+        setRefundError("Account number is required");
+        return;
+      }
+      if (refundBankDetails.accountNumber !== refundBankDetails.confirmAccountNumber) {
+        setRefundError("Account numbers do not match");
+        return;
+      }
+      if (!/^[A-Z]{4}0[A-Z0-9]{6}$/.test(refundBankDetails.ifscCode.trim().toUpperCase())) {
+        setRefundError("Invalid IFSC code format (e.g., SBIN0001234)");
+        return;
+      }
+      if (!refundBankDetails.bankName.trim()) {
+        setRefundError("Bank name is required");
+        return;
+      }
+    }
+
+    setRefundLoading(true);
     try {
       const stored = localStorage.getItem("wox-user");
       const user = stored ? JSON.parse(stored) : null;
-      const headers: Record<string, string> = { "Content-Type": "application/json" };
-      if (user?.id) headers["x-user-id"] = user.id;
+      const userId = user?.id || "";
 
-      await fetch(`/api/mongo/orders/${order._id}`, {
-        method: "PATCH",
-        headers,
-        body: JSON.stringify({ status: "RETURNED" }),
+      const bankPayload = useSavedBank && savedBank
+        ? {
+            accountHolderName: savedBank.accountHolderName,
+            accountNumber: savedBank.accountNumber,
+            ifscCode: savedBank.ifscCode,
+            bankName: savedBank.bankName,
+            upiId: savedBank.upiId || "",
+          }
+        : {
+            accountHolderName: refundBankDetails.accountHolderName.trim(),
+            accountNumber: refundBankDetails.accountNumber.trim(),
+            ifscCode: refundBankDetails.ifscCode.trim().toUpperCase(),
+            bankName: refundBankDetails.bankName.trim(),
+            upiId: refundBankDetails.upiId.trim(),
+          };
+
+      const res = await fetch("/api/refund-requests", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-user-id": userId },
+        body: JSON.stringify({
+          orderId: order._id,
+          type: refundModal,
+          reason: refundReason.trim(),
+          bankDetails: bankPayload,
+          saveBankDetails,
+        }),
       });
-      setOrder((prev) => prev ? { ...prev, status: "RETURNED" } : null);
+
+      const data = await res.json();
+      if (!res.ok) {
+        setRefundError(data.error || "Failed to submit refund request");
+        return;
+      }
+
+      setRefundModal(null);
+      fetchRefundStatus();
     } catch {
-      alert("Failed to request return");
+      setRefundError("Network error. Please try again.");
     } finally {
-      setActionLoading(false);
+      setRefundLoading(false);
     }
   }
 
@@ -230,6 +383,8 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
     return idx >= 0 ? idx : 0;
   }
 
+  const canRefund = order?.paymentMethod === "razorpay" && (order?.paymentStatus === "PAID" || order?.paymentStatus === "COMPLETED");
+
   if (loading) {
     return (
       <div className="flex min-h-[60vh] items-center justify-center">
@@ -282,8 +437,27 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
         <span className="ml-auto text-lg font-bold text-zinc-900">{formatPrice(order.total)}</span>
       </div>
 
+      {/* Existing Refund Request Status */}
+      {existingRefund && (
+        <div className="mt-4 rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
+          <div className="flex items-center gap-2 mb-2">
+            <Banknote className="h-4 w-4 text-zinc-500" />
+            <h2 className="text-sm font-semibold text-zinc-900">Refund Request</h2>
+            <Badge className={cn(refundStatusStyles[existingRefund.status])}>
+              {refundStatusLabels[existingRefund.status]}
+            </Badge>
+          </div>
+          <div className="text-sm text-zinc-600 space-y-1">
+            <p>Type: {existingRefund.type === "cancel_refund" ? "Cancel & Refund" : "Return & Refund"}</p>
+            <p>Amount: {formatPrice(existingRefund.amount)}</p>
+            <p>Reason: {existingRefund.reason}</p>
+            <p className="text-xs text-zinc-400">Submitted: {new Date(existingRefund.createdAt).toLocaleString("en-IN")}</p>
+          </div>
+        </div>
+      )}
+
       {/* Tracking */}
-      {order.status !== "CANCELLED" && order.status !== "RETURNED" && (
+      {order.status !== "CANCELLED" && order.status !== "RETURNED" && order.status !== "REFUNDED" && (
         <div className="mt-4 rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
           <h2 className="mb-4 text-sm font-semibold text-zinc-900">Order Tracking</h2>
           <div className="flex items-center gap-1">
@@ -321,6 +495,11 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
       {order.status === "RETURNED" && (
         <div className="mt-4 rounded-2xl border border-orange-200 bg-orange-50 p-5 text-center text-sm font-medium text-orange-600">
           Return request submitted — our team will contact you
+        </div>
+      )}
+      {order.status === "REFUNDED" && (
+        <div className="mt-4 rounded-2xl border border-green-200 bg-green-50 p-5 text-center text-sm font-medium text-green-600">
+          Refund has been processed for this order
         </div>
       )}
 
@@ -405,29 +584,207 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
       </div>
 
       {/* Actions */}
-      {(cancelableStatuses.includes(order.status) || returnableStatuses.includes(order.status)) && (
+      {!existingRefund && order.status !== "CANCELLED" && order.status !== "RETURNED" && order.status !== "REFUNDED" && (
         <div className="mt-4 flex flex-wrap gap-3 rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
           {cancelableStatuses.includes(order.status) && (
             <Button
               variant="destructive"
               disabled={actionLoading}
-              onClick={handleCancelOrder}
+              onClick={() => openRefundModal("cancel_refund")}
             >
               <XCircle className="mr-1 h-4 w-4" />
-              {actionLoading ? "Cancelling..." : "Cancel Order"}
+              Cancel Order &amp; Refund
             </Button>
           )}
-          {returnableStatuses.includes(order.status) && (
+          {returnableStatuses.includes(order.status) && canRefund && (
             <Button
               variant="outline"
               className="border-orange-300 text-orange-600 hover:bg-orange-50"
               disabled={actionLoading}
-              onClick={handleReturnOrder}
+              onClick={() => openRefundModal("return_refund")}
             >
               <RotateCcw className="mr-1 h-4 w-4" />
-              {actionLoading ? "Processing..." : "Request Return"}
+              Request Return &amp; Refund
             </Button>
           )}
+          {returnableStatuses.includes(order.status) && !canRefund && (
+            <div className="flex items-center gap-2 text-sm text-zinc-500">
+              <AlertCircle className="h-4 w-4" />
+              <span>Refunds are only available for online payments. For COD orders, contact support.</span>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Refund Request Modal */}
+      {refundModal && (
+        <div
+          className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 p-4"
+          onClick={() => { setRefundModal(null); setRefundError(""); }}
+        >
+          <div
+            className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl max-h-[90vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between">
+              <h3 className="text-lg font-bold text-zinc-900">
+                {refundModal === "cancel_refund" ? "Cancel Order & Refund" : "Request Return & Refund"}
+              </h3>
+              <button
+                onClick={() => { setRefundModal(null); setRefundError(""); }}
+                className="text-zinc-400 hover:text-zinc-600 text-xl"
+              >
+                &times;
+              </button>
+            </div>
+
+            <p className="mt-1 text-sm text-zinc-500">
+              Refund of {formatPrice(order.total)} will be credited to your bank account within 5-7 business days.
+            </p>
+
+            {/* Reason */}
+            <div className="mt-4">
+              <label className="text-sm font-medium text-zinc-700">
+                {refundModal === "cancel_refund" ? "Reason for Cancellation" : "Reason for Return"}
+              </label>
+              <textarea
+                value={refundReason}
+                onChange={(e) => setRefundReason(e.target.value)}
+                rows={3}
+                placeholder="Please describe why you want to cancel/return this order..."
+                className="mt-1 w-full rounded-xl border border-zinc-200 px-3 py-2 text-sm focus:border-zinc-400 focus:outline-none focus:ring-1 focus:ring-zinc-400"
+              />
+            </div>
+
+            {/* Bank Details */}
+            <div className="mt-4">
+              <label className="text-sm font-medium text-zinc-700">Bank Details for Refund</label>
+
+              {savedBank && (
+                <div className="mt-2">
+                  <label className="flex items-center gap-2 rounded-lg border border-zinc-200 p-3 cursor-pointer hover:bg-zinc-50">
+                    <input
+                      type="radio"
+                      checked={useSavedBank}
+                      onChange={() => setUseSavedBank(true)}
+                      className="h-4 w-4 text-zinc-900"
+                    />
+                    <div>
+                      <p className="text-sm font-medium text-zinc-900">Use saved bank details</p>
+                      <p className="text-xs text-zinc-500">{savedBank.bankName} •••• {savedBank.accountNumber.slice(-4)}</p>
+                    </div>
+                  </label>
+                  <label className="flex items-center gap-2 rounded-lg border border-zinc-200 p-3 mt-2 cursor-pointer hover:bg-zinc-50">
+                    <input
+                      type="radio"
+                      checked={!useSavedBank}
+                      onChange={() => setUseSavedBank(false)}
+                      className="h-4 w-4 text-zinc-900"
+                    />
+                    <p className="text-sm font-medium text-zinc-900">Enter different bank details</p>
+                  </label>
+                </div>
+              )}
+
+              {!useSavedBank && (
+                <div className="mt-3 space-y-3">
+                  <div>
+                    <label className="mb-1 block text-xs text-zinc-500">Account Holder Name</label>
+                    <Input
+                      type="text"
+                      value={refundBankDetails.accountHolderName}
+                      onChange={(e) => setRefundBankDetails((p) => ({ ...p, accountHolderName: e.target.value }))}
+                      placeholder="As per bank records"
+                      className="text-sm"
+                    />
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-xs text-zinc-500">Account Number</label>
+                    <Input
+                      type="password"
+                      value={refundBankDetails.accountNumber}
+                      onChange={(e) => setRefundBankDetails((p) => ({ ...p, accountNumber: e.target.value }))}
+                      placeholder="Enter bank account number"
+                      className="text-sm"
+                    />
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-xs text-zinc-500">Confirm Account Number</label>
+                    <Input
+                      type="password"
+                      value={refundBankDetails.confirmAccountNumber}
+                      onChange={(e) => setRefundBankDetails((p) => ({ ...p, confirmAccountNumber: e.target.value }))}
+                      placeholder="Re-enter account number"
+                      className="text-sm"
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="mb-1 block text-xs text-zinc-500">IFSC Code</label>
+                      <Input
+                        type="text"
+                        value={refundBankDetails.ifscCode}
+                        onChange={(e) => setRefundBankDetails((p) => ({ ...p, ifscCode: e.target.value.toUpperCase() }))}
+                        placeholder="e.g. SBIN0001234"
+                        className="text-sm uppercase"
+                        maxLength={11}
+                      />
+                    </div>
+                    <div>
+                      <label className="mb-1 block text-xs text-zinc-500">Bank Name</label>
+                      <Input
+                        type="text"
+                        value={refundBankDetails.bankName}
+                        onChange={(e) => setRefundBankDetails((p) => ({ ...p, bankName: e.target.value }))}
+                        placeholder="e.g. State Bank of India"
+                        className="text-sm"
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-xs text-zinc-500">UPI ID (optional)</label>
+                    <Input
+                      type="text"
+                      value={refundBankDetails.upiId}
+                      onChange={(e) => setRefundBankDetails((p) => ({ ...p, upiId: e.target.value }))}
+                      placeholder="e.g. name@upi"
+                      className="text-sm"
+                    />
+                  </div>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={saveBankDetails}
+                      onChange={(e) => setSaveBankDetails(e.target.checked)}
+                      className="h-4 w-4 rounded border-zinc-300"
+                    />
+                    <span className="text-xs text-zinc-600">Save bank details for future refunds</span>
+                  </label>
+                </div>
+              )}
+            </div>
+
+            {refundError && (
+              <p className="mt-3 text-sm text-red-500">{refundError}</p>
+            )}
+
+            <div className="mt-5 flex gap-3">
+              <Button
+                variant="outline"
+                className="flex-1"
+                onClick={() => { setRefundModal(null); setRefundError(""); }}
+              >
+                Cancel
+              </Button>
+              <Button
+                className="flex-1 bg-zinc-900 text-white hover:bg-zinc-800"
+                disabled={refundLoading}
+                onClick={handleSubmitRefund}
+              >
+                {refundLoading ? "Submitting..." : "Submit Refund Request"}
+              </Button>
+            </div>
+          </div>
         </div>
       )}
 

@@ -12,6 +12,10 @@ function sanitize(str: string): string {
   });
 }
 
+function normalizeString(str: string): string {
+  return str.trim().toLowerCase().replace(/\s+/g, " ");
+}
+
 const ipTimestamps: Map<string, number[]> = new Map();
 const IP_RATE_LIMIT = 5;
 const IP_RATE_WINDOW = 60 * 60 * 1000;
@@ -48,8 +52,9 @@ export async function POST(request: NextRequest) {
     }
 
     const normalizedEmail = senderEmail.trim().toLowerCase();
+    const normalizedInputName = normalizeString(senderName);
 
-    if (senderName.trim().length < 2 || senderName.trim().length > 100) {
+    if (normalizedInputName.length < 2 || normalizedInputName.length > 100) {
       return NextResponse.json({ error: "Name must be 2-100 characters" }, { status: 400 });
     }
 
@@ -68,11 +73,33 @@ export async function POST(request: NextRequest) {
 
     await connectMongoDB();
 
-    const registeredUser = await User.findOne({ email: normalizedEmail }).select("_id").lean();
+    const registeredUser = await User.findOne({ email: normalizedEmail }).select("_id name email").lean();
     if (!registeredUser) {
       return NextResponse.json(
         { message: "If this email is associated with an account, your request has been received." },
         { status: 201 }
+      );
+    }
+
+    if (senderUserId && senderUserId !== registeredUser._id.toString()) {
+      return NextResponse.json(
+        { error: "The provided identity does not match the account associated with this email. Please log in with the correct account." },
+        { status: 403 }
+      );
+    }
+
+    const storedName = normalizeString(registeredUser.name);
+    if (normalizedInputName !== storedName) {
+      return NextResponse.json(
+        { error: "The name you entered does not match the name on this account. Please enter the name exactly as it appears on your account." },
+        { status: 403 }
+      );
+    }
+
+    if (!senderUserId) {
+      return NextResponse.json(
+        { error: "Please log in to send a message. This helps us verify your identity and protect your account." },
+        { status: 401 }
       );
     }
 
