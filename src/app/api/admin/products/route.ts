@@ -98,7 +98,7 @@ export async function POST(request: NextRequest) {
     await connectMongoDB();
     const body = await request.json();
 
-    const { name, description, basePrice, salePrice, sku, categoryId, store, isFeatured, isActive, images, variants, seo: adminSeo } = body;
+    const { name, description, basePrice, salePrice, sku, categoryId, store, isFeatured, isActive, images, variants, seo: adminSeo, tax } = body;
 
     if (!name || !basePrice || !sku || !categoryId) {
       return NextResponse.json(
@@ -168,6 +168,7 @@ export async function POST(request: NextRequest) {
       images: productImages,
       variants: productVariants,
       seo: autoSeo,
+      tax: tax || { hsnCode: "6211", gstRate: 5, taxCategory: "apparel", taxInclusive: true },
     });
 
     const { default: Notification } = await import("@/lib/models/notification");

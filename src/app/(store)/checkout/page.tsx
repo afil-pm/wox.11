@@ -21,6 +21,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import OrderSuccess from "@/components/ui/order-success";
 import useCartStore from "@/lib/stores/cart";
+import { calculateOrderTax, SELLER_STATE, getApparelGstRate } from "@/lib/tax";
 import {
   getSavedAddresses,
   saveSavedAddresses,
@@ -165,6 +166,14 @@ export default function CheckoutPage() {
     shippingCost: number;
     tax: number;
     total: number;
+    taxDetails?: {
+      totalTaxableAmount: number;
+      totalGstAmount: number;
+      totalCgst: number;
+      totalSgst: number;
+      totalIgst: number;
+      isInterState: boolean;
+    };
   } | null>(null);
   const [razorpayLoaded, setRazorpayLoaded] = useState(false);
   const checkoutRef = useRef<HTMLDivElement>(null);
@@ -212,8 +221,19 @@ export default function CheckoutPage() {
 
   const hasValidAddress = !!(newAddress.name && newAddress.phone && newAddress.line1 && newAddress.city && newAddress.state && newAddress.pincode);
   const isOutsideIndia = hasValidAddress && !isIndianState;
-  const tax = Math.round(Math.max(subtotal - couponDiscount, 0) * 0.18);
-  const total = Math.max(subtotal - couponDiscount, 0) + shippingCost + tax;
+
+  const taxableSubtotal = Math.max(subtotal - couponDiscount, 0);
+  const checkoutItemsForTax = items.map((item) => ({
+    salePrice: item.price,
+    quantity: item.quantity,
+    gstRate: getApparelGstRate(item.price),
+    taxInclusive: true,
+  }));
+  const orderTaxResult = checkoutItemsForTax.length > 0 && newAddress.state
+    ? calculateOrderTax(checkoutItemsForTax, SELLER_STATE, newAddress.state.trim())
+    : null;
+  const tax = orderTaxResult ? orderTaxResult.totalGstAmount : Math.round(taxableSubtotal * 0.05);
+  const total = taxableSubtotal + shippingCost + tax;
   const hasValidItems =
     items.length > 0 && items.every((item) => item.price > 0 && item.quantity > 0);
 
@@ -353,6 +373,14 @@ export default function CheckoutPage() {
       shippingCost,
       tax,
       total,
+      taxDetails: orderTaxResult ? {
+        totalTaxableAmount: orderTaxResult.totalTaxableAmount,
+        totalGstAmount: orderTaxResult.totalGstAmount,
+        totalCgst: orderTaxResult.totalCgst,
+        totalSgst: orderTaxResult.totalSgst,
+        totalIgst: orderTaxResult.totalIgst,
+        isInterState: SELLER_STATE.trim().toLowerCase() !== (newAddress.state || "").trim().toLowerCase(),
+      } : undefined,
     });
     if (isBuyNow) {
       sessionStorage.removeItem("wox-buy-now");
@@ -1411,7 +1439,7 @@ export default function CheckoutPage() {
                       </span>
                     </div>
                     <div className="flex justify-between text-sm">
-                      <span className="text-zinc-500">Tax (GST 18%)</span>
+                      <span className="text-zinc-500">Tax (GST)</span>
                       <span className="text-zinc-900">
                         {formatPrice(confirmedOrder.tax)}
                       </span>
@@ -1526,8 +1554,14 @@ export default function CheckoutPage() {
                         : formatPrice(shippingCost)}
                     </span>
                   </div>
+                  {orderTaxResult && orderTaxResult.totalTaxableAmount > 0 && (
+                    <div className="flex justify-between text-sm">
+                      <span className="text-zinc-500">Taxable Amount</span>
+                      <span className="text-zinc-900">{formatPrice(orderTaxResult.totalTaxableAmount)}</span>
+                    </div>
+                  )}
                   <div className="flex justify-between text-sm">
-                    <span className="text-zinc-500">Tax (GST 18%)</span>
+                    <span className="text-zinc-500">{orderTaxResult && orderTaxResult.totalGstAmount > 0 ? (isIndianState && newAddress.state.trim().toLowerCase() !== "kerala" ? "CGST + SGST" : newAddress.state.trim().toLowerCase() === "kerala" ? "GST (Kerala)" : "IGST") : "Tax (GST)"}</span>
                     <span className="text-zinc-900">{formatPrice(tax)}</span>
                   </div>
                   <div className="flex justify-between border-t border-zinc-100 pt-2 text-sm">
@@ -1621,8 +1655,14 @@ export default function CheckoutPage() {
                         : formatPrice(shippingCost)}
                     </span>
                   </div>
+                  {orderTaxResult && orderTaxResult.totalTaxableAmount > 0 && (
+                    <div className="flex justify-between text-sm">
+                      <span className="text-zinc-500">Taxable Amount</span>
+                      <span className="text-zinc-900">{formatPrice(orderTaxResult.totalTaxableAmount)}</span>
+                    </div>
+                  )}
                   <div className="flex justify-between text-sm">
-                    <span className="text-zinc-500">Tax (GST 18%)</span>
+                    <span className="text-zinc-500">{orderTaxResult && orderTaxResult.totalGstAmount > 0 ? (isIndianState && newAddress.state.trim().toLowerCase() !== "kerala" ? "CGST + SGST" : newAddress.state.trim().toLowerCase() === "kerala" ? "GST (Kerala)" : "IGST") : "Tax (GST)"}</span>
                     <span className="text-zinc-900">{formatPrice(tax)}</span>
                   </div>
                   <div className="flex justify-between border-t border-zinc-100 pt-2 text-sm">

@@ -39,6 +39,14 @@ interface Order {
   shippingCost: number;
   tax: number;
   total: number;
+  taxDetails?: {
+    totalTaxableAmount: number;
+    totalGstAmount: number;
+    totalCgst: number;
+    totalSgst: number;
+    totalIgst: number;
+    isInterState: boolean;
+  };
   paymentMethod: string;
   paymentStatus: string;
   status: string;
@@ -520,10 +528,39 @@ export default function AdminOrdersPage() {
                 <span className="text-gray-500">Shipping</span>
                 <span>{selectedOrder.shippingCost === 0 ? "Free" : formatPrice(selectedOrder.shippingCost)}</span>
               </div>
-              <div className="flex justify-between">
-                <span className="text-gray-500">Tax (GST 18%)</span>
-                <span>{formatPrice(selectedOrder.tax)}</span>
-              </div>
+              {selectedOrder.taxDetails && selectedOrder.taxDetails.totalTaxableAmount > 0 && (
+                <div className="flex justify-between">
+                  <span className="text-gray-500">Taxable Amount</span>
+                  <span>{formatPrice(selectedOrder.taxDetails.totalTaxableAmount)}</span>
+                </div>
+              )}
+              {selectedOrder.taxDetails && selectedOrder.taxDetails.totalGstAmount > 0 && (
+                <>
+                  {selectedOrder.taxDetails.isInterState ? (
+                    <div className="flex justify-between">
+                      <span className="text-gray-500">IGST</span>
+                      <span>{formatPrice(selectedOrder.taxDetails.totalGstAmount)}</span>
+                    </div>
+                  ) : (
+                    <>
+                      <div className="flex justify-between">
+                        <span className="text-gray-500">CGST</span>
+                        <span>{formatPrice(selectedOrder.taxDetails.totalCgst)}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-500">SGST</span>
+                        <span>{formatPrice(selectedOrder.taxDetails.totalSgst)}</span>
+                      </div>
+                    </>
+                  )}
+                </>
+              )}
+              {!selectedOrder.taxDetails && (
+                <div className="flex justify-between">
+                  <span className="text-gray-500">Tax (GST)</span>
+                  <span>{formatPrice(selectedOrder.tax)}</span>
+                </div>
+              )}
               <div className="flex justify-between border-t pt-2 font-semibold">
                 <span>Total</span>
                 <span>{formatPrice(selectedOrder.total)}</span>

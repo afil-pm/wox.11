@@ -7,6 +7,25 @@ export interface IOrderItem {
   size: string;
   image: string;
   slug: string;
+  hsnCode: string;
+  gstRate: number;
+  taxableAmount: number;
+  gstAmount: number;
+  cgstAmount: number;
+  sgstAmount: number;
+  igstAmount: number;
+  finalAmount: number;
+}
+
+export interface IOrderTax {
+  totalTaxableAmount: number;
+  totalGstAmount: number;
+  totalCgst: number;
+  totalSgst: number;
+  totalIgst: number;
+  sellerState: string;
+  customerState: string;
+  isInterState: boolean;
 }
 
 export interface IOrder extends Document {
@@ -32,6 +51,7 @@ export interface IOrder extends Document {
   shippingCost: number;
   tax: number;
   total: number;
+  taxDetails: IOrderTax;
   paymentMethod: "razorpay" | "cod";
   paymentId: string;
   paymentStatus: "PENDING" | "PAID" | "COMPLETED" | "FAILED" | "REFUNDED";
@@ -64,6 +84,28 @@ const OrderItemSchema = new Schema<IOrderItem>(
     size: { type: String, required: true },
     image: { type: String, default: "" },
     slug: { type: String, default: "" },
+    hsnCode: { type: String, default: "6211" },
+    gstRate: { type: Number, default: 5 },
+    taxableAmount: { type: Number, default: 0 },
+    gstAmount: { type: Number, default: 0 },
+    cgstAmount: { type: Number, default: 0 },
+    sgstAmount: { type: Number, default: 0 },
+    igstAmount: { type: Number, default: 0 },
+    finalAmount: { type: Number, default: 0 },
+  },
+  { _id: false }
+);
+
+const OrderTaxSchema = new Schema<IOrderTax>(
+  {
+    totalTaxableAmount: { type: Number, default: 0 },
+    totalGstAmount: { type: Number, default: 0 },
+    totalCgst: { type: Number, default: 0 },
+    totalSgst: { type: Number, default: 0 },
+    totalIgst: { type: Number, default: 0 },
+    sellerState: { type: String, default: "Kerala" },
+    customerState: { type: String, default: "" },
+    isInterState: { type: Boolean, default: false },
   },
   { _id: false }
 );
@@ -92,6 +134,7 @@ const OrderSchema = new Schema<IOrder>(
     shippingCost: { type: Number, default: 0 },
     tax: { type: Number, default: 0 },
     total: { type: Number, required: true },
+    taxDetails: { type: OrderTaxSchema, default: () => ({}) },
     paymentMethod: {
       type: String,
       enum: ["razorpay", "cod"],

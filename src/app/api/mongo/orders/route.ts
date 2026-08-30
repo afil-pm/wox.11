@@ -6,6 +6,7 @@ import Coupon from "@/lib/models/coupon";
 import Notification from "@/lib/models/notification";
 import { sendPushToUser } from "@/lib/push";
 import { sendNewOrderEmail } from "@/lib/email";
+import { calculateOrderTax, SELLER_STATE, TaxInput } from "@/lib/tax";
 
 const INDIAN_STATES = [
   "kerala","andhra pradesh","arunachal pradesh","assam","bihar","chhattisgarh",
@@ -114,10 +115,14 @@ export async function POST(request: NextRequest) {
     const productMap = new Map(products.map((p) => [p.slug, p]));
 
     let serverSubtotal = 0;
+    const taxInputs: TaxInput[] = [];
     const serverItems = items.map((item: { name: string; slug?: string; size: string; quantity: number; image?: string }) => {
       const product = item.slug ? productMap.get(item.slug) : null;
       const price = product ? (product.salePrice > 0 ? product.salePrice : product.basePrice) : 0;
+      const gstRate = product?.tax?.gstRate ?? 5;
+      const taxInclusive = product?.tax?.taxInclusive ?? true;
       serverSubtotal += price * item.quantity;
+      taxInputs.push({ salePrice: price, quantity: item.quantity, gstRate, taxInclusive });
       return {
         name: item.name,
         price,
@@ -125,6 +130,14 @@ export async function POST(request: NextRequest) {
         size: item.size,
         image: item.image || "",
         slug: item.slug || "",
+        hsnCode: product?.tax?.hsnCode || "6211",
+        gstRate,
+        taxableAmount: 0,
+        gstAmount: 0,
+        cgstAmount: 0,
+        sgstAmount: 0,
+        igstAmount: 0,
+        finalAmount: 0,
       };
     });
 
@@ -177,7 +190,21 @@ export async function POST(request: NextRequest) {
     }
 
     const discountedSubtotal = Math.max(serverSubtotal - couponDiscount, 0);
-    const tax = Math.round(discountedSubtotal * 0.18);
+    const customerState = address.state.trim();
+    const orderTax = calculateOrderTax(taxInputs, SELLER_STATE, customerState);
+
+    // Fill tax snapshot into serverItems
+    for (let i = 0; i < serverItems.length; i++) {
+      const r = orderTax.items[i];
+      serverItems[i].taxableAmount = r.taxableAmount;
+      serverItems[i].gstAmount = r.gstAmount;
+      serverItems[i].cgstAmount = r.cgstAmount;
+      serverItems[i].sgstAmount = r.sgstAmount;
+      serverItems[i].igstAmount = r.igstAmount;
+      serverItems[i].finalAmount = r.finalAmount;
+    }
+
+    const tax = orderTax.totalGstAmount;
     const total = discountedSubtotal + shippingCost + tax;
 
     if (total <= 0) {
@@ -248,6 +275,16 @@ export async function POST(request: NextRequest) {
       shippingCost,
       tax,
       total,
+      taxDetails: {
+        totalTaxableAmount: orderTax.totalTaxableAmount,
+        totalGstAmount: orderTax.totalGstAmount,
+        totalCgst: orderTax.totalCgst,
+        totalSgst: orderTax.totalSgst,
+        totalIgst: orderTax.totalIgst,
+        sellerState: SELLER_STATE,
+        customerState,
+        isInterState: SELLER_STATE.trim().toLowerCase() !== customerState.trim().toLowerCase(),
+      },
       paymentMethod: paymentMethod || "cod",
       paymentId: paymentId || "",
       paymentStatus: paymentId ? "PAID" : "PENDING",

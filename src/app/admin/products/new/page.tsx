@@ -63,6 +63,12 @@ export default function NewProductPage() {
     ogImage: "",
     noindex: false,
   });
+  const [taxData, setTaxData] = useState({
+    hsnCode: "6211",
+    gstRate: 5,
+    taxCategory: "apparel",
+    taxInclusive: true,
+  });
   const [keywordInput, setKeywordInput] = useState("");
 
   useEffect(() => {
@@ -149,8 +155,9 @@ export default function NewProductPage() {
           ogTitle: seo.ogTitle || undefined,
           ogDescription: seo.ogDescription || undefined,
           ogImage: seo.ogImage || undefined,
-          noindex: seo.noindex || undefined,
+          noindex: seo.noindex,
         },
+        tax: taxData,
       };
       const res = await adminFetch("/api/admin/products", {
         method: "POST",
@@ -434,6 +441,64 @@ export default function NewProductPage() {
                   className="h-4 w-4 rounded border-gray-300"
                 />
                 <span className="text-xs text-gray-500">Noindex (hide from search engines)</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Tax Section */}
+          <div className="rounded-lg border border-zinc-200 p-4">
+            <label className="mb-3 block text-sm font-medium text-gray-700">Tax Configuration</label>
+            <div className="space-y-3">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="mb-1 block text-xs text-gray-500">HSN Code</label>
+                  <input
+                    type="text"
+                    value={taxData.hsnCode}
+                    onChange={(e) => setTaxData({ ...taxData, hsnCode: e.target.value })}
+                    placeholder="e.g. 6211"
+                    className="w-full rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="mb-1 block text-xs text-gray-500">GST Rate (%)</label>
+                  <input
+                    type="number"
+                    min={0}
+                    max={100}
+                    step={0.5}
+                    value={taxData.gstRate}
+                    onChange={(e) => setTaxData({ ...taxData, gstRate: Number(e.target.value) })}
+                    className="w-full rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm"
+                  />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="mb-1 block text-xs text-gray-500">Tax Category</label>
+                  <select
+                    value={taxData.taxCategory}
+                    onChange={(e) => setTaxData({ ...taxData, taxCategory: e.target.value })}
+                    className="w-full rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm"
+                  >
+                    <option value="apparel">Apparel</option>
+                    <option value="electronics">Electronics</option>
+                    <option value="food">Food</option>
+                    <option value="services">Services</option>
+                    <option value="other">Other</option>
+                  </select>
+                </div>
+                <div className="flex items-end pb-1">
+                  <label className="flex items-center gap-2 text-sm">
+                    <input
+                      type="checkbox"
+                      checked={taxData.taxInclusive}
+                      onChange={(e) => setTaxData({ ...taxData, taxInclusive: e.target.checked })}
+                      className="h-4 w-4 rounded border-gray-300"
+                    />
+                    <span className="text-xs text-gray-500">Price is tax inclusive</span>
+                  </label>
+                </div>
               </div>
             </div>
           </div>

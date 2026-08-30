@@ -30,6 +30,13 @@ export interface IProductSeo {
   slugHistory: string[];
 }
 
+export interface IProductTax {
+  hsnCode: string;
+  gstRate: number;
+  taxCategory: string;
+  taxInclusive: boolean;
+}
+
 export interface IProduct extends Document {
   name: string;
   slug: string;
@@ -41,6 +48,7 @@ export interface IProduct extends Document {
   store: string;
   images: IProductImage[];
   variants: IProductVariant[];
+  tax: IProductTax;
   averageRating: number;
   reviewCount: number;
   isFeatured: boolean;
@@ -92,6 +100,16 @@ const ProductSeoSchema = new Schema<IProductSeo>(
   { _id: false }
 );
 
+const ProductTaxSchema = new Schema<IProductTax>(
+  {
+    hsnCode: { type: String, default: "6211" },
+    gstRate: { type: Number, default: 5, min: 0, max: 100 },
+    taxCategory: { type: String, default: "apparel" },
+    taxInclusive: { type: Boolean, default: true },
+  },
+  { _id: false }
+);
+
 const ProductSchema = new Schema<IProduct>(
   {
     name: { type: String, required: true, trim: true },
@@ -108,6 +126,7 @@ const ProductSchema = new Schema<IProduct>(
     reviewCount: { type: Number, default: 0, min: 0 },
     isFeatured: { type: Boolean, default: false },
     isActive: { type: Boolean, default: true },
+    tax: { type: ProductTaxSchema, default: () => ({ hsnCode: "6211", gstRate: 5, taxCategory: "apparel", taxInclusive: true }) },
     seo: { type: ProductSeoSchema, default: () => ({}) },
   },
   { timestamps: true }

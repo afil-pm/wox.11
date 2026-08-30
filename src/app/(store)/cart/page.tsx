@@ -8,10 +8,10 @@ import useCartStore from "@/lib/stores/cart";
 import { cn, formatPrice } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { getApparelGstRate } from "@/lib/tax";
 import { getSavedAddresses } from "@/app/(store)/account/addresses/page";
 
 const FREE_SHIPPING_THRESHOLD = 999;
-const ESTIMATED_TAX_RATE = 0.05;
 
 export default function CartPage() {
   const { items, totalItems, subtotal, removeItem, updateQuantity } =
@@ -54,7 +54,14 @@ export default function CartPage() {
   const isEmpty = items.length === 0;
   const shipping = isEmpty ? 0 : shippingCost;
   const discount = appliedCoupon?.discount ?? 0;
-  const tax = Math.round((subtotal - discount) * ESTIMATED_TAX_RATE);
+  const taxableSubtotal = Math.max(subtotal - discount, 0);
+  const estimatedTax = items.reduce((acc, item) => {
+    const itemTotal = item.price * item.quantity;
+    const rate = getApparelGstRate(item.price) / 100;
+    const itemTaxInclusive = itemTotal * rate / (1 + rate);
+    return acc + itemTaxInclusive;
+  }, 0);
+  const tax = Math.round(estimatedTax);
   const total = Math.max(subtotal - discount + shipping + tax, 0);
 
   const [couponError, setCouponError] = useState("");
@@ -238,7 +245,7 @@ export default function CartPage() {
                 </div>
 
                 <div className="flex justify-between text-sm">
-                  <span className="text-zinc-500">Estimated Tax</span>
+                  <span className="text-zinc-500">GST (estimated)</span>
                   <span className="font-medium text-zinc-900">
                     {formatPrice(tax)}
                   </span>
