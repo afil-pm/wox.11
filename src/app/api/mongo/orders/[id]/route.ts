@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { connectMongoDB } from "@/lib/mongodb";
 import Order from "@/lib/models/order";
+import Product from "@/lib/models/product";
+import Notification from "@/lib/models/notification";
+import { sendPushToUser } from "@/lib/push";
 
 function isAdmin(request: NextRequest): boolean {
   const adminHeader = request.headers.get("x-admin-email");
@@ -71,6 +74,19 @@ export async function PATCH(
 
     const update: Record<string, unknown> = {};
 
+    const STATUS_MESSAGES: Record<string, string> = {
+      PENDING: "Your order has been placed and is pending confirmation.",
+      CONFIRMED: "Your order has been confirmed!",
+      PROCESSING: "Your order is being processed.",
+      PACKED: "Your order has been packed and is ready to ship!",
+      SHIPPED: "Your order has been shipped!",
+      OUT_FOR_DELIVERY: "Your order is out for delivery today!",
+      DELIVERED: "Your order has been delivered. Thank you!",
+      CANCELLED: "Your order has been cancelled.",
+      RETURNED: "Your order return has been initiated.",
+      REFUNDED: "Your refund has been processed successfully.",
+    };
+
     if (status) {
       if (!admin) {
         return NextResponse.json({ error: "Only admin can change order status" }, { status: 403 });
@@ -97,6 +113,54 @@ export async function PATCH(
     }
 
     const updatedOrder = await Order.findByIdAndUpdate(id, update, { new: true }).lean();
+
+    if (status === "CANCELLED" && order.items?.length) {
+      const fullOrder = await Order.findById(id).lean();
+      if (fullOrder?.items?.length) {
+        for (const item of fullOrder.items) {
+          if (!item.slug) continue;
+          await Product.updateOne(
+            { slug: item.slug },
+            { $inc: { "variants.$[v].sizes.$[s].quantity": item.quantity } },
+            {
+              arrayFilters: [
+                { "v.sizes.name": item.size },
+                { "s.name": item.size },
+              ],
+            }
+          ).catch(() => {});
+        }
+      }
+    }
+
+    if (order.userId && status && STATUS_MESSAGES[status]) {
+      const notificationTitle = `Order ${status.replace(/_/g, " ")}`;
+      const oneMinuteAgo = new Date(Date.now() - 60000);
+      const existingNotification = await Notification.findOne({
+        userId: order.userId,
+        orderId: String(id),
+        type: "order_update",
+        createdAt: { $gte: oneMinuteAgo },
+      }).lean().catch(() => null);
+
+      if (!existingNotification) {
+        Notification.create({
+          userId: order.userId,
+          title: notificationTitle,
+          body: `${STATUS_MESSAGES[status]} (Order #${order.orderNumber})`,
+          type: "order_update",
+          orderId: String(id),
+        }).catch(() => {});
+      }
+
+      sendPushToUser(order.userId, {
+        title: notificationTitle,
+        body: `${STATUS_MESSAGES[status]} (Order #${order.orderNumber})`,
+        url: `/account/orders/${id}`,
+        tag: `order-${id}-${status}`,
+      }).catch(() => {});
+    }
+
     return NextResponse.json({ order: updatedOrder });
   } catch (error) {
     console.error("PATCH /api/mongo/orders/[id] error:", error);

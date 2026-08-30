@@ -16,6 +16,7 @@ interface PushPayload {
   icon?: string;
   badge?: string;
   url?: string;
+  tag?: string;
   data?: Record<string, unknown>;
 }
 
@@ -34,6 +35,7 @@ export async function sendPushToUser(userId: string, payload: PushPayload): Prom
       icon: payload.icon || "/icons/icon-192x192.png",
       badge: payload.badge || "/icons/icon-72x72.png",
       url: payload.url || "/",
+      tag: payload.tag || "wox-notification",
       data: payload.data || {},
     });
 
@@ -84,6 +86,7 @@ export async function sendPushToAll(payload: PushPayload): Promise<void> {
       icon: payload.icon || "/icons/icon-192x192.png",
       badge: payload.badge || "/icons/icon-72x72.png",
       url: payload.url || "/",
+      tag: payload.tag || "wox-notification",
       data: payload.data || {},
     });
 

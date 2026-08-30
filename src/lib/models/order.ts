@@ -44,7 +44,8 @@ export interface IOrder extends Document {
     | "OUT_FOR_DELIVERY"
     | "DELIVERED"
     | "CANCELLED"
-    | "RETURNED";
+    | "RETURNED"
+    | "REFUNDED";
   notes: string;
   couponCode: string;
   couponDiscount: number;
@@ -114,6 +115,7 @@ const OrderSchema = new Schema<IOrder>(
         "DELIVERED",
         "CANCELLED",
         "RETURNED",
+        "REFUNDED",
       ],
       default: "PENDING",
     },

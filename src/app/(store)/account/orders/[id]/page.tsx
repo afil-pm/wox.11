@@ -58,6 +58,7 @@ const statusStyles: Record<string, string> = {
   DELIVERED: "bg-green-100 text-green-800",
   CANCELLED: "bg-red-100 text-red-800",
   RETURNED: "bg-orange-100 text-orange-800",
+  REFUNDED: "bg-gray-100 text-gray-800",
 };
 
 const statusLabels: Record<string, string> = {
@@ -70,6 +71,7 @@ const statusLabels: Record<string, string> = {
   DELIVERED: "Delivered",
   CANCELLED: "Cancelled",
   RETURNED: "Return Requested",
+  REFUNDED: "Refunded",
 };
 
 const trackingSteps = [

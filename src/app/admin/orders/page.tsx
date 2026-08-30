@@ -55,6 +55,7 @@ const statusStyles: Record<string, string> = {
   DELIVERED: "bg-green-100 text-green-800",
   CANCELLED: "bg-red-100 text-red-800",
   RETURNED: "bg-orange-100 text-orange-800",
+  REFUNDED: "bg-gray-100 text-gray-800",
 };
 
 const paymentStyles: Record<string, string> = {
@@ -75,6 +76,7 @@ const statusLabels: Record<string, string> = {
   DELIVERED: "Delivered",
   CANCELLED: "Cancelled",
   RETURNED: "Returned",
+  REFUNDED: "Refunded",
 };
 
 const nextStatuses: Record<string, string[]> = {
@@ -82,11 +84,12 @@ const nextStatuses: Record<string, string[]> = {
   CONFIRMED: ["PROCESSING", "CANCELLED"],
   PROCESSING: ["PACKED", "CANCELLED"],
   PACKED: ["SHIPPED", "CANCELLED"],
-  SHIPPED: ["OUT_FOR_DELIVERY"],
-  OUT_FOR_DELIVERY: ["DELIVERED"],
-  DELIVERED: [],
+  SHIPPED: ["OUT_FOR_DELIVERY", "RETURNED"],
+  OUT_FOR_DELIVERY: ["DELIVERED", "RETURNED"],
+  DELIVERED: ["RETURNED"],
   CANCELLED: [],
-  RETURNED: [],
+  RETURNED: ["REFUNDED"],
+  REFUNDED: [],
 };
 
 export default function AdminOrdersPage() {

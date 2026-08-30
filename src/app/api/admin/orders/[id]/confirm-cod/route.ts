@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { connectMongoDB } from "@/lib/mongodb";
 import Order from "@/lib/models/order";
+import Notification from "@/lib/models/notification";
+import { sendPushToUser } from "@/lib/push";
 
 function isAdmin(request: NextRequest): boolean {
   const adminHeader = request.headers.get("x-admin-email");
@@ -48,6 +50,23 @@ export async function POST(
     order.paymentConfirmedBy = adminEmail;
     order.paymentConfirmationMethod = "manual";
     await order.save();
+
+    if (order.userId) {
+      Notification.create({
+        userId: order.userId,
+        title: "Payment Confirmed",
+        body: `Your COD payment for order ${order.orderNumber} has been confirmed.`,
+        type: "order_update",
+        orderId: String(id),
+      }).catch(() => {});
+
+      sendPushToUser(order.userId, {
+        title: "Payment Confirmed",
+        body: `Your COD payment for order ${order.orderNumber} has been confirmed.`,
+        url: `/account/orders/${id}`,
+        tag: `payment-${id}-confirmed`,
+      }).catch(() => {});
+    }
 
     return NextResponse.json({
       message: "COD payment confirmed",

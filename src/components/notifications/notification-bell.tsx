@@ -75,7 +75,19 @@ export default function NotificationBell() {
 
   useEffect(() => {
     const userId = getUserId();
-    if (userId && "Notification" in window && Notification.permission === "default") {
+    if (!userId || !("Notification" in window) || !("serviceWorker" in navigator)) return;
+
+    if (Notification.permission === "denied") return;
+
+    if (Notification.permission === "granted") {
+      navigator.serviceWorker.ready.then((reg) => {
+        reg.pushManager.getSubscription().then((sub) => {
+          if (!sub) {
+            subscribeToPush(userId).catch(() => {});
+          }
+        });
+      });
+    } else if (Notification.permission === "default") {
       subscribeToPush(userId).catch(() => {});
     }
   }, []);
@@ -172,7 +184,7 @@ export default function NotificationBell() {
       {open && (
         <div
           ref={panelRef}
-          className="absolute right-0 top-full mt-2 w-[calc(100vw-2rem)] max-w-80 overflow-hidden rounded-xl border border-zinc-200 bg-white shadow-xl z-[60]"
+          className="fixed right-2 top-14 w-[calc(100vw-1rem)] max-w-80 overflow-hidden rounded-xl border border-zinc-200 bg-white shadow-xl z-[60] sm:absolute sm:right-0 sm:top-full sm:mt-2 sm:w-[calc(100vw-2rem)]"
         >
           <div className="flex items-center justify-between border-b border-zinc-100 px-4 py-3">
             <h3 className="text-sm font-semibold text-zinc-900">Notifications</h3>

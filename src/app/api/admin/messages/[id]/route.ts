@@ -60,6 +60,7 @@ export async function PATCH(
         title: "Admin Reply",
         body: "Admin has replied to your message. Check your messages for details.",
         url: "/contact",
+        tag: `message-reply-${id}`,
       }).catch(() => {});
     }
 

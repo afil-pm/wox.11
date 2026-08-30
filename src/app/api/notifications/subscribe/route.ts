@@ -27,8 +27,16 @@ export async function POST(request: NextRequest) {
 
 export async function DELETE(request: NextRequest) {
   try {
+    let endpoint = "";
     const { searchParams } = new URL(request.url);
-    const endpoint = searchParams.get("endpoint");
+    endpoint = searchParams.get("endpoint") || "";
+
+    if (!endpoint) {
+      try {
+        const body = await request.json();
+        endpoint = body.endpoint || "";
+      } catch {}
+    }
 
     if (!endpoint) {
       return NextResponse.json({ error: "endpoint required" }, { status: 400 });

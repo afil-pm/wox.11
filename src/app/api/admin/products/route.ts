@@ -183,6 +183,7 @@ export async function POST(request: NextRequest) {
       title: "New Product",
       body: `New product "${name}" has been added to the store. Check it out!`,
       url: `/`,
+      tag: `new-product-${product.slug}`,
     }).catch(() => {});
 
     return NextResponse.json({ product }, { status: 201 });

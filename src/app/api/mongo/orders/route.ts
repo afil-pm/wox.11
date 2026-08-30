@@ -268,6 +268,7 @@ export async function POST(request: NextRequest) {
         title: "Order Confirmed",
         body: `Your order ${orderNumber} has been confirmed and is being processed.`,
         url: `/account/orders/${order._id}`,
+        tag: `order-${order._id}-CONFIRMED`,
       }).catch(() => {});
     }
 

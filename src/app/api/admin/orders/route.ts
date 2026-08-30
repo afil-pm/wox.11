@@ -14,6 +14,7 @@ function isAdmin(request: NextRequest): boolean {
 }
 
 const STATUS_MESSAGES: Record<string, string> = {
+  PENDING: "Your order has been placed and is pending confirmation.",
   CONFIRMED: "Your order has been confirmed!",
   PROCESSING: "Your order is being processed.",
   PACKED: "Your order has been packed and is ready to ship!",
@@ -22,6 +23,7 @@ const STATUS_MESSAGES: Record<string, string> = {
   DELIVERED: "Your order has been delivered. Thank you!",
   CANCELLED: "Your order has been cancelled.",
   RETURNED: "Your order return has been initiated.",
+  REFUNDED: "Your refund has been processed successfully.",
 };
 
 export async function GET(request: NextRequest) {
@@ -113,18 +115,29 @@ export async function PUT(request: NextRequest) {
 
     if (existingOrder.userId && STATUS_MESSAGES[status]) {
       const notificationTitle = `Order ${status.replace(/_/g, " ")}`;
-      Notification.create({
+      const oneMinuteAgo = new Date(Date.now() - 60000);
+      const existingNotification = await Notification.findOne({
         userId: existingOrder.userId,
-        title: notificationTitle,
-        body: STATUS_MESSAGES[status],
-        type: "order_update",
         orderId: String(orderId),
-      }).catch(() => {});
+        type: "order_update",
+        createdAt: { $gte: oneMinuteAgo },
+      }).lean().catch(() => null);
+
+      if (!existingNotification) {
+        Notification.create({
+          userId: existingOrder.userId,
+          title: notificationTitle,
+          body: `${STATUS_MESSAGES[status]} (Order #${existingOrder.orderNumber})`,
+          type: "order_update",
+          orderId: String(orderId),
+        }).catch(() => {});
+      }
 
       sendPushToUser(existingOrder.userId, {
         title: notificationTitle,
-        body: STATUS_MESSAGES[status],
+        body: `${STATUS_MESSAGES[status]} (Order #${existingOrder.orderNumber})`,
         url: `/account/orders/${orderId}`,
+        tag: `order-${orderId}-${status}`,
       }).catch(() => {});
     }
 
