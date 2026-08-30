@@ -1,41 +1,57 @@
-const CACHE_NAME = "wox11-v1";
-const PRECACHE_URLS = [
-  "/",
-  "/men",
-  "/boys",
-  "/cart",
-  "/wishlist",
-  "/manifest.json",
-];
-
 self.addEventListener("install", (event) => {
-  event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => cache.addAll(PRECACHE_URLS))
-  );
   self.skipWaiting();
 });
 
 self.addEventListener("activate", (event) => {
-  event.waitUntil(
-    caches.keys().then((keys) =>
-      Promise.all(keys.filter((k) => k !== CACHE_NAME).map((k) => caches.delete(k)))
-    )
-  );
-  self.clients.claim();
+  event.waitUntil(clients.claim());
 });
 
-self.addEventListener("fetch", (event) => {
-  if (event.request.method !== "GET") return;
+self.addEventListener("push", (event) => {
+  if (!event.data) return;
 
-  event.respondWith(
-    fetch(event.request)
-      .then((response) => {
-        if (response.ok) {
-          const clone = response.clone();
-          caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
+  let data;
+  try {
+    data = event.data.json();
+  } catch {
+    data = {
+      title: "WOX.11",
+      body: event.data.text(),
+    };
+  }
+
+  const options = {
+    body: data.body || "",
+    icon: data.icon || "/icons/icon-192x192.png",
+    badge: data.badge || "/icons/icon-72x72.png",
+    vibrate: [100, 50, 100],
+    data: {
+      url: data.url || "/",
+      ...data.data,
+    },
+    tag: data.tag || "wox-notification",
+    renotify: true,
+  };
+
+  event.waitUntil(
+    self.registration.showNotification(data.title || "WOX.11", options)
+  );
+});
+
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+
+  const url = event.notification.data?.url || "/";
+
+  event.waitUntil(
+    clients.matchAll({ type: "window", includeUncontrolled: true }).then((clientList) => {
+      for (const client of clientList) {
+        if (client.url.includes(self.location.origin) && "focus" in client) {
+          client.focus();
+          client.navigate(url);
+          return;
         }
-        return response;
-      })
-      .catch(() => caches.match(event.request).then((r) => r || caches.match("/")))
+      }
+      return clients.openWindow(url);
+    })
   );
 });

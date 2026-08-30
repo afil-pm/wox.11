@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { Bell, Package, MessageSquare, Info } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { subscribeToPush } from "@/lib/push-client";
 
 type Notification = {
   _id: string;
@@ -71,6 +72,13 @@ export default function NotificationBell() {
     const interval = setInterval(loadNotificationsSilent, 30000);
     return () => clearInterval(interval);
   }, [loadNotificationsSilent]);
+
+  useEffect(() => {
+    const userId = getUserId();
+    if (userId && "Notification" in window && Notification.permission === "default") {
+      subscribeToPush(userId).catch(() => {});
+    }
+  }, []);
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {

@@ -4,6 +4,7 @@ import Order from "@/lib/models/order";
 import Product from "@/lib/models/product";
 import Coupon from "@/lib/models/coupon";
 import Notification from "@/lib/models/notification";
+import { sendPushToUser } from "@/lib/push";
 import { sendNewOrderEmail } from "@/lib/email";
 
 const INDIAN_STATES = [
@@ -261,6 +262,12 @@ export async function POST(request: NextRequest) {
         body: `Your order ${orderNumber} has been confirmed and is being processed.`,
         type: "order_update",
         orderId: order._id.toString(),
+      }).catch(() => {});
+
+      sendPushToUser(userId, {
+        title: "Order Confirmed",
+        body: `Your order ${orderNumber} has been confirmed and is being processed.`,
+        url: `/account/orders/${order._id}`,
       }).catch(() => {});
     }
 

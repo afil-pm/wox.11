@@ -178,6 +178,13 @@ export async function POST(request: NextRequest) {
       type: "new_product",
     }).catch(() => {});
 
+    const { sendPushToAll } = await import("@/lib/push");
+    sendPushToAll({
+      title: "New Product",
+      body: `New product "${name}" has been added to the store. Check it out!`,
+      url: `/`,
+    }).catch(() => {});
+
     return NextResponse.json({ product }, { status: 201 });
   } catch (error) {
     console.error("POST /api/admin/products error:", error);

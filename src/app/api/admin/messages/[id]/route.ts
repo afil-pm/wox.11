@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { connectMongoDB } from "@/lib/mongodb";
 import Message from "@/lib/models/message";
 import Notification from "@/lib/models/notification";
+import { sendPushToUser } from "@/lib/push";
 
 function isAdmin(request: NextRequest): boolean {
   const adminHeader = request.headers.get("x-admin-email");
@@ -53,6 +54,12 @@ export async function PATCH(
         title: "Admin Reply",
         body: "Admin has replied to your message. Check your messages for details.",
         type: "message_reply",
+      }).catch(() => {});
+
+      sendPushToUser(message.senderUserId, {
+        title: "Admin Reply",
+        body: "Admin has replied to your message. Check your messages for details.",
+        url: "/contact",
       }).catch(() => {});
     }
 

@@ -3,6 +3,7 @@ import { connectMongoDB } from "@/lib/mongodb";
 import Order from "@/lib/models/order";
 import Product from "@/lib/models/product";
 import Notification from "@/lib/models/notification";
+import { sendPushToUser } from "@/lib/push";
 
 function isAdmin(request: NextRequest): boolean {
   const adminHeader = request.headers.get("x-admin-email");
@@ -111,12 +112,19 @@ export async function PUT(request: NextRequest) {
     }
 
     if (existingOrder.userId && STATUS_MESSAGES[status]) {
+      const notificationTitle = `Order ${status.replace(/_/g, " ")}`;
       Notification.create({
         userId: existingOrder.userId,
-        title: `Order ${status.replace(/_/g, " ")}`,
+        title: notificationTitle,
         body: STATUS_MESSAGES[status],
         type: "order_update",
         orderId: String(orderId),
+      }).catch(() => {});
+
+      sendPushToUser(existingOrder.userId, {
+        title: notificationTitle,
+        body: STATUS_MESSAGES[status],
+        url: `/account/orders/${orderId}`,
       }).catch(() => {});
     }
 
