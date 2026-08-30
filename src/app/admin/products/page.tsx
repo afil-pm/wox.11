@@ -67,9 +67,7 @@ export default function AdminProductsPage() {
 
   async function fetchProducts() {
     try {
-      const res = await fetch("/api/admin/products", {
-        headers: { "Content-Type": "application/json" },
-      });
+      const res = await adminFetch("/api/admin/products");
       const text = await res.text();
       const data = JSON.parse(text);
       if (!res.ok) {

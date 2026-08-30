@@ -141,6 +141,53 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const stockErrors: string[] = [];
+    for (const item of items) {
+      if (!item.slug) continue;
+      const product = productMap.get(item.slug);
+      if (!product) continue;
+
+      const variant = product.variants?.find(
+        (v: { sizes: { name: string; quantity: number }[] }) =>
+          v.sizes?.some((s: { name: string; quantity: number }) => s.name === item.size)
+      );
+      if (!variant) {
+        stockErrors.push(`${item.name} (${item.size}) - variant not found`);
+        continue;
+      }
+      const sizeData = variant.sizes.find(
+        (s: { name: string; quantity: number }) => s.name === item.size
+      );
+      if (!sizeData) {
+        stockErrors.push(`${item.name} (${item.size}) - size not found`);
+        continue;
+      }
+      if (sizeData.quantity < item.quantity) {
+        stockErrors.push(`${item.name} (${item.size}) - only ${sizeData.quantity} left`);
+      }
+    }
+
+    if (stockErrors.length > 0) {
+      return NextResponse.json(
+        { error: `Insufficient stock: ${stockErrors.join("; ")}` },
+        { status: 400 }
+      );
+    }
+
+    for (const item of items) {
+      if (!item.slug) continue;
+      await Product.updateOne(
+        {
+          slug: item.slug,
+          "variants.sizes.name": item.size,
+          "variants.sizes.quantity": { $gte: item.quantity },
+        },
+        {
+          $inc: { "variants.$.sizes.$.quantity": -item.quantity },
+        }
+      );
+    }
+
     const order = await Order.create({
       orderNumber,
       userId: userId || "",

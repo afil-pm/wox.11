@@ -161,6 +161,10 @@ export default function CheckoutPage() {
   const checkoutRef = useRef<HTMLDivElement>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, boolean>>({});
   const [shakingFields, setShakingFields] = useState<Record<string, boolean>>({});
+  const [couponCode, setCouponCode] = useState("");
+  const [appliedCoupon, setAppliedCoupon] = useState<{ code: string; discount: number } | null>(null);
+  const [couponError, setCouponError] = useState("");
+  const [couponLoading, setCouponLoading] = useState(false);
 
   useEffect(() => {
     if (document.getElementById("razorpay-script")) {
@@ -195,10 +199,12 @@ export default function CheckoutPage() {
     return state === "kerala" || ["andhra pradesh","arunachal pradesh","assam","bihar","chhattisgarh","goa","gujarat","haryana","himachal pradesh","jharkhand","karnataka","madhya pradesh","maharashtra","manipur","meghalaya","mizoram","nagaland","odisha","punjab","rajasthan","sikkim","tamil nadu","telangana","tripura","uttar pradesh","uttarakhand","west bengal","andaman and nicobar islands","chandigarh","dadra and nagar haveli and daman and diu","delhi","jammu and kashmir","ladakh","lakshadweep","puducherry"].includes(state);
   })();
 
+  const couponDiscount = appliedCoupon?.discount ?? 0;
+
   const hasValidAddress = !!(newAddress.name && newAddress.phone && newAddress.line1 && newAddress.city && newAddress.state && newAddress.pincode);
   const isOutsideIndia = hasValidAddress && !isIndianState;
-  const tax = Math.round(subtotal * 0.18);
-  const total = subtotal + shippingCost + tax;
+  const tax = Math.round(Math.max(subtotal - couponDiscount, 0) * 0.18);
+  const total = Math.max(subtotal - couponDiscount, 0) + shippingCost + tax;
   const hasValidItems =
     items.length > 0 && items.every((item) => item.price > 0 && item.quantity > 0);
 
@@ -281,13 +287,14 @@ export default function CheckoutPage() {
   async function saveOrderToDB(orderNum: string, paymentId?: string) {
     const stored = localStorage.getItem("wox-user");
     const user = stored ? JSON.parse(stored) : null;
+    const visitorId = localStorage.getItem("wox-user-id") || "";
 
     const res = await fetch("/api/mongo/orders", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         orderNumber: orderNum,
-        userId: user?.id || "",
+        userId: user?.id || visitorId || "",
         customerName: newAddress.name,
         customerPhone: newAddress.phone,
         customerEmail: user?.email || "",
@@ -311,13 +318,15 @@ export default function CheckoutPage() {
           image: item.image,
           slug: item.slug,
         })),
-        subtotal,
+        subtotal: subtotal - couponDiscount,
         shippingCost,
         tax,
         total,
         paymentMethod,
         paymentId: paymentId || "",
         paymentStatus: paymentId ? "PAID" : "PENDING",
+        couponCode: appliedCoupon?.code || "",
+        couponDiscount: couponDiscount,
       }),
     });
 
@@ -513,6 +522,13 @@ export default function CheckoutPage() {
         const district = deliveryOffice.District || "";
         const state = deliveryOffice.State || "";
 
+        const INDIAN_STATES = ["kerala","andhra pradesh","arunachal pradesh","assam","bihar","chhattisgarh","goa","gujarat","haryana","himachal pradesh","jharkhand","karnataka","madhya pradesh","maharashtra","manipur","meghalaya","mizoram","nagaland","odisha","punjab","rajasthan","sikkim","tamil nadu","telangana","tripura","uttar pradesh","uttarakhand","west bengal","andaman and nicobar islands","chandigarh","dadra and nagar haveli and daman and diu","delhi","jammu and kashmir","ladakh","lakshadweep","puducherry"];
+        if (!INDIAN_STATES.includes(state.trim().toLowerCase())) {
+          setPincodeError("This location is currently unavailable for delivery. Please change your pincode to a valid Indian pincode.");
+          setNewAddress((prev) => ({ ...prev, pincode, city: "", taluk: "", district: "", state: "" }));
+          return;
+        }
+
         setNewAddress((prev) => ({ ...prev, city, taluk, district, state }));
         clearFieldError("city");
         clearFieldError("taluk");
@@ -527,6 +543,45 @@ export default function CheckoutPage() {
     } finally {
       setPincodeLoading(false);
     }
+  }
+
+  async function handleApplyCoupon() {
+    if (!couponCode.trim()) return;
+    setCouponLoading(true);
+    setCouponError("");
+    try {
+      const res = await fetch("/api/coupons/validate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          code: couponCode.trim(),
+          cartItems: items.map((item) => ({
+            slug: item.slug,
+            productId: item.productId,
+            quantity: item.quantity,
+          })),
+        }),
+      });
+      const data = await res.json();
+      if (data.valid) {
+        setAppliedCoupon({ code: data.code, discount: data.discount });
+        setCouponError("");
+      } else {
+        setAppliedCoupon(null);
+        setCouponError(data.error || "Invalid coupon code");
+      }
+    } catch {
+      setAppliedCoupon(null);
+      setCouponError("Invalid coupon code");
+    } finally {
+      setCouponLoading(false);
+    }
+  }
+
+  function removeCoupon() {
+    setAppliedCoupon(null);
+    setCouponCode("");
+    setCouponError("");
   }
 
   if (!authChecked) {
@@ -1417,12 +1472,42 @@ export default function CheckoutPage() {
                 </div>
 
                 <div className="mt-5 space-y-2 border-t border-zinc-100 pt-4">
+                  <div className="flex gap-2">
+                    <Input
+                      type="text"
+                      placeholder="Coupon code"
+                      value={couponCode}
+                      onChange={(e) => { setCouponCode(e.target.value); setCouponError(""); }}
+                      className="h-9 flex-1 text-xs"
+                    />
+                    {appliedCoupon ? (
+                      <button onClick={removeCoupon} className="shrink-0 rounded border border-green-300 bg-green-50 px-3 text-xs font-medium text-green-700 hover:bg-green-100">
+                        Applied ✓
+                      </button>
+                    ) : (
+                      <button
+                        onClick={handleApplyCoupon}
+                        disabled={!couponCode.trim() || couponLoading}
+                        className="shrink-0 rounded border border-zinc-200 bg-zinc-50 px-3 text-xs font-medium text-zinc-700 hover:bg-zinc-100 disabled:opacity-50"
+                      >
+                        {couponLoading ? "..." : "Apply"}
+                      </button>
+                    )}
+                  </div>
+                  {couponError && <p className="text-[11px] text-red-500">{couponError}</p>}
+                  {appliedCoupon && <p className="text-[11px] text-green-600">Coupon applied! You save {formatPrice(appliedCoupon.discount)}</p>}
                   <div className="flex justify-between text-sm">
                     <span className="text-zinc-500">Subtotal</span>
                     <span className="text-zinc-900">
                       {formatPrice(subtotal)}
                     </span>
                   </div>
+                  {couponDiscount > 0 && (
+                    <div className="flex justify-between text-sm">
+                      <span className="text-green-600">Coupon Discount</span>
+                      <span className="text-green-600">-{formatPrice(couponDiscount)}</span>
+                    </div>
+                  )}
                   <div className="flex justify-between text-sm">
                     <span className="text-zinc-500">Shipping</span>
                     <span className="text-zinc-900">
@@ -1482,12 +1567,42 @@ export default function CheckoutPage() {
                 </div>
 
                 <div className="mt-4 space-y-2 border-t border-zinc-100 pt-4">
+                  <div className="flex gap-2">
+                    <Input
+                      type="text"
+                      placeholder="Coupon code"
+                      value={couponCode}
+                      onChange={(e) => { setCouponCode(e.target.value); setCouponError(""); }}
+                      className="h-9 flex-1 text-xs"
+                    />
+                    {appliedCoupon ? (
+                      <button onClick={removeCoupon} className="shrink-0 rounded border border-green-300 bg-green-50 px-3 text-xs font-medium text-green-700 hover:bg-green-100">
+                        Applied ✓
+                      </button>
+                    ) : (
+                      <button
+                        onClick={handleApplyCoupon}
+                        disabled={!couponCode.trim() || couponLoading}
+                        className="shrink-0 rounded border border-zinc-200 bg-zinc-50 px-3 text-xs font-medium text-zinc-700 hover:bg-zinc-100 disabled:opacity-50"
+                      >
+                        {couponLoading ? "..." : "Apply"}
+                      </button>
+                    )}
+                  </div>
+                  {couponError && <p className="text-[11px] text-red-500">{couponError}</p>}
+                  {appliedCoupon && <p className="text-[11px] text-green-600">Coupon applied! You save {formatPrice(appliedCoupon.discount)}</p>}
                   <div className="flex justify-between text-sm">
                     <span className="text-zinc-500">Subtotal</span>
                     <span className="text-zinc-900">
                       {formatPrice(subtotal)}
                     </span>
                   </div>
+                  {couponDiscount > 0 && (
+                    <div className="flex justify-between text-sm">
+                      <span className="text-green-600">Coupon Discount</span>
+                      <span className="text-green-600">-{formatPrice(couponDiscount)}</span>
+                    </div>
+                  )}
                   <div className="flex justify-between text-sm">
                     <span className="text-zinc-500">Shipping</span>
                     <span className="text-zinc-900">

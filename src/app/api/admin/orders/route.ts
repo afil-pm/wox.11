@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { connectMongoDB } from "@/lib/mongodb";
 import Order from "@/lib/models/order";
+import Product from "@/lib/models/product";
+import Notification from "@/lib/models/notification";
 
 function isAdmin(request: NextRequest): boolean {
   const adminHeader = request.headers.get("x-admin-email");
@@ -9,6 +11,17 @@ function isAdmin(request: NextRequest): boolean {
   if (!adminEmail) return true;
   return adminHeader.toLowerCase() === adminEmail.toLowerCase();
 }
+
+const STATUS_MESSAGES: Record<string, string> = {
+  CONFIRMED: "Your order has been confirmed!",
+  PROCESSING: "Your order is being processed.",
+  PACKED: "Your order has been packed and is ready to ship!",
+  SHIPPED: "Your order has been shipped!",
+  OUT_FOR_DELIVERY: "Your order is out for delivery today!",
+  DELIVERED: "Your order has been delivered. Thank you!",
+  CANCELLED: "Your order has been cancelled.",
+  RETURNED: "Your order return has been initiated.",
+};
 
 export async function GET(request: NextRequest) {
   try {
@@ -80,6 +93,27 @@ export async function PUT(request: NextRequest) {
     }
 
     const order = await Order.findByIdAndUpdate(orderId, { status }, { new: true }).lean();
+
+    if (status === "CANCELLED" && existingOrder.items?.length) {
+      for (const item of existingOrder.items) {
+        if (!item.slug) continue;
+        await Product.updateOne(
+          { slug: item.slug, "variants.sizes.name": item.size },
+          { $inc: { "variants.$.sizes.$.quantity": item.quantity } }
+        ).catch(() => {});
+      }
+    }
+
+    if (existingOrder.userId && STATUS_MESSAGES[status]) {
+      Notification.create({
+        userId: existingOrder.userId,
+        title: `Order ${status.replace(/_/g, " ")}`,
+        body: STATUS_MESSAGES[status],
+        type: "order_update",
+        orderId: String(orderId),
+      }).catch(() => {});
+    }
+
     return NextResponse.json({ message: "Order status updated", order });
   } catch (error) {
     console.error("PUT /api/admin/orders error:", error);

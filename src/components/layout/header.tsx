@@ -6,6 +6,7 @@ import dynamic from "next/dynamic";
 import { Search, User, Heart, ShoppingBag, Menu, X, LogOut, Package, Settings, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import SearchModal from "@/components/search/search-modal";
+import NotificationBell from "@/components/notifications/notification-bell";
 import { useSignOutStore } from "@/lib/stores/sign-out";
 import { useUnreadCounts } from "@/hooks/use-unread-counts";
 
@@ -173,6 +174,8 @@ export default function Header() {
               <Search className="h-5 w-5" strokeWidth={1.5} />
             </button>
 
+            <NotificationBell />
+
             <Link
               href="/wishlist"
               className="relative flex h-10 w-10 items-center justify-center text-zinc-900 transition-colors hover:text-zinc-600"
@@ -283,6 +286,8 @@ export default function Header() {
             >
               <Search className="h-5 w-5" strokeWidth={1.5} />
             </button>
+
+            <NotificationBell />
 
             <Link
               href="/wishlist"

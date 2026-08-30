@@ -24,7 +24,7 @@ export default function Home() {
     async function load() {
       try {
         const [newRes, bestRes] = await Promise.all([
-          fetch("/api/products/all?sort=newest&limit=4"),
+          fetch("/api/products/all?sort=newest&limit=10"),
           fetch("/api/products/all?sort=popular&limit=4"),
         ]);
         const newData = await newRes.json();

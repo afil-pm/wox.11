@@ -57,10 +57,42 @@ export default function CartPage() {
   const tax = Math.round((subtotal - discount) * ESTIMATED_TAX_RATE);
   const total = Math.max(subtotal - discount + shipping + tax, 0);
 
-  const handleApplyCoupon = () => {
-    if (couponCode.trim().toUpperCase() === "WOX10") {
-      setAppliedCoupon({ code: "WOX10", discount: Math.round(subtotal * 0.1) });
+  const [couponError, setCouponError] = useState("");
+
+  const handleApplyCoupon = async () => {
+    if (!couponCode.trim()) return;
+    setCouponError("");
+    try {
+      const res = await fetch("/api/coupons/validate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          code: couponCode.trim(),
+          cartItems: items.map((item) => ({
+            slug: item.slug,
+            productId: item.productId,
+            quantity: item.quantity,
+          })),
+        }),
+      });
+      const data = await res.json();
+      if (data.valid) {
+        setAppliedCoupon({ code: data.code, discount: data.discount });
+        setCouponError("");
+      } else {
+        setAppliedCoupon(null);
+        setCouponError(data.error || "Invalid coupon code");
+      }
+    } catch {
+      setAppliedCoupon(null);
+      setCouponError("Invalid coupon code");
     }
+  };
+
+  const removeCoupon = () => {
+    setAppliedCoupon(null);
+    setCouponCode("");
+    setCouponError("");
   };
 
   if (isEmpty) {
@@ -229,18 +261,30 @@ export default function CartPage() {
                   type="text"
                   placeholder="Coupon code"
                   value={couponCode}
-                  onChange={(e) => setCouponCode(e.target.value)}
+                  onChange={(e) => { setCouponCode(e.target.value); setCouponError(""); }}
                   className="h-10 flex-1 text-sm"
                 />
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handleApplyCoupon}
-                  disabled={!couponCode.trim()}
-                >
-                  Apply
-                </Button>
+                {appliedCoupon ? (
+                  <Button variant="outline" size="sm" onClick={removeCoupon} className="text-green-600 border-green-300">
+                    Applied ✓
+                  </Button>
+                ) : (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleApplyCoupon}
+                    disabled={!couponCode.trim()}
+                  >
+                    Apply
+                  </Button>
+                )}
               </div>
+              {couponError && (
+                <p className="mt-1 text-xs text-red-500 animate-in fade-in slide-in-from-top-1">{couponError}</p>
+              )}
+              {appliedCoupon && (
+                <p className="mt-1 text-xs text-green-600">Coupon applied! You save {formatPrice(appliedCoupon.discount)}</p>
+              )}
 
               <Button asChild className="mt-5 h-12 w-full text-base">
                 <Link href="/checkout">Proceed to Checkout</Link>

@@ -44,7 +44,7 @@ export default function NewArrivalsPage() {
   useEffect(() => {
     async function load() {
       try {
-        const res = await fetch("/api/products/all?sort=newest&limit=50");
+        const res = await fetch("/api/products/all?sort=newest&limit=10");
         const data = await res.json();
         setProducts(data.products || []);
       } catch {

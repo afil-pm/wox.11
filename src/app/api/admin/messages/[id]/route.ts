@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { connectMongoDB } from "@/lib/mongodb";
 import Message from "@/lib/models/message";
+import Notification from "@/lib/models/notification";
 
 function isAdmin(request: NextRequest): boolean {
   const adminHeader = request.headers.get("x-admin-email");
@@ -45,6 +46,15 @@ export async function PATCH(
     }
 
     await message.save();
+
+    if (adminReply && message.senderEmail) {
+      Notification.create({
+        userId: message.senderEmail,
+        title: "Admin Reply",
+        body: "Admin has replied to your message. Check your messages for details.",
+        type: "message_reply",
+      }).catch(() => {});
+    }
 
     return NextResponse.json({ message: message.toObject() });
   } catch (error) {

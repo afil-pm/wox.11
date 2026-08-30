@@ -170,6 +170,14 @@ export async function POST(request: NextRequest) {
       seo: autoSeo,
     });
 
+    const { default: Notification } = await import("@/lib/models/notification");
+    Notification.create({
+      userId: "all",
+      title: "New Product",
+      body: `New product "${name}" has been added to the store. Check it out!`,
+      type: "new_product",
+    }).catch(() => {});
+
     return NextResponse.json({ product }, { status: 201 });
   } catch (error) {
     console.error("POST /api/admin/products error:", error);
