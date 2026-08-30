@@ -20,6 +20,7 @@ import WoxLoader from "@/components/ui/wox-loader";
 import SignOutModal from "@/components/ui/sign-out-modal";
 import { useSignOutStore } from "@/lib/stores/sign-out";
 import { useUnreadCounts } from "@/hooks/use-unread-counts";
+import { subscribeToPush } from "@/lib/push-client";
 
 const navItems = [
   { label: "Dashboard", icon: LayoutDashboard, href: "/admin", section: "" },
@@ -90,6 +91,26 @@ export default function AdminLayout({
       router.replace("/admin/login");
     }
   }, [isLoginPage, router]);
+
+  useEffect(() => {
+    if (isLoginPage || authorized !== true) return;
+    if (!("Notification" in window) || !("serviceWorker" in navigator)) return;
+    if (Notification.permission === "denied") return;
+
+    const ADMIN_USER_ID = "admin-env";
+
+    if (Notification.permission === "granted") {
+      navigator.serviceWorker.ready.then((reg) => {
+        reg.pushManager.getSubscription().then((sub) => {
+          if (!sub) {
+            subscribeToPush(ADMIN_USER_ID).catch(() => {});
+          }
+        });
+      });
+    } else if (Notification.permission === "default") {
+      subscribeToPush(ADMIN_USER_ID).catch(() => {});
+    }
+  }, [isLoginPage, authorized]);
 
   useEffect(() => {
     if (!isAdminPage || authorized !== true) return;

@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { connectMongoDB } from "@/lib/mongodb";
 import Message from "@/lib/models/message";
 import User from "@/lib/models/user";
+import Notification from "@/lib/models/notification";
+import { sendPushToUser } from "@/lib/push";
 
 function sanitize(str: string): string {
   return str.replace(/[<>&"']/g, (c) => {
@@ -95,6 +97,20 @@ export async function POST(request: NextRequest) {
       senderName: sanitize(senderName.trim()),
       message: sanitize(message.trim()),
     });
+
+    Notification.create({
+      userId: "admin-env",
+      title: "New Message",
+      body: `${senderName.trim()} sent a new message.`,
+      type: "message_reply",
+    }).catch(() => {});
+
+    sendPushToUser("admin-env", {
+      title: "New Message",
+      body: `${senderName.trim()} sent a new message.`,
+      url: "/admin/messages",
+      tag: "admin-new-message",
+    }).catch(() => {});
 
     return NextResponse.json({ message: "Recovery request sent successfully" }, { status: 201 });
   } catch (error) {

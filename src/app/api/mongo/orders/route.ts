@@ -276,6 +276,21 @@ export async function POST(request: NextRequest) {
       Coupon.updateOne({ code: validatedCouponCode }, { $inc: { usedCount: 1 } }).catch(() => {});
     }
 
+    Notification.create({
+      userId: "admin-env",
+      title: "New Order",
+      body: `New order ${orderNumber} received from ${customerName || address.name} — ₹${total}`,
+      type: "order_update",
+      orderId: order._id.toString(),
+    }).catch(() => {});
+
+    sendPushToUser("admin-env", {
+      title: "New Order",
+      body: `New order ${orderNumber} received from ${customerName || address.name} — ₹${total}`,
+      url: `/admin/orders`,
+      tag: `admin-order-${order._id}`,
+    }).catch(() => {});
+
     sendNewOrderEmail({
       orderNumber,
       customerName: customerName || address.name,
