@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
-import { Bell, X, Package, MessageSquare, Info } from "lucide-react";
+import { useState, useEffect, useRef, useCallback } from "react";
+import { Bell, Package, MessageSquare, Info } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 type Notification = {
@@ -24,6 +24,14 @@ function getUserId(): string | null {
   return localStorage.getItem("wox-user-id");
 }
 
+async function fetchNotifications(userId: string): Promise<Notification[]> {
+  const res = await fetch("/api/notifications", {
+    headers: { "x-user-id": userId },
+  });
+  const data = await res.json();
+  return data.notifications || [];
+}
+
 export default function NotificationBell() {
   const [open, setOpen] = useState(false);
   const [notifications, setNotifications] = useState<Notification[]>([]);
@@ -33,18 +41,36 @@ export default function NotificationBell() {
 
   const unreadCount = notifications.filter((n) => !n.read).length;
 
-  useEffect(() => {
+  const loadNotifications = useCallback(async () => {
     const userId = getUserId();
     if (!userId) return;
-    setLoading(true);
-    fetch("/api/notifications", {
-      headers: { "x-user-id": userId },
-    })
-      .then((r) => r.json())
-      .then((d) => setNotifications(d.notifications || []))
-      .catch(() => {})
-      .finally(() => setLoading(false));
-  }, [open]);
+    try {
+      const data = await fetchNotifications(userId);
+      setNotifications(data);
+    } catch {}
+  }, []);
+
+  const loadNotificationsSilent = useCallback(async () => {
+    const userId = getUserId();
+    if (!userId) return;
+    try {
+      const data = await fetchNotifications(userId);
+      setNotifications(data);
+    } catch {}
+  }, []);
+
+  useEffect(() => {
+    if (open) {
+      setLoading(true);
+      loadNotifications().finally(() => setLoading(false));
+    }
+  }, [open, loadNotifications]);
+
+  useEffect(() => {
+    loadNotificationsSilent();
+    const interval = setInterval(loadNotificationsSilent, 30000);
+    return () => clearInterval(interval);
+  }, [loadNotificationsSilent]);
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
@@ -59,17 +85,30 @@ export default function NotificationBell() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [open]);
 
-  async function markRead(ids: string[]) {
+  async function markAllRead() {
     const userId = getUserId();
-    if (!userId || ids.length === 0) return;
+    if (!userId) return;
     try {
       await fetch("/api/notifications/read", {
         method: "POST",
-        headers: { "Content-Type": "application/json", "x-user-id": userId },
-        body: JSON.stringify({ userId, notificationIds: ids }),
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId, markAll: true }),
+      });
+      setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
+    } catch {}
+  }
+
+  async function markOneRead(id: string) {
+    const userId = getUserId();
+    if (!userId) return;
+    try {
+      await fetch("/api/notifications/read", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId, notificationId: id }),
       });
       setNotifications((prev) =>
-        prev.map((n) => (ids.includes(n._id) ? { ...n, read: true } : n))
+        prev.map((n) => (n._id === id ? { ...n, read: true } : n))
       );
     } catch {}
   }
@@ -98,6 +137,13 @@ export default function NotificationBell() {
     return `${days}d ago`;
   }
 
+  function handleNotificationClick(n: Notification) {
+    if (!n.read) markOneRead(n._id);
+    if (n.orderId) {
+      window.location.href = `/account/orders/${n.orderId}`;
+    }
+  }
+
   return (
     <div className="relative">
       <button
@@ -124,7 +170,7 @@ export default function NotificationBell() {
             <h3 className="text-sm font-semibold text-zinc-900">Notifications</h3>
             {unreadCount > 0 && (
               <button
-                onClick={() => markRead(notifications.filter((n) => !n.read).map((n) => n._id))}
+                onClick={markAllRead}
                 className="text-xs text-blue-600 hover:underline"
               >
                 Mark all read
@@ -146,14 +192,10 @@ export default function NotificationBell() {
                   key={n._id}
                   className={cn(
                     "flex gap-3 border-b border-zinc-50 px-4 py-3 transition-colors hover:bg-zinc-50",
-                    !n.read && "bg-blue-50/50"
+                    !n.read && "bg-blue-50/50",
+                    n.orderId && "cursor-pointer"
                   )}
-                  onClick={() => {
-                    if (!n.read) markRead([n._id]);
-                    if (n.orderId) {
-                      window.location.href = `/account/orders/${n.orderId}`;
-                    }
-                  }}
+                  onClick={() => handleNotificationClick(n)}
                 >
                   <div className="mt-0.5 shrink-0">{getTypeIcon(n.type)}</div>
                   <div className="min-w-0 flex-1">

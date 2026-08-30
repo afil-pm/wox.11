@@ -47,9 +47,9 @@ export async function PATCH(
 
     await message.save();
 
-    if (adminReply && message.senderEmail) {
+    if (adminReply && message.senderUserId) {
       Notification.create({
-        userId: message.senderEmail,
+        userId: message.senderUserId,
         title: "Admin Reply",
         body: "Admin has replied to your message. Check your messages for details.",
         type: "message_reply",

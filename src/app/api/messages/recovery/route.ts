@@ -32,6 +32,7 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     const { senderEmail, senderName, message } = body;
+    const senderUserId = request.headers.get("x-user-id") || "";
 
     if (!senderEmail || !senderName || !message) {
       return NextResponse.json(
@@ -90,6 +91,7 @@ export async function POST(request: NextRequest) {
     await Message.create({
       type: "account-recovery",
       senderEmail: normalizedEmail,
+      senderUserId: senderUserId,
       senderName: sanitize(senderName.trim()),
       message: sanitize(message.trim()),
     });

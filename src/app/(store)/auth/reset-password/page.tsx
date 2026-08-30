@@ -73,9 +73,10 @@ function RecoveryPanel({ onClose, onFlowBlocked }: { onClose: () => void; onFlow
     setSendLoading(true);
 
     try {
+      const userId = localStorage.getItem("wox-user-id") || "";
       const res = await fetch("/api/messages/recovery", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", "x-user-id": userId },
         body: JSON.stringify({ senderEmail, senderName, message }),
       });
 

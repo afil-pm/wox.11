@@ -3,6 +3,7 @@ import mongoose, { Schema, Document, Model } from "mongoose";
 export interface IMessage extends Document {
   type: "account-recovery";
   senderEmail: string;
+  senderUserId: string;
   senderName: string;
   message: string;
   status: "pending" | "reviewing" | "resolved" | "rejected" | "received" | "complete";
@@ -16,6 +17,7 @@ const MessageSchema = new Schema<IMessage>(
   {
     type: { type: String, default: "account-recovery", required: true },
     senderEmail: { type: String, required: true, lowercase: true, trim: true },
+    senderUserId: { type: String, default: "" },
     senderName: { type: String, required: true, trim: true },
     message: { type: String, required: true, trim: true },
     status: {

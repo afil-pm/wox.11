@@ -3,6 +3,7 @@ import { connectMongoDB } from "@/lib/mongodb";
 import Order from "@/lib/models/order";
 import Product from "@/lib/models/product";
 import Coupon from "@/lib/models/coupon";
+import Notification from "@/lib/models/notification";
 import { sendNewOrderEmail } from "@/lib/email";
 
 const INDIAN_STATES = [
@@ -249,9 +250,19 @@ export async function POST(request: NextRequest) {
       paymentMethod: paymentMethod || "cod",
       paymentId: paymentId || "",
       paymentStatus: paymentId ? "PAID" : "PENDING",
-      status: "PENDING",
+      status: "CONFIRMED",
       notes: notes || "",
     });
+
+    if (userId) {
+      Notification.create({
+        userId,
+        title: "Order Confirmed",
+        body: `Your order ${orderNumber} has been confirmed and is being processed.`,
+        type: "order_update",
+        orderId: order._id.toString(),
+      }).catch(() => {});
+    }
 
     if (validatedCouponCode && couponDiscount > 0) {
       Coupon.updateOne({ code: validatedCouponCode }, { $inc: { usedCount: 1 } }).catch(() => {});
