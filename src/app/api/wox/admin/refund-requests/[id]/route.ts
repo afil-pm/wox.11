@@ -5,6 +5,7 @@ import Order from "@/lib/models/order";
 import Notification from "@/lib/models/notification";
 import { sendPushToUser } from "@/lib/push";
 import { getDefaultPaymentProvider } from "@/lib/payments";
+import { maskAccountNumber } from "@/lib/encryption";
 
 function isAdmin(request: NextRequest): boolean {
   const adminHeader = request.headers.get("x-admin-email");
@@ -12,6 +13,18 @@ function isAdmin(request: NextRequest): boolean {
   const adminEmail = process.env.ADMIN_EMAIL || "";
   if (!adminEmail) return true;
   return adminHeader.toLowerCase() === adminEmail.toLowerCase();
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function maskRefundResponse(refundRequest: any) {
+  const obj = typeof refundRequest.toObject === "function" ? refundRequest.toObject() : { ...refundRequest };
+  if (obj.bankDetails?.accountNumber) {
+    obj.bankDetails = {
+      ...obj.bankDetails,
+      accountNumber: maskAccountNumber(obj.bankDetails.accountNumber),
+    };
+  }
+  return obj;
 }
 
 export async function PATCH(
@@ -54,7 +67,7 @@ export async function PATCH(
         tag: `refund-${refundRequest.orderId}-approved`,
       }).catch(() => {});
 
-      return NextResponse.json({ message: "Refund request approved", refundRequest });
+      return NextResponse.json({ message: "Refund request approved", refundRequest: maskRefundResponse(refundRequest) });
     }
 
     if (action === "reject") {
@@ -80,7 +93,7 @@ export async function PATCH(
         tag: `refund-${refundRequest.orderId}-rejected`,
       }).catch(() => {});
 
-      return NextResponse.json({ message: "Refund request rejected", refundRequest });
+      return NextResponse.json({ message: "Refund request rejected", refundRequest: maskRefundResponse(refundRequest) });
     }
 
     if (action === "process") {
@@ -133,7 +146,7 @@ export async function PATCH(
         tag: `refund-${refundRequest.orderId}-processed`,
       }).catch(() => {});
 
-      return NextResponse.json({ message: "Refund processed", refundRequest });
+      return NextResponse.json({ message: "Refund processed", refundRequest: maskRefundResponse(refundRequest) });
     }
 
     if (action === "complete") {
@@ -160,7 +173,7 @@ export async function PATCH(
         tag: `refund-${refundRequest.orderId}-completed`,
       }).catch(() => {});
 
-      return NextResponse.json({ message: "Refund marked as completed", refundRequest });
+      return NextResponse.json({ message: "Refund marked as completed", refundRequest: maskRefundResponse(refundRequest) });
     }
 
     return NextResponse.json({ error: "Invalid action" }, { status: 400 });
