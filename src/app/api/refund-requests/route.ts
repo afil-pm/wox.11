@@ -22,19 +22,37 @@ export async function POST(request: NextRequest) {
   try {
     await connectMongoDB();
     const body = await request.json();
-    const { orderId, type, reason, bankDetails, saveBankDetails } = body;
+    const { orderId, type, reason, saveBankDetails, useSavedBank } = body;
     const userId = request.headers.get("x-user-id") || "";
 
     if (!userId) {
       return NextResponse.json({ error: "Authentication required" }, { status: 401 });
     }
 
-    if (!orderId || !type || !reason || !bankDetails) {
+    if (!orderId || !type || !reason) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
     }
 
     if (!["cancel_refund", "return_refund"].includes(type)) {
       return NextResponse.json({ error: "Invalid refund type" }, { status: 400 });
+    }
+
+    let bankDetails = body.bankDetails;
+
+    if (useSavedBank) {
+      const saved = await SavedBankDetails.findOne({ userId }).lean();
+      if (!saved) {
+        return NextResponse.json({ error: "No saved bank details found" }, { status: 400 });
+      }
+      bankDetails = {
+        accountHolderName: saved.accountHolderName,
+        accountNumber: saved.accountNumber,
+        ifscCode: saved.ifscCode,
+        bankName: saved.bankName,
+        upiId: saved.upiId || "",
+      };
+    } else if (!bankDetails) {
+      return NextResponse.json({ error: "Bank details are required" }, { status: 400 });
     }
 
     if (!bankDetails.accountHolderName?.trim() || !bankDetails.accountNumber?.trim() || !bankDetails.ifscCode?.trim() || !bankDetails.bankName?.trim()) {
@@ -124,7 +142,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "A refund request for this order is already being processed" }, { status: 400 });
     }
 
-    const encryptedAccountNumber = encrypt(bankDetails.accountNumber.trim());
+    const encryptedAccountNumber = useSavedBank
+      ? bankDetails.accountNumber
+      : encrypt(bankDetails.accountNumber.trim());
 
     const refundRequest = await RefundRequest.create({
       orderId,
@@ -146,7 +166,7 @@ export async function POST(request: NextRequest) {
       paymentId: order.paymentId || "",
     });
 
-    if (saveBankDetails) {
+    if (saveBankDetails && !useSavedBank) {
       const existing = await SavedBankDetails.findOne({ userId });
       if (existing) {
         await SavedBankDetails.updateOne(
@@ -171,25 +191,24 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    if (type === "cancel_refund") {
-      const { default: Notification } = await import("@/lib/models/notification");
-      const { sendPushToUser } = await import("@/lib/push");
+    const refundLabel = type === "cancel_refund" ? "Cancel & Refund" : "Return & Refund";
+    const { default: Notification } = await import("@/lib/models/notification");
+    const { sendPushToUser } = await import("@/lib/push");
 
-      Notification.create({
-        userId: "admin-env",
-        title: "Refund Request",
-        body: `${order.customerName} requested cancel & refund for order ${order.orderNumber} — ₹${order.total}`,
-        type: "order_update",
-        orderId,
-      }).catch(() => {});
+    Notification.create({
+      userId: "admin-env",
+      title: "Refund Request",
+      body: `${order.customerName} requested ${refundLabel} for order ${order.orderNumber} — ₹${order.total}`,
+      type: "order_update",
+      orderId,
+    }).catch(() => {});
 
-      sendPushToUser("admin-env", {
-        title: "Refund Request",
-        body: `${order.customerName} requested cancel & refund for order ${order.orderNumber} — ₹${order.total}`,
-        url: "/wox/admin/orders",
-        tag: `refund-request-${orderId}`,
-      }).catch(() => {});
-    }
+    sendPushToUser("admin-env", {
+      title: "Refund Request",
+      body: `${order.customerName} requested ${refundLabel} for order ${order.orderNumber} — ₹${order.total}`,
+      url: "/wox/admin/orders",
+      tag: `refund-request-${orderId}`,
+    }).catch(() => {});
 
     return NextResponse.json({
       message: "Refund request submitted successfully",

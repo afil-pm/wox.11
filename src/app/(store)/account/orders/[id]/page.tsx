@@ -60,6 +60,7 @@ interface Order {
 
 interface RefundRequestInfo {
   _id: string;
+  orderId: string;
   status: string;
   amount: number;
   type: string;
@@ -125,7 +126,7 @@ const trackingSteps = [
   { key: "DELIVERED", label: "Delivered", icon: CheckCircle2 },
 ];
 
-const cancelableStatuses = ["PENDING", "CONFIRMED"];
+const cancelableStatuses = ["PENDING", "CONFIRMED", "PROCESSING", "PACKED"];
 const returnableStatuses = ["DELIVERED"];
 
 export default function OrderDetailPage({ params }: { params: Promise<{ id: string }> }) {
@@ -177,11 +178,8 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
           const refundRes = await fetch("/api/refund-requests", { headers });
           if (refundRes.ok) {
             const refundData = await refundRes.json();
-            const orderRefund = (refundData.refundRequests || []).find(
-              (r: RefundRequestInfo) => r._id && refundData.refundRequests.indexOf(r) >= 0
-            );
             const thisOrderRefund = (refundData.refundRequests || []).find(
-              (r: RefundRequestInfo) => r.status !== "rejected"
+              (r: RefundRequestInfo) => r.orderId === id && r.status !== "rejected"
             );
             if (thisOrderRefund) setExistingRefund(thisOrderRefund);
           }
@@ -214,7 +212,7 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
       if (refundRes.ok) {
         const refundData = await refundRes.json();
         const thisOrderRefund = (refundData.refundRequests || []).find(
-          (r: RefundRequestInfo) => r.status !== "rejected"
+          (r: RefundRequestInfo) => r.orderId === order?._id && r.status !== "rejected"
         );
         if (thisOrderRefund) setExistingRefund(thisOrderRefund);
       }
@@ -287,13 +285,7 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
       const userId = user?.id || "";
 
       const bankPayload = useSavedBank && savedBank
-        ? {
-            accountHolderName: savedBank.accountHolderName,
-            accountNumber: savedBank.accountNumber,
-            ifscCode: savedBank.ifscCode,
-            bankName: savedBank.bankName,
-            upiId: savedBank.upiId || "",
-          }
+        ? null
         : {
             accountHolderName: refundBankDetails.accountHolderName.trim(),
             accountNumber: refundBankDetails.accountNumber.trim(),
@@ -310,6 +302,7 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
           type: refundModal,
           reason: refundReason.trim(),
           bankDetails: bankPayload,
+          useSavedBank: useSavedBank && !!savedBank,
           saveBankDetails,
         }),
       });
