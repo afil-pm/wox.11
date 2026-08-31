@@ -50,7 +50,6 @@ const navLinks = [
   { label: "Boys", href: "/boys" },
   { label: "New Arrivals", href: "/new-arrivals" },
   { label: "Best Sellers", href: "/best-sellers" },
-  { label: "Orders", href: "/account/orders" },
 ];
 
 export default function Header() {
@@ -179,6 +178,14 @@ export default function Header() {
             </button>
 
             <NotificationBell />
+
+            <Link
+              href="/account/orders"
+              className="flex h-10 w-10 items-center justify-center text-zinc-900 transition-all duration-150 hover:text-zinc-600 active:scale-90"
+              aria-label="Orders"
+            >
+              <Package className="h-5 w-5" strokeWidth={1.5} />
+            </Link>
 
             <Link
               href="/wishlist"
