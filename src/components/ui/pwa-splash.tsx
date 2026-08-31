@@ -5,32 +5,25 @@ import WoxLoader from "@/components/ui/wox-loader";
 
 export default function PwaSplash() {
   const [visible, setVisible] = useState(true);
-  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
-    setMounted(true);
+    // Remove the inline splash that was rendered before React hydrated
+    const inline = document.getElementById("wox-inline-splash");
+    if (inline) inline.remove();
+
     const timer = setTimeout(() => {
       setVisible(false);
     }, 1800);
     return () => clearTimeout(timer);
   }, []);
 
-  if (!mounted) return null;
+  if (!visible) return null;
 
   return (
     <div
+      id="wox-pwa-splash"
       className="fixed inset-0 z-[200] flex items-center justify-center bg-white"
-      style={{
-        opacity: visible ? 1 : 0,
-        transition: "opacity 0.4s ease-out",
-        pointerEvents: visible ? "auto" : "none",
-      }}
-      onAnimationEnd={() => {
-        if (!visible) {
-          const el = document.getElementById("wox-pwa-splash");
-          if (el) el.remove();
-        }
-      }}
+      style={{ opacity: 1, transition: "opacity 0.4s ease-out" }}
     >
       <WoxLoader />
     </div>
