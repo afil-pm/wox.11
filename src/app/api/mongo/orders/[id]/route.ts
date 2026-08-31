@@ -99,6 +99,9 @@ export async function PATCH(
         );
       }
       update.status = status;
+      if (status === "DELIVERED") {
+        update.deliveredAt = new Date();
+      }
     }
 
     if (paymentStatus) {

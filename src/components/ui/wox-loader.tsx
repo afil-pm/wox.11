@@ -6,127 +6,122 @@ export default function WoxLoader({ className }: { className?: string }) {
   return (
     <div
       className={cn(
-        "flex flex-col items-center justify-center gap-6",
+        "flex flex-col items-center justify-center gap-4",
         className
       )}
     >
-      {/* Animated WOX.11 text */}
+      {/* Animated brand mark */}
       <div className="relative flex items-center justify-center">
-        <svg
-          viewBox="0 0 280 60"
-          className="h-16 w-[200px] sm:h-20 sm:w-[240px]"
-          xmlns="http://www.w3.org/2000/svg"
-        >
-          <defs>
-            <linearGradient id="wox-gradient" x1="0%" y1="0%" x2="100%" y2="0%">
-              <stop offset="0%" stopColor="#18181b">
-                <animate
-                  attributeName="stop-color"
-                  values="#18181b;#71717a;#18181b"
-                  dur="2s"
-                  repeatCount="indefinite"
-                />
-              </stop>
-              <stop offset="100%" stopColor="#18181b">
-                <animate
-                  attributeName="stop-color"
-                  values="#18181b;#27272a;#18181b"
-                  dur="2s"
-                  repeatCount="indefinite"
-                />
-              </stop>
-            </linearGradient>
-          </defs>
-          <text
-            x="50%"
-            y="50%"
-            dominantBaseline="central"
-            textAnchor="middle"
-            fontFamily="system-ui, -apple-system, sans-serif"
-            fontSize="48"
-            fontWeight="900"
-            letterSpacing="-2"
-            fill="none"
-            stroke="url(#wox-gradient)"
-            strokeWidth="1.5"
-            style={{
-              strokeDasharray: "800",
-              strokeDashoffset: "800",
-              animation: "stroke-draw 2.5s ease-in-out infinite",
-            }}
+        {/* Glow ring */}
+        <div className="absolute h-20 w-20 rounded-full border border-zinc-200 opacity-0 wox-glow" />
+
+        {/* Brand text with letter stagger */}
+        <div className="flex items-baseline gap-0">
+          {["W", "O", "X"].map((letter, i) => (
+            <span
+              key={`l-${i}`}
+              className="text-4xl font-black tracking-tight text-zinc-900 sm:text-5xl wox-letter"
+              style={{ animationDelay: `${i * 0.12}s` }}
+            >
+              {letter}
+            </span>
+          ))}
+          <span
+            className="ml-0.5 text-4xl font-black tracking-tight text-zinc-400 sm:text-5xl wox-dot"
           >
-            WOX.11
-          </text>
-          <text
-            x="50%"
-            y="50%"
-            dominantBaseline="central"
-            textAnchor="middle"
-            fontFamily="system-ui, -apple-system, sans-serif"
-            fontSize="48"
-            fontWeight="900"
-            letterSpacing="-2"
-            fill="url(#wox-gradient)"
-            style={{
-              strokeDasharray: "800",
-              strokeDashoffset: "800",
-              animation: "fill-in 2.5s ease-in-out infinite",
-            }}
-          >
-            WOX.11
-          </text>
-        </svg>
+            .
+          </span>
+          {["1", "1"].map((digit, i) => (
+            <span
+              key={`d-${i}`}
+              className="text-4xl font-black tracking-tight text-zinc-900 sm:text-5xl wox-letter"
+              style={{ animationDelay: `${(i + 4) * 0.12}s` }}
+            >
+              {digit}
+            </span>
+          ))}
+        </div>
       </div>
 
-      {/* Loading dots */}
-      <div className="flex items-center gap-1.5">
-        {[0, 1, 2].map((i) => (
-          <div
-            key={i}
-            className="h-2 w-2 rounded-full bg-zinc-900"
-            style={{
-              animation: `bounce-dot 1.4s ease-in-out ${i * 0.16}s infinite`,
-            }}
-          />
-        ))}
+      {/* Subtle progress line */}
+      <div className="h-[2px] w-24 overflow-hidden rounded-full bg-zinc-100">
+        <div className="h-full rounded-full bg-zinc-900 wox-progress" />
       </div>
 
       <style jsx>{`
-        @keyframes stroke-draw {
+        @keyframes wox-letter-in {
           0% {
-            stroke-dashoffset: 800;
-          }
-          50% {
-            stroke-dashoffset: 0;
+            opacity: 0;
+            transform: translateY(8px) scale(0.9);
+            filter: blur(4px);
           }
           100% {
-            stroke-dashoffset: -800;
+            opacity: 1;
+            transform: translateY(0) scale(1);
+            filter: blur(0);
           }
         }
-        @keyframes fill-in {
-          0%,
-          20% {
+        @keyframes wox-dot-in {
+          0% {
             opacity: 0;
+            transform: scale(0);
           }
-          40%,
           60% {
             opacity: 1;
+            transform: scale(1.3);
           }
-          80%,
           100% {
-            opacity: 0;
+            opacity: 1;
+            transform: scale(1);
           }
         }
-        @keyframes bounce-dot {
-          0%,
-          80%,
-          100% {
-            transform: scale(0.6);
-            opacity: 0.4;
+        @keyframes wox-glow-pulse {
+          0% {
+            opacity: 0;
+            transform: scale(0.8);
           }
-          40% {
-            transform: scale(1);
-            opacity: 1;
+          50% {
+            opacity: 0.5;
+            transform: scale(1.1);
+          }
+          100% {
+            opacity: 0;
+            transform: scale(1.2);
+          }
+        }
+        @keyframes wox-progress-slide {
+          0% {
+            transform: translateX(-100%);
+          }
+          50% {
+            transform: translateX(0%);
+          }
+          100% {
+            transform: translateX(100%);
+          }
+        }
+        .wox-letter {
+          animation: wox-letter-in 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
+        }
+        .wox-dot {
+          animation: wox-dot-in 0.4s cubic-bezier(0.22, 1, 0.36, 1) 0.48s both;
+        }
+        .wox-glow {
+          animation: wox-glow-pulse 2s ease-in-out infinite;
+        }
+        .wox-progress {
+          animation: wox-progress-slide 1.5s ease-in-out infinite;
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+          .wox-letter,
+          .wox-dot,
+          .wox-glow,
+          .wox-progress {
+            animation: none !important;
+            opacity: 1 !important;
+            transform: none !important;
+            filter: none !important;
           }
         }
       `}</style>

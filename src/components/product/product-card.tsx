@@ -52,7 +52,7 @@ export function ProductCard({ product, className }: ProductCardProps) {
     <Link
       href={productHref}
       className={cn(
-        "group relative flex flex-col overflow-hidden bg-white transition-all hover:shadow-md",
+        "group relative flex flex-col overflow-hidden bg-white transition-all duration-300 hover:shadow-md hover:-translate-y-0.5 tap-highlight-none active:scale-[0.98]",
         className
       )}
     >
@@ -87,7 +87,7 @@ export function ProductCard({ product, className }: ProductCardProps) {
             });
           }}
           className={cn(
-            "absolute right-2 top-2 flex h-8 w-8 items-center justify-center rounded-full bg-white/90 shadow-sm transition-all hover:bg-white",
+            "absolute right-2 top-2 flex h-8 w-8 items-center justify-center rounded-full bg-white/90 shadow-sm transition-all duration-200 hover:bg-white hover:scale-110 active:scale-95",
             isWishlisted ? "opacity-100" : "opacity-0 group-hover:opacity-100"
           )}
           aria-label={isWishlisted ? "Remove from wishlist" : "Add to wishlist"}

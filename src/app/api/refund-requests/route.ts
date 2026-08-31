@@ -15,6 +15,8 @@ function isAdmin(request: NextRequest): boolean {
 
 const refundableStatuses = ["PENDING", "CONFIRMED", "PROCESSING", "PACKED", "SHIPPED", "OUT_FOR_DELIVERY", "DELIVERED"];
 const returnRefundStatuses = ["DELIVERED"];
+const RETURN_WINDOW_DAYS = 7;
+const MIN_PRODUCT_VALUE_FOR_RETURN = 199;
 
 export async function POST(request: NextRequest) {
   try {
@@ -56,8 +58,20 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
     }
 
-    if (order.paymentMethod !== "razorpay") {
-      return NextResponse.json({ error: "Refund is only available for online payments. For COD orders, please contact support." }, { status: 400 });
+    // Both online payment and COD are eligible for refund
+    if (!["razorpay", "cod"].includes(order.paymentMethod)) {
+      return NextResponse.json({ error: "Refund is not available for this payment method" }, { status: 400 });
+    }
+
+    // ₹199 minimum product value check — at least one item must exceed ₹199
+    const hasEligibleProduct = order.items.some(
+      (item: { price: number }) => item.price > MIN_PRODUCT_VALUE_FOR_RETURN
+    );
+    if (!hasEligibleProduct) {
+      return NextResponse.json(
+        { error: "Return/Refund is only available for products with value above ₹199" },
+        { status: 400 }
+      );
     }
 
     if (type === "return_refund" && !returnRefundStatuses.includes(order.status)) {
@@ -70,6 +84,35 @@ export async function POST(request: NextRequest) {
 
     if (type === "cancel_refund" && ["SHIPPED", "OUT_FOR_DELIVERY", "DELIVERED"].includes(order.status)) {
       return NextResponse.json({ error: "Order has already been shipped. Please use Return & Refund instead." }, { status: 400 });
+    }
+
+    // 7-day return window check (from delivery date for return_refund)
+    if (type === "return_refund") {
+      const deliveredAt = order.deliveredAt ? new Date(order.deliveredAt as unknown as string) : null;
+      if (!deliveredAt) {
+        return NextResponse.json({ error: "Delivery date not available for this order" }, { status: 400 });
+      }
+      const now = new Date();
+      const daysSinceDelivery = Math.floor((now.getTime() - deliveredAt.getTime()) / (1000 * 60 * 60 * 24));
+      if (daysSinceDelivery > RETURN_WINDOW_DAYS) {
+        return NextResponse.json(
+          { error: `Return/Refund window has expired. Returns must be requested within ${RETURN_WINDOW_DAYS} days of delivery.` },
+          { status: 400 }
+        );
+      }
+    }
+
+    // For cancel_refund on non-delivered orders, check order age (7 days from creation)
+    if (type === "cancel_refund") {
+      const createdAt = new Date(order.createdAt as unknown as string);
+      const now = new Date();
+      const daysSinceCreation = Math.floor((now.getTime() - createdAt.getTime()) / (1000 * 60 * 60 * 24));
+      if (daysSinceCreation > RETURN_WINDOW_DAYS) {
+        return NextResponse.json(
+          { error: `Cancellation window has expired. Orders can only be cancelled within ${RETURN_WINDOW_DAYS} days of placement.` },
+          { status: 400 }
+        );
+      }
     }
 
     const existingRequest = await RefundRequest.findOne({

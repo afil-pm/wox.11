@@ -72,6 +72,7 @@ export interface IOrder extends Document {
   paymentConfirmedAt?: Date;
   paymentConfirmedBy?: string;
   paymentConfirmationMethod?: "online" | "manual";
+  deliveredAt?: Date;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -171,6 +172,7 @@ const OrderSchema = new Schema<IOrder>(
       type: String,
       enum: ["online", "manual"],
     },
+    deliveredAt: { type: Date },
   },
   { timestamps: true }
 );

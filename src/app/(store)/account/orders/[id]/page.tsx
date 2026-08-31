@@ -3,7 +3,7 @@
 import { useEffect, useState, use } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { ArrowLeft, XCircle, RotateCcw, Truck, CheckCircle2, Clock, Box, Star, Banknote, AlertCircle } from "lucide-react";
+import { ArrowLeft, XCircle, RotateCcw, Truck, CheckCircle2, Clock, Box, Star, Banknote } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -54,6 +54,7 @@ interface Order {
   paymentMethod: string;
   paymentId: string;
   paymentStatus: string;
+  deliveredAt?: string;
   createdAt: string;
 }
 
@@ -383,7 +384,7 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
     return idx >= 0 ? idx : 0;
   }
 
-  const canRefund = order?.paymentMethod === "razorpay" && (order?.paymentStatus === "PAID" || order?.paymentStatus === "COMPLETED");
+  const canRefund = true; // Both online payment and COD are eligible
 
   if (loading) {
     return (
@@ -484,6 +485,24 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
               );
             })}
           </div>
+          {order.status === "DELIVERED" && order.deliveredAt && (() => {
+            const delivered = new Date(order.deliveredAt);
+            const now = new Date();
+            const daysSince = Math.floor((now.getTime() - delivered.getTime()) / (1000 * 60 * 60 * 24));
+            const remaining = Math.max(0, 7 - daysSince);
+            return (
+              <div className="mt-4 rounded-lg bg-zinc-50 p-3 text-xs text-zinc-600">
+                Delivered on {delivered.toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
+                {remaining > 0 ? (
+                  <span className="ml-2 font-medium text-zinc-900">
+                    · {remaining} day{remaining !== 1 ? "s" : ""} left for return/refund
+                  </span>
+                ) : (
+                  <span className="ml-2 font-medium text-red-600">· Return/refund window expired</span>
+                )}
+              </div>
+            );
+          })()}
         </div>
       )}
 
@@ -607,11 +626,10 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
               Request Return &amp; Refund
             </Button>
           )}
-          {returnableStatuses.includes(order.status) && !canRefund && (
-            <div className="flex items-center gap-2 text-sm text-zinc-500">
-              <AlertCircle className="h-4 w-4" />
-              <span>Refunds are only available for online payments. For COD orders, contact support.</span>
-            </div>
+          {returnableStatuses.includes(order.status) && canRefund && (
+            <p className="text-xs text-zinc-400 w-full mt-1">
+              Returns accepted within 7 days of delivery. Products must be above ₹199.
+            </p>
           )}
         </div>
       )}

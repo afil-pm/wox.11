@@ -48,7 +48,7 @@ export default function BottomNav() {
               key={item.label}
               href={item.href}
               className={cn(
-                "relative flex flex-1 flex-col items-center justify-center gap-0.5 py-2 transition-colors",
+                "relative flex flex-1 flex-col items-center justify-center gap-0.5 py-2 transition-all duration-200 active:scale-95 tap-highlight-none",
                 isActive ? "text-zinc-900" : "text-zinc-400"
               )}
             >
