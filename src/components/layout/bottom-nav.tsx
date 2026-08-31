@@ -48,18 +48,27 @@ export default function BottomNav() {
               key={item.label}
               href={item.href}
               className={cn(
-                "relative flex flex-1 flex-col items-center justify-center gap-0.5 py-2 transition-all duration-200 active:scale-95 tap-highlight-none",
+                "group/nav relative flex flex-1 flex-col items-center justify-center gap-0.5 py-2 transition-all duration-200 active:scale-95 tap-highlight-none",
                 isActive ? "text-zinc-900" : "text-zinc-400"
               )}
             >
               <span className="relative">
                 <Icon
-                  className="h-5 w-5"
+                  className="h-5 w-5 transition-transform duration-200 group-active/nav:scale-110"
                   strokeWidth={isActive ? 2.2 : 1.5}
                 />
                 {item.label === "Cart" && <CartBadge />}
               </span>
               <span className="text-[10px] font-medium">{item.label}</span>
+              {/* Underline that expands from center on active tap */}
+              <span
+                className={cn(
+                  "absolute bottom-1 left-1/2 h-0.5 -translate-x-1/2 rounded-full bg-zinc-900 transition-all duration-300 ease-out",
+                  isActive
+                    ? "w-5"
+                    : "w-0 group-active/nav:w-5"
+                )}
+              />
             </Link>
           );
         })}
