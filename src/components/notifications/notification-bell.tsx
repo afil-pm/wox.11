@@ -159,8 +159,17 @@ export default function NotificationBell() {
 
   function handleNotificationClick(n: Notification) {
     if (!n.read) markOneRead(n._id);
+    const stored = localStorage.getItem("wox-user");
+    const user = stored ? JSON.parse(stored) : null;
+    const isAdminUser = user?.role === "ADMIN";
     if (n.orderId) {
-      window.location.href = `/account/orders/${n.orderId}`;
+      if (isAdminUser) {
+        window.location.href = "/wox/admin/orders";
+      } else {
+        window.location.href = `/account/orders/${n.orderId}`;
+      }
+    } else if (isAdminUser) {
+      window.location.href = "/wox/admin";
     }
   }
 

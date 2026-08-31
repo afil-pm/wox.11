@@ -245,6 +245,14 @@ export default function Header() {
                       <User className="h-4 w-4 text-zinc-400" />
                       My Account
                     </Link>
+                    <Link
+                      href="/account/orders"
+                      className="flex items-center gap-3 px-4 py-2.5 text-sm text-zinc-700 transition-colors hover:bg-zinc-50"
+                      onClick={() => setUserMenuOpen(false)}
+                    >
+                      <Package className="h-4 w-4 text-zinc-400" />
+                      My Orders
+                    </Link>
                     {user.role === "ADMIN" && (
                       <Link
                         href="/wox/admin"
