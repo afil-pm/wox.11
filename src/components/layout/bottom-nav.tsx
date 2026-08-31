@@ -30,17 +30,22 @@ const navItems = [
   { label: "Account", href: "/account", icon: User },
 ];
 
+function isActiveRoute(href: string, pathname: string): boolean {
+  if (href === "/") return pathname === "/";
+  if (href === "/account") {
+    return pathname.startsWith("/account") && !pathname.startsWith("/account/orders");
+  }
+  return pathname.startsWith(href);
+}
+
 export default function BottomNav() {
   const pathname = usePathname();
 
   return (
-    <nav className="fixed bottom-0 left-0 z-50 w-full border-t border-zinc-200 bg-white/80 backdrop-blur-lg lg:hidden">
+    <nav className="fixed bottom-0 left-0 z-50 w-full border-t border-zinc-200 bg-white lg:hidden">
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-around px-4">
         {navItems.map((item) => {
-          const isActive =
-            item.href === "/"
-              ? pathname === "/"
-              : pathname.startsWith(item.href);
+          const isActive = isActiveRoute(item.href, pathname);
           const Icon = item.icon;
 
           return (
