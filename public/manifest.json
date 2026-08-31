@@ -4,7 +4,7 @@
   "description": "Premium men's and boys fashion clothing store. Shop shirts, t-shirts, and pants.",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#000000",
+  "background_color": "#fffffff",
   "theme_color": "#18181b",
   "orientation": "portrait-primary",
   "scope": "/",
