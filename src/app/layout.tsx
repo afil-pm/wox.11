@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { PWAInstallBanner } from "@/components/ui/pwa-install-banner";
+import PwaSplash from "@/components/ui/pwa-splash";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -98,6 +99,7 @@ export default function RootLayout({
         <meta name="mobile-web-app-capable" content="yes" />
       </head>
       <body className="min-h-screen flex flex-col">
+        <PwaSplash />
         {children}
         <PWAInstallBanner />
       </body>

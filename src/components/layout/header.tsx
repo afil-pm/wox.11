@@ -127,7 +127,7 @@ export default function Header() {
           {/* Mobile: Hamburger */}
           <button
             type="button"
-            className="relative -ml-0.5 mr-2 flex h-10 w-10 items-center justify-center text-zinc-900 lg:hidden"
+            className="relative -ml-0.5 mr-2 flex h-10 w-10 items-center justify-center text-zinc-900 transition-transform duration-150 active:scale-90 lg:hidden"
             onClick={() => setMobileOpen(true)}
             aria-label="Open menu"
           >
@@ -156,9 +156,10 @@ export default function Header() {
               <Link
                 key={link.href}
                 href={link.href}
-                className="text-sm font-medium text-zinc-600 transition-colors hover:text-zinc-900"
+                className="group relative py-1 text-sm font-medium text-zinc-600 transition-colors duration-200 hover:text-zinc-900"
               >
                 {link.label}
+                <span className="absolute bottom-0 left-1/2 h-0.5 w-0 -translate-x-1/2 rounded-full bg-zinc-900 transition-all duration-300 ease-out group-hover:w-full" />
               </Link>
             ))}
           </nav>
@@ -167,7 +168,7 @@ export default function Header() {
           <div className="hidden items-center gap-1 lg:flex lg:gap-2">
             <button
               type="button"
-              className="flex h-10 w-10 items-center justify-center text-zinc-900 transition-colors hover:text-zinc-600"
+              className="flex h-10 w-10 items-center justify-center text-zinc-900 transition-all duration-150 hover:text-zinc-600 active:scale-90"
               aria-label="Search"
               onClick={() => setSearchOpen(true)}
             >
@@ -178,7 +179,7 @@ export default function Header() {
 
             <Link
               href="/wishlist"
-              className="relative flex h-10 w-10 items-center justify-center text-zinc-900 transition-colors hover:text-zinc-600"
+              className="relative flex h-10 w-10 items-center justify-center text-zinc-900 transition-all duration-150 hover:text-zinc-600 active:scale-90"
               aria-label="Wishlist"
             >
               <Heart className="h-5 w-5" strokeWidth={1.5} />
@@ -187,7 +188,7 @@ export default function Header() {
 
             <Link
               href="/cart"
-              className="relative flex h-10 w-10 items-center justify-center text-zinc-900 transition-colors hover:text-zinc-600"
+              className="relative flex h-10 w-10 items-center justify-center text-zinc-900 transition-all duration-150 hover:text-zinc-600 active:scale-90"
               aria-label="Cart"
             >
               <ShoppingBag className="h-5 w-5" strokeWidth={1.5} />
@@ -280,7 +281,7 @@ export default function Header() {
           <div className="flex items-center gap-1 lg:hidden">
             <button
               type="button"
-              className="flex h-10 w-10 items-center justify-center text-zinc-900 transition-colors hover:text-zinc-600"
+              className="flex h-10 w-10 items-center justify-center text-zinc-900 transition-all duration-150 hover:text-zinc-600 active:scale-90"
               aria-label="Search"
               onClick={() => setSearchOpen(true)}
             >
@@ -291,7 +292,7 @@ export default function Header() {
 
             <Link
               href="/wishlist"
-              className="relative flex h-10 w-10 items-center justify-center text-zinc-900 transition-colors hover:text-zinc-600"
+              className="relative flex h-10 w-10 items-center justify-center text-zinc-900 transition-all duration-150 hover:text-zinc-600 active:scale-90"
               aria-label="Wishlist"
             >
               <Heart className="h-5 w-5" strokeWidth={1.5} />
@@ -300,7 +301,7 @@ export default function Header() {
 
             <Link
               href="/cart"
-              className="relative flex h-10 w-10 items-center justify-center text-zinc-900 transition-colors hover:text-zinc-600"
+              className="relative flex h-10 w-10 items-center justify-center text-zinc-900 transition-all duration-150 hover:text-zinc-600 active:scale-90"
               aria-label="Cart"
             >
               <ShoppingBag className="h-5 w-5" strokeWidth={1.5} />
@@ -341,7 +342,7 @@ export default function Header() {
           <ul className="space-y-1">
             {navLinks.map((link) => (
               <li key={link.href}>
-                <Link href={link.href} className="block rounded-md px-3 py-2.5 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-50 hover:text-zinc-900" onClick={() => setMobileOpen(false)}>
+                <Link href={link.href} className="block rounded-md px-3 py-2.5 text-sm font-medium text-zinc-700 transition-all duration-200 hover:bg-zinc-50 hover:text-zinc-900 active:scale-[0.97] tap-highlight-none" onClick={() => setMobileOpen(false)}>
                   {link.label}
                 </Link>
               </li>
@@ -351,13 +352,13 @@ export default function Header() {
           <div className="mt-6 border-t border-zinc-200 pt-6">
             <ul className="space-y-1">
               <li>
-                <Link href="/wishlist" className="flex items-center gap-3 rounded-md px-3 py-2.5 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-50 hover:text-zinc-900" onClick={() => setMobileOpen(false)}>
+                <Link href="/wishlist" className="flex items-center gap-3 rounded-md px-3 py-2.5 text-sm font-medium text-zinc-700 transition-all duration-200 hover:bg-zinc-50 hover:text-zinc-900 active:scale-[0.97] tap-highlight-none" onClick={() => setMobileOpen(false)}>
                   <Heart className="h-4 w-4" strokeWidth={1.5} />
                   Wishlist
                 </Link>
               </li>
               <li>
-                <Link href="/cart" className="flex items-center gap-3 rounded-md px-3 py-2.5 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-50 hover:text-zinc-900" onClick={() => setMobileOpen(false)}>
+                <Link href="/cart" className="flex items-center gap-3 rounded-md px-3 py-2.5 text-sm font-medium text-zinc-700 transition-all duration-200 hover:bg-zinc-50 hover:text-zinc-900 active:scale-[0.97] tap-highlight-none" onClick={() => setMobileOpen(false)}>
                   <ShoppingBag className="h-4 w-4" strokeWidth={1.5} />
                   Cart
                 </Link>
@@ -370,7 +371,7 @@ export default function Header() {
               <li>
                 {user ? (
                   <>
-                    <Link href={user.role === "ADMIN" ? "/wox/admin" : "/account"} className="flex items-center gap-3 rounded-md px-3 py-2.5 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-50 hover:text-zinc-900" onClick={() => setMobileOpen(false)}>
+                    <Link href={user.role === "ADMIN" ? "/wox/admin" : "/account"} className="flex items-center gap-3 rounded-md px-3 py-2.5 text-sm font-medium text-zinc-700 transition-all duration-200 hover:bg-zinc-50 hover:text-zinc-900 active:scale-[0.97] tap-highlight-none" onClick={() => setMobileOpen(false)}>
                       <span className="relative">
                         <User className="h-4 w-4" strokeWidth={1.5} />
                         {isAdmin && counts.total > 0 && (
@@ -381,13 +382,13 @@ export default function Header() {
                       </span>
                       {user.name}
                     </Link>
-                    <button type="button" onClick={() => { handleLogoutClick(); setMobileOpen(false); }} className="flex w-full items-center gap-3 rounded-md px-3 py-2.5 text-sm font-medium text-red-600 transition-colors hover:bg-red-50">
+                    <button type="button" onClick={() => { handleLogoutClick(); setMobileOpen(false); }} className="flex w-full items-center gap-3 rounded-md px-3 py-2.5 text-sm font-medium text-red-600 transition-all duration-200 hover:bg-red-50 active:scale-[0.97] tap-highlight-none">
                       <LogOut className="h-4 w-4" strokeWidth={1.5} />
                       Sign Out
                     </button>
                   </>
                 ) : (
-                  <Link href="/auth/login" className="flex items-center gap-3 rounded-md px-3 py-2.5 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-50 hover:text-zinc-900" onClick={() => setMobileOpen(false)}>
+                  <Link href="/auth/login" className="flex items-center gap-3 rounded-md px-3 py-2.5 text-sm font-medium text-zinc-700 transition-all duration-200 hover:bg-zinc-50 hover:text-zinc-900 active:scale-[0.97] tap-highlight-none" onClick={() => setMobileOpen(false)}>
                     <User className="h-4 w-4" strokeWidth={1.5} />
                     Sign In / Register
                   </Link>
