@@ -268,7 +268,7 @@ export default function CartPage() {
                   type="text"
                   placeholder="Coupon code"
                   value={couponCode}
-                  onChange={(e) => { setCouponCode(e.target.value); setCouponError(""); }}
+                  onChange={(e) => { setCouponCode(e.target.value.toUpperCase()); setCouponError(""); }}
                   className="h-10 flex-1 text-sm"
                 />
                 {appliedCoupon ? (
