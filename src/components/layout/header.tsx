@@ -50,6 +50,7 @@ const navLinks = [
   { label: "Boys", href: "/boys" },
   { label: "New Arrivals", href: "/new-arrivals" },
   { label: "Best Sellers", href: "/best-sellers" },
+  { label: "Orders", href: "/account/orders" },
 ];
 
 export default function Header() {
