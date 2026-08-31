@@ -223,7 +223,10 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
     return idx >= 0 ? idx : 0;
   }
 
-  const canRefund = true; // Both online payment and COD are eligible
+  const isDelivered = order?.status === "DELIVERED";
+  const isOnlinePaid = order?.paymentMethod === "razorpay";
+  const isCOD = order?.paymentMethod === "cod";
+  const isPreDelivery = order && !isDelivered && !["CANCELLED", "RETURNED", "REFUNDED"].includes(order.status);
 
   if (loading) {
     return (
@@ -444,15 +447,17 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
       {/* Actions */}
       {!existingRefund && order.status !== "CANCELLED" && order.status !== "RETURNED" && order.status !== "REFUNDED" && (
         <div className="mt-4 flex flex-wrap gap-3 rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
-          {cancelableStatuses.includes(order.status) && (
+          {/* Cancel: COD before delivery OR Online paid (before delivery with refund) */}
+          {isPreDelivery && cancelableStatuses.includes(order.status) && (
             <Link href={`/account/orders/${id}/actions/cancel`}>
               <Button variant="destructive">
                 <XCircle className="mr-1 h-4 w-4" />
-                Cancel Order &amp; Refund
+                {isOnlinePaid ? "Cancel Order & Refund" : "Cancel Order"}
               </Button>
             </Link>
           )}
-          {returnableStatuses.includes(order.status) && canRefund && (
+          {/* Return & Refund: Only after delivery */}
+          {isDelivered && (
             <Link href={`/account/orders/${id}/actions/return`}>
               <Button variant="outline" className="border-orange-300 text-orange-600 hover:bg-orange-50">
                 <RotateCcw className="mr-1 h-4 w-4" />
@@ -460,7 +465,8 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
               </Button>
             </Link>
           )}
-          {replaceableStatuses.includes(order.status) && (
+          {/* Replacement: Only after delivery */}
+          {isDelivered && (
             <Link href={`/account/orders/${id}/actions/replace`}>
               <Button variant="outline" className="border-blue-300 text-blue-600 hover:bg-blue-50">
                 <RefreshCw className="mr-1 h-4 w-4" />
@@ -468,7 +474,7 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
               </Button>
             </Link>
           )}
-          {returnableStatuses.includes(order.status) && canRefund && (
+          {isDelivered && (
             <p className="text-xs text-zinc-400 w-full mt-1">
               Returns accepted within 7 days of delivery. Products must be above ₹199.
             </p>

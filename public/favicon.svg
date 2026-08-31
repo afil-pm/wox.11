@@ -1,4 +1,74 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
-  <circle cx="32" cy="32" r="32" fill="#000000"/>
-  <text x="32" y="40" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-weight="900" font-size="28" fill="#ffffff" letter-spacing="-1">W11</text>
-</svg>
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- Created with Inkscape (http://www.inkscape.org/) -->
+
+<svg
+   width="830.88977mm"
+   height="830.88983mm"
+   viewBox="0 0 830.88977 830.88983"
+   version="1.1"
+   id="svg1"
+   xml:space="preserve"
+   sodipodi:docname="wox11(1).svg"
+   inkscape:export-filename="Programing\WOX.11\public\favicon.png"
+   inkscape:export-xdpi="1.9564568"
+   inkscape:export-ydpi="1.9564568"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg"><sodipodi:namedview
+     id="namedview1"
+     pagecolor="#ffffff"
+     bordercolor="#cccccc"
+     borderopacity="1"
+     inkscape:showpageshadow="0"
+     inkscape:pageopacity="1"
+     inkscape:pagecheckerboard="0"
+     inkscape:deskcolor="#d1d1d1"
+     inkscape:document-units="mm"><inkscape:page
+       x="0"
+       y="0"
+       width="830.88977"
+       height="830.88983"
+       id="page2"
+       margin="0"
+       bleed="0" /></sodipodi:namedview><defs
+     id="defs1" /><g
+     inkscape:label="Layer 1"
+     inkscape:groupmode="layer"
+     id="layer1"
+     transform="translate(1100.72,356.66383)"><g
+       id="g2"
+       inkscape:export-filename="woxicoOG.png"
+       inkscape:export-xdpi="30.569637"
+       inkscape:export-ydpi="30.569637"
+       transform="matrix(5.2681341,0,0,5.2681341,175.61882,-3351.0364)"><circle
+         style="fill:#000000;stroke-width:0.264583"
+         id="path1"
+         cx="-163.41534"
+         cy="647.25336"
+         r="78.85997"
+         inkscape:export-filename="wox11(1).png"
+         inkscape:export-xdpi="100"
+         inkscape:export-ydpi="100" /><g
+         id="g1"
+         transform="translate(0,-5.089872)"><text
+           xml:space="preserve"
+           style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:45.5085px;font-family:'Roboto Slab';-inkscape-font-specification:'Roboto Slab Bold';text-align:start;writing-mode:lr-tb;direction:ltr;text-anchor:start;fill:#ffffff;stroke-width:0.474046"
+           x="-208.81271"
+           y="662.70728"
+           id="text1"><tspan
+             sodipodi:role="line"
+             id="tspan1"
+             style="font-style:normal;font-variant:normal;font-weight:900;font-stretch:normal;font-family:system-ui, '-apple-system', sans-serif;-inkscape-font-specification:'system-ui, -apple-system, sans-serif Heavy';fill:#ffffff;stroke-width:0.474046"
+             x="-208.81271"
+             y="662.70728">W11</tspan></text><text
+           xml:space="preserve"
+           style="font-weight:bold;font-size:8.35167px;font-family:'Trebuchet MS';-inkscape-font-specification:'Trebuchet MS Bold';text-align:start;writing-mode:lr-tb;direction:ltr;text-anchor:start;fill:#ffffff;stroke-width:0.0869966"
+           x="-202.31409"
+           y="672.1358"
+           id="text2"><tspan
+             sodipodi:role="line"
+             id="tspan2"
+             style="fill:#ffffff;stroke-width:0.0869966"
+             x="-202.31409"
+             y="672.1358">Define Your Everyday</tspan></text></g></g></g></svg>

@@ -324,10 +324,39 @@ export default function OrderActionPage({
     );
   }
 
-  const canDoAction =
-    (validAction === "cancel" && cancelableStatuses.includes(order.status)) ||
-    (validAction === "return" && returnableStatuses.includes(order.status)) ||
-    (validAction === "replace" && replaceableStatuses.includes(order.status));
+  const isDelivered = order.status === "DELIVERED";
+  const isOnlinePaid = order.paymentMethod === "razorpay";
+  const isCOD = order.paymentMethod === "cod";
+  const isPreDelivery = !isDelivered && !["CANCELLED", "RETURNED", "REFUNDED"].includes(order.status);
+
+  let canDoAction = false;
+  let blockReason = "";
+
+  if (validAction === "cancel") {
+    if (isPreDelivery && cancelableStatuses.includes(order.status)) {
+      canDoAction = true;
+    } else if (isDelivered) {
+      blockReason = "This order has already been delivered. You can request a return instead.";
+    } else {
+      blockReason = `This action is not available for an order with status "${order.status}".`;
+    }
+  } else if (validAction === "return") {
+    if (isDelivered) {
+      canDoAction = true;
+    } else if (isCOD) {
+      blockReason = "Return & Refund is not available for COD orders before delivery. Please wait until the order is delivered and payment is confirmed.";
+    } else if (isPreDelivery) {
+      blockReason = "Return & Refund is only available after the order has been delivered.";
+    } else {
+      blockReason = `This action is not available for an order with status "${order.status}".`;
+    }
+  } else if (validAction === "replace") {
+    if (isDelivered) {
+      canDoAction = true;
+    } else {
+      blockReason = "Replacement is only available after the order has been delivered.";
+    }
+  }
 
   if (!canDoAction) {
     return (
@@ -340,7 +369,7 @@ export default function OrderActionPage({
         </div>
         <div className="rounded-2xl border border-zinc-200 bg-white p-10 text-center shadow-sm">
           <p className="text-sm text-zinc-500">
-            This action is not available for an order with status &quot;{order.status}&quot;.
+            {blockReason || `This action is not available for an order with status "${order.status}".`}
           </p>
           <Link href={`/account/orders/${id}`} className="mt-4 inline-block">
             <Button variant="outline">Back to Order</Button>
@@ -362,6 +391,8 @@ export default function OrderActionPage({
           <p className="mt-2 text-sm text-zinc-500">
             {validAction === "replace"
               ? "Your replacement request has been submitted. Our team will contact you shortly."
+              : validAction === "cancel" && isCOD
+              ? "Your order has been cancelled successfully."
               : `Your ${validAction === "cancel" ? "cancellation" : "return"} request has been submitted. We will review it shortly.`}
           </p>
           <Link href={`/account/orders/${id}`} className="mt-6 inline-block">
@@ -374,7 +405,11 @@ export default function OrderActionPage({
 
   const config = actionConfig[validAction];
   const ConfigIcon = config.icon;
-  const showBankDetails = validAction !== "replace";
+  const showBankDetails = validAction !== "replace" && !(validAction === "cancel" && isCOD);
+  const displayTitle = validAction === "cancel" && isCOD ? "Cancel Order" : config.title;
+  const displaySubtitle = validAction === "cancel" && isCOD
+    ? "Your order will be cancelled. No payment has been collected yet."
+    : config.subtitle;
 
   return (
     <div className="mx-auto max-w-2xl px-4 py-8 pb-24 sm:px-6 sm:pb-8 lg:px-8">
@@ -385,7 +420,7 @@ export default function OrderActionPage({
         </Link>
         <div>
           <h1 className={cn("text-2xl font-bold tracking-tight", config.color)}>
-            {config.title}
+            {displayTitle}
           </h1>
           <p className="text-xs text-zinc-500">Order {order.orderNumber}</p>
         </div>
@@ -417,7 +452,9 @@ export default function OrderActionPage({
           <div className="flex items-center gap-2">
             <Banknote className="h-4 w-4 text-zinc-500" />
             <p className="text-sm font-medium text-zinc-900">
-              Refund of {formatPrice(order.total)} will be credited within 5-7 business days.
+              {validAction === "cancel" && isCOD
+                ? "Your order will be cancelled. No payment has been collected."
+                : `Refund of ${formatPrice(order.total)} will be credited within 5-7 business days.`}
             </p>
           </div>
         </div>
