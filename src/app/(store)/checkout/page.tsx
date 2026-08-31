@@ -15,11 +15,13 @@ import {
   ShoppingCart,
   MapPin,
   Plus,
+  QrCode,
 } from "lucide-react";
 import { cn, formatPrice } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import OrderSuccess from "@/components/ui/order-success";
+import QrPayment from "@/components/checkout/qr-payment";
 import useCartStore from "@/lib/stores/cart";
 import { calculateOrderTax, SELLER_STATE, getApparelGstRate } from "@/lib/tax";
 import {
@@ -176,6 +178,11 @@ export default function CheckoutPage() {
     };
   } | null>(null);
   const [razorpayLoaded, setRazorpayLoaded] = useState(false);
+
+  const [isDesktop, setIsDesktop] = useState(false);
+  const [payViaQr, setPayViaQr] = useState(false);
+  const [qrRazorpayOrderId, setQrRazorpayOrderId] = useState("");
+  const [qrRazorpayKeyId, setQrRazorpayKeyId] = useState("");
   const checkoutRef = useRef<HTMLDivElement>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, boolean>>({});
   const [shakingFields, setShakingFields] = useState<Record<string, boolean>>({});
@@ -194,6 +201,13 @@ export default function CheckoutPage() {
     script.src = "https://checkout.razorpay.com/v1/checkout.js";
     script.onload = () => setRazorpayLoaded(true);
     document.body.appendChild(script);
+  }, []);
+
+  useEffect(() => {
+    const check = () => setIsDesktop(window.innerWidth >= 1024);
+    check();
+    window.addEventListener("resize", check);
+    return () => window.removeEventListener("resize", check);
   }, []);
 
   useEffect(() => {
@@ -415,6 +429,26 @@ export default function CheckoutPage() {
     setCurrentStep(5);
   }
 
+  function handleQrPaymentSuccess(paymentId: string) {
+    const orderNum = generateOrderNumber();
+    setOrderSaving(true);
+    setOrderError(null);
+    saveOrderToDB(orderNum, paymentId)
+      .then(() => finalizeOrder(orderNum))
+      .catch((e) => {
+        setOrderError(
+          e instanceof Error ? e.message : "Payment successful but order save failed. Please contact support."
+        );
+      })
+      .finally(() => setOrderSaving(false));
+  }
+
+  function handleQrPaymentFailure(error: string) {
+    setOrderError(error);
+    setPayViaQr(false);
+    setQrRazorpayOrderId("");
+  }
+
   function handleSelectSavedAddress(addr: SavedAddress) {
     setSelectedSavedId(addr.id);
     setNewAddress({
@@ -468,6 +502,13 @@ export default function CheckoutPage() {
       }
 
       const payData = await payRes.json();
+
+      if (payViaQr) {
+        setQrRazorpayOrderId(payData.orderId);
+        setQrRazorpayKeyId(payData.keyId);
+        setOrderSaving(false);
+        return;
+      }
 
       const stored = localStorage.getItem("wox-user");
       const user = stored ? JSON.parse(stored) : null;
@@ -1146,17 +1187,74 @@ export default function CheckoutPage() {
                 )}
 
                 {paymentMethod === "razorpay" && (
-                  <div className="rounded-lg border border-zinc-200 bg-zinc-50 p-6">
-                    <div className="flex flex-col items-center justify-center text-center">
-                      <CreditCard className="h-10 w-10 text-zinc-300" />
-                      <p className="mt-3 text-sm font-medium text-zinc-900">
-                        Secure Online Payment
-                      </p>
-                      <p className="mt-1 text-xs text-zinc-500">
-                        You will be redirected to Razorpay to complete the
-                        payment securely. Order is placed only after payment.
-                      </p>
-                    </div>
+                  <div className="space-y-3">
+                    {isDesktop ? (
+                      <>
+                        <label
+                          className={cn(
+                            "flex cursor-pointer items-center gap-4 rounded-lg border p-4 transition-all",
+                            !payViaQr
+                              ? "border-zinc-900 bg-zinc-50"
+                              : "border-zinc-200 hover:border-zinc-300"
+                          )}
+                        >
+                          <input
+                            type="radio"
+                            name="payvia"
+                            checked={!payViaQr}
+                            onChange={() => setPayViaQr(false)}
+                            className="h-4 w-4 accent-zinc-900"
+                          />
+                          <CreditCard className="h-5 w-5 text-zinc-600" />
+                          <div className="flex-1">
+                            <span className="text-sm font-medium text-zinc-900">
+                              Pay via Card / UPI / Net Banking
+                            </span>
+                            <p className="mt-0.5 text-xs text-zinc-500">
+                              Redirected to Razorpay secure checkout
+                            </p>
+                          </div>
+                        </label>
+                        <label
+                          className={cn(
+                            "flex cursor-pointer items-center gap-4 rounded-lg border p-4 transition-all",
+                            payViaQr
+                              ? "border-zinc-900 bg-zinc-50"
+                              : "border-zinc-200 hover:border-zinc-300"
+                          )}
+                        >
+                          <input
+                            type="radio"
+                            name="payvia"
+                            checked={payViaQr}
+                            onChange={() => setPayViaQr(true)}
+                            className="h-4 w-4 accent-zinc-900"
+                          />
+                          <QrCode className="h-5 w-5 text-zinc-600" />
+                          <div className="flex-1">
+                            <span className="text-sm font-medium text-zinc-900">
+                              Scan QR Code
+                            </span>
+                            <p className="mt-0.5 text-xs text-zinc-500">
+                              Scan with your phone&apos;s UPI app to pay
+                            </p>
+                          </div>
+                        </label>
+                      </>
+                    ) : (
+                      <div className="rounded-lg border border-zinc-200 bg-zinc-50 p-6">
+                        <div className="flex flex-col items-center justify-center text-center">
+                          <CreditCard className="h-10 w-10 text-zinc-300" />
+                          <p className="mt-3 text-sm font-medium text-zinc-900">
+                            Secure Online Payment
+                          </p>
+                          <p className="mt-1 text-xs text-zinc-500">
+                            You will be redirected to Razorpay to complete the
+                            payment securely. Order is placed only after payment.
+                          </p>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
 
@@ -1183,6 +1281,36 @@ export default function CheckoutPage() {
             {/* Step 4: Review */}
             {currentStep === 4 && (
               <div className="space-y-6">
+                {qrRazorpayOrderId ? (
+                  <div className="rounded-lg border border-zinc-200 p-6">
+                    <h2 className="mb-4 text-lg font-semibold text-zinc-900">
+                      Scan to Pay
+                    </h2>
+                    <QrPayment
+                      amount={total}
+                      orderNumber={generateOrderNumber()}
+                      razorpayOrderId={qrRazorpayOrderId}
+                      razorpayKeyId={qrRazorpayKeyId}
+                      customerName={newAddress.name}
+                      customerPhone={newAddress.phone}
+                      onSuccess={handleQrPaymentSuccess}
+                      onFailure={handleQrPaymentFailure}
+                    />
+                    <div className="mt-4 flex justify-center">
+                      <Button
+                        variant="outline"
+                        onClick={() => {
+                          setQrRazorpayOrderId("");
+                          setPayViaQr(false);
+                        }}
+                        className="text-sm"
+                      >
+                        Cancel and choose another payment method
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                <>
                 <h2 className="text-lg font-semibold text-zinc-900">
                   Review Order
                 </h2>
@@ -1383,6 +1511,8 @@ export default function CheckoutPage() {
                     )}
                   </Button>
                 </div>
+                </>
+                )}
               </div>
             )}
 
