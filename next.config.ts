@@ -33,6 +33,20 @@ const nextConfig: NextConfig = {
       source: "/(.*)",
       headers: securityHeaders,
     },
+    {
+      source: "/manifest.json",
+      headers: [
+        { key: "Cache-Control", value: "no-store, no-cache, must-revalidate, max-age=0" },
+        { key: "Pragma", value: "no-cache" },
+      ],
+    },
+    {
+      source: "/sw.js",
+      headers: [
+        { key: "Cache-Control", value: "no-store, no-cache, must-revalidate, max-age=0" },
+        { key: "Service-Worker-Allowed", value: "/" },
+      ],
+    },
   ],
 };
 
