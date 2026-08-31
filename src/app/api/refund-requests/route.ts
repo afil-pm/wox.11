@@ -59,8 +59,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "All bank details are required" }, { status: 400 });
     }
 
-    if (!/^[A-Z]{4}0[A-Z0-9]{6}$/.test(bankDetails.ifscCode.trim().toUpperCase())) {
-      return NextResponse.json({ error: "Invalid IFSC code format" }, { status: 400 });
+    if (!/^[A-Za-z]{4}0[A-Za-z0-9]{6}$/.test(bankDetails.ifscCode.trim())) {
+      return NextResponse.json({ error: "Invalid IFSC code format (e.g., SBIN0001234)" }, { status: 400 });
     }
 
     if (reason.trim().length < 5 || reason.trim().length > 500) {
@@ -220,7 +220,8 @@ export async function POST(request: NextRequest) {
     }, { status: 201 });
   } catch (error) {
     console.error("POST /api/refund-requests error:", error);
-    return NextResponse.json({ error: "Failed to submit refund request" }, { status: 500 });
+    const message = error instanceof Error ? error.message : "Failed to submit refund request";
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }
 

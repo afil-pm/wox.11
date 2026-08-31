@@ -268,7 +268,7 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
         setRefundError("Account numbers do not match");
         return;
       }
-      if (!/^[A-Z]{4}0[A-Z0-9]{6}$/.test(refundBankDetails.ifscCode.trim().toUpperCase())) {
+      if (!/^[A-Za-z]{4}0[A-Za-z0-9]{6}$/.test(refundBankDetails.ifscCode.trim())) {
         setRefundError("Invalid IFSC code format (e.g., SBIN0001234)");
         return;
       }
