@@ -56,7 +56,7 @@ export default function QrPayment({
     const upiString = `upi://pay?pa=${encodeURIComponent(upiId)}&pn=${encodeURIComponent(merchantName)}&am=${amount}&cu=INR&tn=${encodeURIComponent(`Order ${orderNumber}`)}`;
 
     try {
-      const dataUrl = await QRCode.toDataURL(upiString.toUpperCase(), {
+      const dataUrl = await QRCode.toDataURL(upiString, {
         width: 280,
         margin: 2,
         color: { dark: "#000000", light: "#ffffff" },
