@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import Link from "next/link";
 import dynamic from "next/dynamic";
+import { usePathname } from "next/navigation";
 import { Search, User, Heart, ShoppingBag, Menu, X, LogOut, Package, Settings, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import SearchModal from "@/components/search/search-modal";
@@ -61,6 +62,7 @@ export default function Header() {
   const openSignOut = useSignOutStore((s) => s.open);
   const isAdmin = user?.role === "ADMIN";
   const { counts } = useUnreadCounts(isAdmin);
+  const pathname = usePathname();
 
   useEffect(() => {
     const checkAuth = () => {
@@ -333,32 +335,70 @@ export default function Header() {
       >
         <div className="flex h-16 items-center justify-between border-b border-zinc-200 px-6">
           <span className="text-lg font-bold tracking-wider text-zinc-900">WOX.11</span>
-          <button type="button" className="flex h-10 w-10 items-center justify-center text-zinc-900" onClick={() => setMobileOpen(false)} aria-label="Close menu">
+          <button
+            type="button"
+            className="flex h-10 w-10 items-center justify-center rounded-xl text-zinc-900 transition-all duration-200 hover:bg-zinc-100 active:scale-90"
+            onClick={() => setMobileOpen(false)}
+            aria-label="Close menu"
+          >
             <X className="h-5 w-5" strokeWidth={1.5} />
           </button>
         </div>
 
         <nav className="flex-1 overflow-y-auto px-6 py-6">
           <ul className="space-y-1">
-            {navLinks.map((link) => (
-              <li key={link.href}>
-                <Link href={link.href} className="block rounded-md px-3 py-2.5 text-sm font-medium text-zinc-700 transition-all duration-200 hover:bg-zinc-50 hover:text-zinc-900 active:scale-[0.97] tap-highlight-none" onClick={() => setMobileOpen(false)}>
-                  {link.label}
-                </Link>
-              </li>
-            ))}
+            {navLinks.map((link, i) => {
+              const isActive = pathname === link.href || pathname.startsWith(link.href + "/");
+              return (
+                <li key={link.href}>
+                  <Link
+                    href={link.href}
+                    className={cn(
+                      "drawer-item-hover nav-press-effect block rounded-xl px-4 py-3 text-sm font-medium transition-all duration-200 active:scale-[0.97] tap-highlight-none animate-drawer-in",
+                      isActive
+                        ? "bg-zinc-900 text-white shadow-sm"
+                        : "text-zinc-700 hover:bg-zinc-50 hover:text-zinc-900"
+                    )}
+                    style={{ animationDelay: `${i * 40}ms` }}
+                    onClick={() => setMobileOpen(false)}
+                  >
+                    {link.label}
+                  </Link>
+                </li>
+              );
+            })}
           </ul>
 
           <div className="mt-6 border-t border-zinc-200 pt-6">
             <ul className="space-y-1">
               <li>
-                <Link href="/wishlist" className="flex items-center gap-3 rounded-md px-3 py-2.5 text-sm font-medium text-zinc-700 transition-all duration-200 hover:bg-zinc-50 hover:text-zinc-900 active:scale-[0.97] tap-highlight-none" onClick={() => setMobileOpen(false)}>
+                <Link
+                  href="/wishlist"
+                  className={cn(
+                    "drawer-item-hover nav-press-effect flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium transition-all duration-200 active:scale-[0.97] tap-highlight-none animate-drawer-in",
+                    pathname === "/wishlist"
+                      ? "bg-zinc-900 text-white shadow-sm"
+                      : "text-zinc-700 hover:bg-zinc-50 hover:text-zinc-900"
+                  )}
+                  style={{ animationDelay: `${navLinks.length * 40}ms` }}
+                  onClick={() => setMobileOpen(false)}
+                >
                   <Heart className="h-4 w-4" strokeWidth={1.5} />
                   Wishlist
                 </Link>
               </li>
               <li>
-                <Link href="/cart" className="flex items-center gap-3 rounded-md px-3 py-2.5 text-sm font-medium text-zinc-700 transition-all duration-200 hover:bg-zinc-50 hover:text-zinc-900 active:scale-[0.97] tap-highlight-none" onClick={() => setMobileOpen(false)}>
+                <Link
+                  href="/cart"
+                  className={cn(
+                    "drawer-item-hover nav-press-effect flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium transition-all duration-200 active:scale-[0.97] tap-highlight-none animate-drawer-in",
+                    pathname === "/cart"
+                      ? "bg-zinc-900 text-white shadow-sm"
+                      : "text-zinc-700 hover:bg-zinc-50 hover:text-zinc-900"
+                  )}
+                  style={{ animationDelay: `${(navLinks.length + 1) * 40}ms` }}
+                  onClick={() => setMobileOpen(false)}
+                >
                   <ShoppingBag className="h-4 w-4" strokeWidth={1.5} />
                   Cart
                 </Link>
@@ -371,7 +411,17 @@ export default function Header() {
               <li>
                 {user ? (
                   <>
-                    <Link href={user.role === "ADMIN" ? "/wox/admin" : "/account"} className="flex items-center gap-3 rounded-md px-3 py-2.5 text-sm font-medium text-zinc-700 transition-all duration-200 hover:bg-zinc-50 hover:text-zinc-900 active:scale-[0.97] tap-highlight-none" onClick={() => setMobileOpen(false)}>
+                    <Link
+                      href={user.role === "ADMIN" ? "/wox/admin" : "/account"}
+                      className={cn(
+                        "drawer-item-hover nav-press-effect flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium transition-all duration-200 active:scale-[0.97] tap-highlight-none animate-drawer-in",
+                        (pathname === "/account" || pathname.startsWith("/wox/admin"))
+                          ? "bg-zinc-900 text-white shadow-sm"
+                          : "text-zinc-700 hover:bg-zinc-50 hover:text-zinc-900"
+                      )}
+                      style={{ animationDelay: `${(navLinks.length + 2) * 40}ms` }}
+                      onClick={() => setMobileOpen(false)}
+                    >
                       <span className="relative">
                         <User className="h-4 w-4" strokeWidth={1.5} />
                         {isAdmin && counts.total > 0 && (
@@ -382,13 +432,28 @@ export default function Header() {
                       </span>
                       {user.name}
                     </Link>
-                    <button type="button" onClick={() => { handleLogoutClick(); setMobileOpen(false); }} className="flex w-full items-center gap-3 rounded-md px-3 py-2.5 text-sm font-medium text-red-600 transition-all duration-200 hover:bg-red-50 active:scale-[0.97] tap-highlight-none">
+                    <button
+                      type="button"
+                      onClick={() => { handleLogoutClick(); setMobileOpen(false); }}
+                      className="nav-press-effect flex w-full items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium text-red-600 transition-all duration-200 hover:bg-red-50 active:scale-[0.97] tap-highlight-none animate-drawer-in"
+                      style={{ animationDelay: `${(navLinks.length + 3) * 40}ms` }}
+                    >
                       <LogOut className="h-4 w-4" strokeWidth={1.5} />
                       Sign Out
                     </button>
                   </>
                 ) : (
-                  <Link href="/auth/login" className="flex items-center gap-3 rounded-md px-3 py-2.5 text-sm font-medium text-zinc-700 transition-all duration-200 hover:bg-zinc-50 hover:text-zinc-900 active:scale-[0.97] tap-highlight-none" onClick={() => setMobileOpen(false)}>
+                  <Link
+                    href="/auth/login"
+                    className={cn(
+                      "drawer-item-hover nav-press-effect flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium transition-all duration-200 active:scale-[0.97] tap-highlight-none animate-drawer-in",
+                      pathname === "/auth/login"
+                        ? "bg-zinc-900 text-white shadow-sm"
+                        : "text-zinc-700 hover:bg-zinc-50 hover:text-zinc-900"
+                    )}
+                    style={{ animationDelay: `${(navLinks.length + 2) * 40}ms` }}
+                    onClick={() => setMobileOpen(false)}
+                  >
                     <User className="h-4 w-4" strokeWidth={1.5} />
                     Sign In / Register
                   </Link>

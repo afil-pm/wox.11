@@ -34,7 +34,7 @@ export default function BottomNav() {
   const pathname = usePathname();
 
   return (
-    <nav className="fixed bottom-0 left-0 z-50 w-full border-t border-zinc-200 bg-white lg:hidden">
+    <nav className="fixed bottom-0 left-0 z-50 w-full border-t border-zinc-200 bg-white/80 backdrop-blur-lg lg:hidden">
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-around px-4">
         {navItems.map((item) => {
           const isActive =
@@ -48,25 +48,48 @@ export default function BottomNav() {
               key={item.label}
               href={item.href}
               className={cn(
-                "group/nav relative flex flex-1 flex-col items-center justify-center gap-0.5 py-2 transition-all duration-200 active:scale-95 tap-highlight-none",
+                "group/nav relative flex flex-1 flex-col items-center justify-center gap-0.5 py-2 tap-highlight-none",
+                "transition-all duration-200 active:scale-90",
                 isActive ? "text-zinc-900" : "text-zinc-400"
               )}
             >
-              <span className="relative">
+              {/* Active pill background */}
+              <span
+                className={cn(
+                  "absolute top-0.5 left-1/2 h-8 w-8 -translate-x-1/2 rounded-full transition-all duration-300 ease-out",
+                  isActive
+                    ? "bg-zinc-100 scale-100 opacity-100"
+                    : "bg-transparent scale-75 opacity-0 group-active/nav:scale-100 group-active/nav:bg-zinc-100 group-active/nav:opacity-100"
+                )}
+              />
+
+              <span className="relative z-10">
                 <Icon
-                  className="h-5 w-5 transition-transform duration-200 group-active/nav:scale-110"
-                  strokeWidth={isActive ? 2.2 : 1.5}
+                  className={cn(
+                    "h-5 w-5 transition-all duration-200",
+                    "group-active/nav:scale-125",
+                    isActive ? "stroke-[2.2]" : "stroke-[1.5]"
+                  )}
                 />
                 {item.label === "Cart" && <CartBadge />}
               </span>
-              <span className="text-[10px] font-medium">{item.label}</span>
-              {/* Underline that expands from center on active tap */}
+
               <span
                 className={cn(
-                  "absolute bottom-1 left-1/2 h-0.5 -translate-x-1/2 rounded-full bg-zinc-900 transition-all duration-300 ease-out",
+                  "relative z-10 text-[10px] font-medium transition-all duration-200",
+                  isActive ? "opacity-100" : "opacity-70 group-active/nav:opacity-100"
+                )}
+              >
+                {item.label}
+              </span>
+
+              {/* Underline that expands from center */}
+              <span
+                className={cn(
+                  "absolute bottom-1 left-1/2 h-0.5 -translate-x-1/2 rounded-full transition-all duration-300 ease-out",
                   isActive
-                    ? "w-5"
-                    : "w-0 group-active/nav:w-5"
+                    ? "w-5 bg-zinc-900"
+                    : "w-0 bg-zinc-400 group-active/nav:w-5 group-active/nav:bg-zinc-400"
                 )}
               />
             </Link>

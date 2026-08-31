@@ -99,6 +99,28 @@ body {
   75% { transform: translateX(-1px); border-color: #dc2626; }
 }
 
+@keyframes drawer-item-in {
+  from {
+    opacity: 0;
+    transform: translateX(-16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes drawer-item-in-right {
+  from {
+    opacity: 0;
+    transform: translateX(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
 .animate-shake-field {
   animation: shake-field 0.4s ease-in-out;
   border-color: #dc2626 !important;
@@ -129,6 +151,71 @@ body {
   }
   .tap-highlight-none {
     -webkit-tap-highlight-color: transparent;
+  }
+
+  /* Mobile drawer stagger-in */
+  .animate-drawer-in {
+    animation: drawer-item-in 0.3s cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+
+  /* Nav press ripple feedback */
+  .nav-press-effect {
+    position: relative;
+    overflow: hidden;
+  }
+  .nav-press-effect::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background: radial-gradient(circle at var(--ripple-x, 50%) var(--ripple-y, 50%), rgba(0,0,0,0.08) 0%, transparent 70%);
+    opacity: 0;
+    transition: opacity 0.4s ease;
+    pointer-events: none;
+  }
+  .nav-press-effect:active::after {
+    opacity: 1;
+    transition: opacity 0s;
+  }
+
+  /* Bottom nav active pill */
+  .bottom-nav-active-pill {
+    position: relative;
+  }
+  .bottom-nav-active-pill::before {
+    content: "";
+    position: absolute;
+    top: 2px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 32px;
+    height: 32px;
+    border-radius: 9999px;
+    background: rgba(0, 0, 0, 0.06);
+    transition: all 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+    z-index: 0;
+  }
+
+  /* Drawer item hover highlight */
+  .drawer-item-hover {
+    position: relative;
+    overflow: hidden;
+  }
+  .drawer-item-hover::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background: linear-gradient(90deg, rgba(0,0,0,0.04) 0%, transparent 100%);
+    opacity: 0;
+    transform: translateX(-100%);
+    transition: all 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+    pointer-events: none;
+  }
+  .drawer-item-hover:hover::before,
+  .drawer-item-hover:active::before {
+    opacity: 1;
+    transform: translateX(0);
   }
 }
 
