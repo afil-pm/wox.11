@@ -142,9 +142,19 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "A refund request for this order is already being processed" }, { status: 400 });
     }
 
-    const encryptedAccountNumber = useSavedBank
-      ? bankDetails.accountNumber
-      : encrypt(bankDetails.accountNumber.trim());
+    let encryptedAccountNumber: string;
+    if (useSavedBank) {
+      encryptedAccountNumber = bankDetails.accountNumber;
+    } else {
+      try {
+        encryptedAccountNumber = encrypt(bankDetails.accountNumber.trim());
+      } catch {
+        return NextResponse.json(
+          { error: "Server encryption configuration error. Please contact support." },
+          { status: 500 }
+        );
+      }
+    }
 
     const refundRequest = await RefundRequest.create({
       orderId,
