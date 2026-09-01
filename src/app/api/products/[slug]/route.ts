@@ -66,6 +66,7 @@ export async function GET(
           })),
         })),
         reviews: formattedReviews,
+        specifications: (p.specifications ?? []) as { label: string; value: string }[],
       };
 
       return NextResponse.json({ product }, { status: 200 });

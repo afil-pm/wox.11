@@ -305,6 +305,12 @@ body {
 .dark .bg-black\/50   { background-color: rgba(0,0,0,0.8) !important; }
 .dark .bg-black\/60   { background-color: rgba(0,0,0,0.6) !important; }
 
+/* CategoryIntroCard — keep dark bg in dark mode, adjust text */
+.dark a.bg-zinc-900 { background-color: #18181b !important; }
+.dark a.bg-zinc-900:hover { background-color: #27272a !important; }
+.dark a.bg-zinc-900 .text-zinc-600 { color: #a1a1aa !important; }
+.dark a.bg-zinc-900 .bg-zinc-600 { background-color: #52525b !important; }
+
 /* Hero section — remove dark overlay so image stays vivid */
 .dark .min-h-\[80vh\] .bg-black\/50 { background-color: transparent !important; }
 

@@ -37,6 +37,11 @@ export interface IProductTax {
   taxInclusive: boolean;
 }
 
+export interface IProductSpec {
+  label: string;
+  value: string;
+}
+
 export interface IProduct extends Document {
   name: string;
   slug: string;
@@ -49,6 +54,7 @@ export interface IProduct extends Document {
   images: IProductImage[];
   variants: IProductVariant[];
   tax: IProductTax;
+  specifications: IProductSpec[];
   averageRating: number;
   reviewCount: number;
   isFeatured: boolean;
@@ -110,6 +116,14 @@ const ProductTaxSchema = new Schema<IProductTax>(
   { _id: false }
 );
 
+const ProductSpecSchema = new Schema<IProductSpec>(
+  {
+    label: { type: String, required: true },
+    value: { type: String, required: true },
+  },
+  { _id: false }
+);
+
 const ProductSchema = new Schema<IProduct>(
   {
     name: { type: String, required: true, trim: true },
@@ -127,6 +141,7 @@ const ProductSchema = new Schema<IProduct>(
     isFeatured: { type: Boolean, default: false },
     isActive: { type: Boolean, default: true },
     tax: { type: ProductTaxSchema, default: () => ({ hsnCode: "6211", gstRate: 5, taxCategory: "apparel", taxInclusive: true }) },
+    specifications: { type: [ProductSpecSchema], default: [] },
     seo: { type: ProductSeoSchema, default: () => ({}) },
   },
   { timestamps: true }

@@ -54,7 +54,7 @@ export default function Home() {
           <h1 className="text-4xl font-bold uppercase tracking-tight text-white sm:text-5xl md:text-6xl lg:text-7xl">
             Define Your Everyday.
           </h1>
-          <p className="mt-4 text-lg font-light text-zinc-200 sm:text-xl">
+          <p className="mt-4 text-lg font-light text-zinc-300 sm:text-xl">
             Modern essentials for men and boys.
           </p>
           <div className="mt-8 flex flex-col items-center justify-center gap-4 sm:flex-row">

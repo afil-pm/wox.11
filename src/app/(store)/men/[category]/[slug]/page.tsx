@@ -47,6 +47,7 @@ type ApiProduct = {
   images: ProductImage[];
   variants: (ColorVariant & { sizes: SizeOption[] })[];
   reviews: Review[];
+  specifications?: { label: string; value: string }[];
 };
 
 function RatingStars({ rating, count, size = "sm" }: { rating: number; count: number; size?: "sm" | "md" | "lg" }) {
@@ -241,12 +242,14 @@ export default function ProductDetailPage({ params }: { params: Promise<{ catego
     "Easy care — machine washable",
   ];
 
-  const specifications = [
-    { label: "Category", value: product.category.name },
-    { label: "Fit", value: "Regular" },
-    { label: "Material", value: "100% Organic Cotton" },
-    { label: "Pattern", value: "Solid" },
-  ];
+  const specifications: { label: string; value: string }[] = product.specifications && product.specifications.length > 0
+    ? product.specifications
+    : [
+        { label: "Category", value: product.category.name },
+        { label: "Fit", value: "Regular" },
+        { label: "Material", value: "100% Organic Cotton" },
+        { label: "Pattern", value: "Solid" },
+      ];
 
   return (
     <div className="min-h-screen bg-white">

@@ -51,7 +51,7 @@ export async function GET(request: NextRequest) {
     }
 
     const formatted = products.map((p) => {
-      const obj = p as unknown as { _id: string; name: string; slug: string; description: string; basePrice: number; salePrice: number; sku: string; categoryId: unknown; store: string; images: unknown; variants: unknown; isFeatured: boolean; isActive: boolean; averageRating: number; reviewCount: number; seo: unknown; createdAt: unknown };
+      const obj = p as unknown as { _id: string; name: string; slug: string; description: string; basePrice: number; salePrice: number; sku: string; categoryId: unknown; store: string; images: unknown; variants: unknown; isFeatured: boolean; isActive: boolean; averageRating: number; reviewCount: number; seo: unknown; specifications: unknown; createdAt: unknown };
       const cat = obj.categoryId ? catMap[String(obj.categoryId)] : null;
       return {
         id: String(obj._id),
@@ -71,6 +71,7 @@ export async function GET(request: NextRequest) {
         averageRating: obj.averageRating ?? 0,
         reviewCount: obj.reviewCount ?? 0,
         seo: obj.seo || {},
+        specifications: (obj.specifications ?? []) as { label: string; value: string }[],
         source: "mongo" as const,
         createdAt: String(obj.createdAt ?? new Date().toISOString()),
       };
@@ -98,7 +99,7 @@ export async function POST(request: NextRequest) {
     await connectMongoDB();
     const body = await request.json();
 
-    const { name, description, basePrice, salePrice, sku, categoryId, store, isFeatured, isActive, images, variants, seo: adminSeo, tax } = body;
+    const { name, description, basePrice, salePrice, sku, categoryId, store, isFeatured, isActive, images, variants, seo: adminSeo, tax, specifications } = body;
 
     if (!name || !basePrice || !sku || !categoryId) {
       return NextResponse.json(
@@ -169,6 +170,7 @@ export async function POST(request: NextRequest) {
       variants: productVariants,
       seo: autoSeo,
       tax: tax || { hsnCode: "6211", gstRate: 5, taxCategory: "apparel", taxInclusive: true },
+      specifications: Array.isArray(specifications) ? specifications.filter((s: { label: string; value: string }) => s.label && s.value) : [],
     });
 
     const { default: Notification } = await import("@/lib/models/notification");

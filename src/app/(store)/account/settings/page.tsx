@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { ArrowLeft, Save, Sun, Moon, HelpCircle, MessageSquare, Bug, Send, Loader2, CheckCircle } from "lucide-react";
+import { ArrowLeft, Save, Sun, Moon, HelpCircle, MessageSquare, Bug, Send, Loader2, CheckCircle, CreditCard, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useSignOutStore } from "@/lib/stores/sign-out";
@@ -23,6 +23,21 @@ export default function AccountSettingsPage() {
   const [helpStatus, setHelpStatus] = useState<"idle" | "success" | "error">("idle");
   const [helpError, setHelpError] = useState("");
 
+  const [bankLoading, setBankLoading] = useState(false);
+  const [bankSaving, setBankSaving] = useState(false);
+  const [bankHasDetails, setBankHasDetails] = useState(false);
+  const [bankEditing, setBankEditing] = useState(false);
+  const [bankStatus, setBankStatus] = useState<"idle" | "success" | "error">("idle");
+  const [bankError, setBankError] = useState("");
+  const [bankForm, setBankForm] = useState({
+    accountHolderName: "",
+    accountNumber: "",
+    confirmAccountNumber: "",
+    ifscCode: "",
+    bankName: "",
+    upiId: "",
+  });
+
   useEffect(() => {
     const stored = localStorage.getItem("wox-user");
     if (stored) {
@@ -31,6 +46,31 @@ export default function AccountSettingsPage() {
       setEmail(user.email || "");
       setPhone(user.phone || "");
     }
+  }, []);
+
+  useEffect(() => {
+    const user = JSON.parse(localStorage.getItem("wox-user") || "{}");
+    if (!user?.id) return;
+    setBankLoading(true);
+    fetch("/api/saved-bank-details", {
+      headers: { "x-user-id": user.id },
+    })
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.bankDetails) {
+          setBankHasDetails(true);
+          setBankForm({
+            accountHolderName: data.bankDetails.accountHolderName || "",
+            accountNumber: "",
+            confirmAccountNumber: "",
+            ifscCode: data.bankDetails.ifscCode || "",
+            bankName: data.bankDetails.bankName || "",
+            upiId: data.bankDetails.upiId || "",
+          });
+        }
+      })
+      .catch(() => {})
+      .finally(() => setBankLoading(false));
   }, []);
 
   function handleSave() {
@@ -84,6 +124,84 @@ export default function AccountSettingsPage() {
     }
   }
 
+  async function handleBankSave() {
+    if (!bankForm.accountHolderName.trim() || !bankForm.ifscCode.trim() || !bankForm.bankName.trim()) {
+      setBankError("Account holder name, IFSC code, and bank name are required");
+      setBankStatus("error");
+      return;
+    }
+    if (!bankHasDetails && !bankEditing) {
+      if (!bankForm.accountNumber.trim()) {
+        setBankError("Account number is required");
+        setBankStatus("error");
+        return;
+      }
+      if (bankForm.accountNumber !== bankForm.confirmAccountNumber) {
+        setBankError("Account numbers do not match");
+        setBankStatus("error");
+        return;
+      }
+    }
+    if (bankForm.ifscCode && !/^[A-Za-z]{4}0[A-Za-z0-9]{6}$/.test(bankForm.ifscCode)) {
+      setBankError("Invalid IFSC code format");
+      setBankStatus("error");
+      return;
+    }
+    const user = JSON.parse(localStorage.getItem("wox-user") || "{}");
+    if (!user?.id) return;
+    setBankSaving(true);
+    setBankError("");
+    setBankStatus("idle");
+    try {
+      const body: Record<string, string> = {
+        accountHolderName: bankForm.accountHolderName.trim(),
+        ifscCode: bankForm.ifscCode.toUpperCase().trim(),
+        bankName: bankForm.bankName.trim(),
+        upiId: bankForm.upiId.trim(),
+      };
+      if (!bankHasDetails || bankEditing) {
+        body.accountNumber = bankForm.accountNumber;
+      }
+      const res = await fetch("/api/saved-bank-details", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json", "x-user-id": user.id },
+        body: JSON.stringify(body),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to save");
+      setBankStatus("success");
+      setBankHasDetails(true);
+      setBankEditing(false);
+      setBankForm((prev) => ({ ...prev, accountNumber: "", confirmAccountNumber: "" }));
+      setTimeout(() => setBankStatus("idle"), 3000);
+    } catch (err) {
+      setBankError(err instanceof Error ? err.message : "Failed to save bank details");
+      setBankStatus("error");
+    } finally {
+      setBankSaving(false);
+    }
+  }
+
+  async function handleBankDelete() {
+    const user = JSON.parse(localStorage.getItem("wox-user") || "{}");
+    if (!user?.id) return;
+    if (!confirm("Delete saved bank details?")) return;
+    setBankLoading(true);
+    try {
+      const res = await fetch("/api/saved-bank-details", {
+        method: "DELETE",
+        headers: { "x-user-id": user.id },
+      });
+      if (!res.ok) throw new Error("Failed to delete");
+      setBankHasDetails(false);
+      setBankEditing(false);
+      setBankForm({ accountHolderName: "", accountNumber: "", confirmAccountNumber: "", ifscCode: "", bankName: "", upiId: "" });
+    } catch {
+    } finally {
+      setBankLoading(false);
+    }
+  }
+
   const helpTypes = [
     { key: "help-support" as const, label: "Help / Support", icon: HelpCircle, desc: "Get assistance with your account or orders" },
     { key: "feedback" as const, label: "Feedback", icon: MessageSquare, desc: "Share your thoughts about the website" },
@@ -123,6 +241,104 @@ export default function AccountSettingsPage() {
             {saved ? "Saved!" : "Save Changes"}
           </Button>
         </div>
+      </div>
+
+      {/* Bank Details */}
+      <div className="mt-6 rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <CreditCard className="h-4 w-4 text-zinc-500" />
+            <h3 className="text-sm font-semibold text-zinc-900">Bank Details</h3>
+          </div>
+          {bankHasDetails && !bankEditing && (
+            <div className="flex gap-2">
+              <Button variant="outline" size="sm" onClick={() => setBankEditing(true)}>Edit</Button>
+              <Button variant="outline" size="sm" className="text-red-600 hover:bg-red-50 hover:text-red-700" onClick={handleBankDelete} disabled={bankLoading}>
+                <Trash2 className="h-3 w-3" />
+              </Button>
+            </div>
+          )}
+        </div>
+        <p className="mt-1 text-xs text-zinc-500">Saved bank details for refund processing</p>
+
+        {bankLoading ? (
+          <p className="mt-4 text-sm text-zinc-400">Loading...</p>
+        ) : bankHasDetails && !bankEditing ? (
+          <div className="mt-4 space-y-3">
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="text-xs font-medium text-zinc-600">Account Holder</label>
+                <p className="mt-1 text-sm text-zinc-900">{bankForm.accountHolderName || "-"}</p>
+              </div>
+              <div>
+                <label className="text-xs font-medium text-zinc-600">Bank Name</label>
+                <p className="mt-1 text-sm text-zinc-900">{bankForm.bankName || "-"}</p>
+              </div>
+              <div>
+                <label className="text-xs font-medium text-zinc-600">IFSC Code</label>
+                <p className="mt-1 text-sm text-zinc-900 font-mono">{bankForm.ifscCode || "-"}</p>
+              </div>
+              <div>
+                <label className="text-xs font-medium text-zinc-600">UPI ID</label>
+                <p className="mt-1 text-sm text-zinc-900">{bankForm.upiId || "-"}</p>
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div className="mt-4 space-y-3">
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="text-xs font-medium text-zinc-600">Account Holder Name</label>
+                <Input value={bankForm.accountHolderName} onChange={(e) => setBankForm((p) => ({ ...p, accountHolderName: e.target.value }))} placeholder="Full name" className="mt-1" />
+              </div>
+              <div>
+                <label className="text-xs font-medium text-zinc-600">Bank Name</label>
+                <Input value={bankForm.bankName} onChange={(e) => setBankForm((p) => ({ ...p, bankName: e.target.value }))} placeholder="e.g. SBI, HDFC" className="mt-1" />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="text-xs font-medium text-zinc-600">Account Number</label>
+                <Input type="password" value={bankForm.accountNumber} onChange={(e) => setBankForm((p) => ({ ...p, accountNumber: e.target.value }))} placeholder={bankHasDetails ? "Enter to update" : "Account number"} className="mt-1" />
+              </div>
+              <div>
+                <label className="text-xs font-medium text-zinc-600">Confirm Account Number</label>
+                <Input type="password" value={bankForm.confirmAccountNumber} onChange={(e) => setBankForm((p) => ({ ...p, confirmAccountNumber: e.target.value }))} placeholder="Confirm number" className="mt-1" />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="text-xs font-medium text-zinc-600">IFSC Code</label>
+                <Input value={bankForm.ifscCode} onChange={(e) => setBankForm((p) => ({ ...p, ifscCode: e.target.value.toUpperCase() }))} placeholder="e.g. SBIN0001234" className="mt-1 font-mono" />
+              </div>
+              <div>
+                <label className="text-xs font-medium text-zinc-600">UPI ID (optional)</label>
+                <Input value={bankForm.upiId} onChange={(e) => setBankForm((p) => ({ ...p, upiId: e.target.value }))} placeholder="e.g. name@upi" className="mt-1" />
+              </div>
+            </div>
+
+            {bankStatus === "success" && (
+              <div className="flex items-center gap-2 rounded-lg bg-green-50 px-4 py-3 text-sm text-green-700">
+                <CheckCircle className="h-4 w-4" /> Bank details saved successfully.
+              </div>
+            )}
+            {bankError && (
+              <div className="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-600">{bankError}</div>
+            )}
+
+            <div className="flex gap-3">
+              <Button onClick={handleBankSave} disabled={bankSaving} className="bg-zinc-900 text-white hover:bg-zinc-800">
+                {bankSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+                {bankSaving ? "Saving..." : "Save Bank Details"}
+              </Button>
+              {bankEditing && (
+                <Button variant="outline" onClick={() => { setBankEditing(false); setBankStatus("idle"); setBankError(""); }}>
+                  Cancel
+                </Button>
+              )}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Theme */}
