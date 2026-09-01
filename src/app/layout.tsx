@@ -97,6 +97,23 @@ export default function RootLayout({
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
         <meta name="mobile-web-app-capable" content="yes" />
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify({
+              "@context": "https://schema.org",
+              "@type": "WebSite",
+              name: "WOX.11",
+              url: "https://wox11.vercel.app",
+              description: "Premium men's and boys fashion. Shop shirts, t-shirts, and pants crafted for the modern wardrobe.",
+              publisher: {
+                "@type": "Organization",
+                name: "WOX.11",
+                url: "https://wox11.vercel.app",
+              },
+            }),
+          }}
+        />
       </head>
       <body className="min-h-screen flex flex-col">
         <script

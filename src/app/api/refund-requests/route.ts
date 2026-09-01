@@ -3,7 +3,7 @@ import { connectMongoDB } from "@/lib/mongodb";
 import RefundRequest from "@/lib/models/refund-request";
 import SavedBankDetails from "@/lib/models/saved-bank-details";
 import Order from "@/lib/models/order";
-import { encrypt, maskAccountNumber } from "@/lib/encryption";
+import { encrypt, decrypt, maskAccountNumber } from "@/lib/encryption";
 
 function isAdmin(request: NextRequest): boolean {
   const adminHeader = request.headers.get("x-admin-email");
@@ -252,14 +252,19 @@ export async function GET(request: NextRequest) {
         filter.status = status;
       }
       const requests = await RefundRequest.find(filter).sort({ createdAt: -1 }).lean();
-      const masked = requests.map((r) => ({
-        ...r,
-        bankDetails: {
-          ...r.bankDetails,
-          accountNumber: maskAccountNumber(r.bankDetails.accountNumber),
-        },
-      }));
-      return NextResponse.json({ refundRequests: masked });
+      const decrypted = requests.map((r) => {
+        let accountNumber = r.bankDetails?.accountNumber || "";
+        try {
+          if (accountNumber.length > 30) {
+            accountNumber = decrypt(accountNumber);
+          }
+        } catch {}
+        return {
+          ...r,
+          bankDetails: { ...r.bankDetails, accountNumber },
+        };
+      });
+      return NextResponse.json({ refundRequests: decrypted });
     }
 
     const requests = await RefundRequest.find({ userId }).sort({ createdAt: -1 }).lean();
