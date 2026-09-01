@@ -146,13 +146,11 @@ const refundStatusLabels: Record<string, string> = {
 export default function AdminOrdersPage() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState("ALL");
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
   const modalRef = useRef<HTMLDivElement>(null);
 
   const [refundRequests, setRefundRequests] = useState<RefundRequest[]>([]);
-  const [refundFilter, setRefundFilter] = useState("ALL");
   const [selectedRefund, setSelectedRefund] = useState<RefundRequest | null>(null);
   const [refundActionLoading, setRefundActionLoading] = useState(false);
   const [refundAdminNotes, setRefundAdminNotes] = useState("");
@@ -161,11 +159,7 @@ export default function AdminOrdersPage() {
 
   const fetchOrders = useCallback(async () => {
     try {
-      const url =
-        filter === "ALL"
-          ? "/api/mongo/orders"
-          : `/api/mongo/orders?status=${filter}`;
-      const res = await adminFetch(url);
+      const res = await adminFetch("/api/mongo/orders");
       const data = await res.json();
       setOrders(data.orders || []);
       setLastUpdated(new Date());
@@ -174,21 +168,17 @@ export default function AdminOrdersPage() {
     } finally {
       setLoading(false);
     }
-  }, [filter]);
+  }, []);
 
   const fetchRefundRequests = useCallback(async () => {
     try {
-      const url =
-        refundFilter === "ALL"
-          ? "/api/refund-requests"
-          : `/api/refund-requests?status=${refundFilter}`;
-      const res = await adminFetch(url);
+      const res = await adminFetch("/api/refund-requests");
       const data = await res.json();
       setRefundRequests(data.refundRequests || []);
     } catch (e) {
       console.error("Failed to fetch refund requests:", e);
     }
-  }, [refundFilter]);
+  }, []);
 
   useEffect(() => {
     fetchOrders();
@@ -330,26 +320,6 @@ export default function AdminOrdersPage() {
         </div>
       </div>
 
-      {/* Filter Tabs */}
-      <div className="mb-4 flex flex-wrap gap-2">
-        {["ALL", "PENDING", "CONFIRMED", "PROCESSING", "SHIPPED", "DELIVERED", "CANCELLED", "RETURNED", "REFUNDED"].map(
-          (s) => (
-            <button
-              key={s}
-              onClick={() => setFilter(s)}
-              className={cn(
-                "rounded-full px-3 py-1 text-xs font-semibold transition-colors",
-                filter === s
-                  ? "bg-zinc-900 text-white"
-                  : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-              )}
-            >
-              {s === "ALL" ? "All" : statusLabels[s] || s}
-            </button>
-          )
-        )}
-      </div>
-
       {loading ? (
         <div className="flex items-center justify-center py-20">
           <WoxLoader />
@@ -444,22 +414,6 @@ export default function AdminOrdersPage() {
           {pendingRefunds > 0 && (
             <Badge className="bg-orange-100 text-orange-800">{pendingRefunds} pending</Badge>
           )}
-        </div>
-        <div className="mb-3 flex flex-wrap gap-2">
-          {["ALL", "pending", "approved", "rejected", "processed", "completed"].map((s) => (
-            <button
-              key={s}
-              onClick={() => setRefundFilter(s)}
-              className={cn(
-                "rounded-full px-3 py-1 text-xs font-semibold transition-colors",
-                refundFilter === s
-                  ? "bg-zinc-900 text-white"
-                  : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-              )}
-            >
-              {s === "ALL" ? "All" : refundStatusLabels[s] || s}
-            </button>
-          ))}
         </div>
         {refundRequests.length === 0 ? (
           <div className="rounded-xl border bg-white p-10 text-center shadow-sm">
