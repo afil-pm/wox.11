@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn, formatPrice } from "@/lib/utils";
-import { RefreshCw, Eye, Trash2, Lock, IndianRupee, TrendingUp, Calendar, BarChart3, BadgeCheck, Banknote, Check, X, Loader2 } from "lucide-react";
+import { Eye, IndianRupee, TrendingUp, Calendar, BarChart3, BadgeCheck, Banknote, Check, X, Loader2 } from "lucide-react";
 import WoxLoader from "@/components/ui/wox-loader";
 import { adminFetch } from "@/lib/admin-api";
 
@@ -149,11 +149,6 @@ export default function AdminOrdersPage() {
   const [filter, setFilter] = useState("ALL");
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
-  const [showClearModal, setShowClearModal] = useState(false);
-  const [clearPassword, setClearPassword] = useState("");
-  const [clearLoading, setClearLoading] = useState(false);
-  const [clearError, setClearError] = useState("");
-  const [revenuePeriod, setRevenuePeriod] = useState<"today" | "7d" | "30d" | "all">("all");
   const modalRef = useRef<HTMLDivElement>(null);
 
   const [refundRequests, setRefundRequests] = useState<RefundRequest[]>([]);
@@ -264,46 +259,7 @@ export default function AdminOrdersPage() {
     }
   }
 
-  async function handleClearOrders() {
-    setClearLoading(true);
-    setClearError("");
-    try {
-      const res = await fetch("/api/mongo/orders/clear", {
-        method: "DELETE",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ password: clearPassword }),
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        setClearError(data.error || "Failed to clear orders");
-        return;
-      }
-      setShowClearModal(false);
-      setClearPassword("");
-      setOrders([]);
-      setSelectedOrder(null);
-    } catch {
-      setClearError("Network error. Please try again.");
-    } finally {
-      setClearLoading(false);
-    }
-  }
-
-  function getFilteredRevenueOrders() {
-    const now = new Date();
-    if (revenuePeriod === "all") return orders;
-    const cutoff = new Date(now);
-    if (revenuePeriod === "today") {
-      cutoff.setHours(0, 0, 0, 0);
-    } else if (revenuePeriod === "7d") {
-      cutoff.setDate(now.getDate() - 7);
-    } else if (revenuePeriod === "30d") {
-      cutoff.setDate(now.getDate() - 30);
-    }
-    return orders.filter((o) => new Date(o.createdAt) >= cutoff);
-  }
-
-  const revenueOrders = getFilteredRevenueOrders();
+  const revenueOrders = orders;
   const totalRevenue = revenueOrders.reduce((sum, o) => sum + (o.total || 0), 0);
   const paidRevenue = revenueOrders
     .filter((o) => o.paymentStatus === "PAID" || o.paymentStatus === "COMPLETED")
@@ -315,13 +271,6 @@ export default function AdminOrdersPage() {
   const avgOrderValue = totalOrdersCount > 0 ? totalRevenue / totalOrdersCount : 0;
   const pendingRefunds = refundRequests.filter((r) => r.status === "pending").length;
 
-  const revenuePeriods = [
-    { key: "today" as const, label: "Today" },
-    { key: "7d" as const, label: "7 Days" },
-    { key: "30d" as const, label: "30 Days" },
-    { key: "all" as const, label: "All Time" },
-  ];
-
   return (
     <>
       <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -332,52 +281,15 @@ export default function AdminOrdersPage() {
             {lastUpdated.toLocaleTimeString("en-IN")}
           </p>
         </div>
-        <div className="flex gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => { fetchOrders(); fetchRefundRequests(); }}
-            className="gap-2"
-          >
-            <RefreshCw className="h-4 w-4" />
-            Refresh
-          </Button>
-          <Button
-            variant="destructive"
-            size="sm"
-            onClick={() => { setShowClearModal(true); setClearError(""); }}
-            className="gap-2"
-          >
-            <Trash2 className="h-4 w-4" />
-            Clear History
-          </Button>
-        </div>
+        <div />
       </div>
 
       {/* Revenue Dashboard */}
       <div className="mb-6 rounded-xl border bg-white p-4 shadow-sm">
-        <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex items-center gap-2">
+        <div className="mb-3 flex items-center gap-2">
             <BarChart3 className="h-4 w-4 text-gray-500" />
             <h2 className="text-sm font-semibold text-gray-900">Revenue Overview</h2>
           </div>
-          <div className="flex gap-1">
-            {revenuePeriods.map((p) => (
-              <button
-                key={p.key}
-                onClick={() => setRevenuePeriod(p.key)}
-                className={cn(
-                  "rounded-full px-3 py-1 text-xs font-medium transition-colors",
-                  revenuePeriod === p.key
-                    ? "bg-zinc-900 text-white"
-                    : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-                )}
-              >
-                {p.label}
-              </button>
-            ))}
-          </div>
-        </div>
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
           <div className="rounded-lg bg-zinc-50 p-3">
             <div className="flex items-center gap-1.5 text-gray-500">
@@ -1046,63 +958,6 @@ export default function AdminOrdersPage() {
         </div>
       )}
 
-      {/* Clear History Password Modal */}
-      {showClearModal && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
-          onClick={() => { setShowClearModal(false); setClearPassword(""); setClearError(""); }}
-        >
-          <div
-            className="w-full max-w-sm rounded-xl bg-white p-6 shadow-xl"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-red-100">
-                <Lock className="h-5 w-5 text-red-600" />
-              </div>
-              <div>
-                <h3 className="text-lg font-bold text-gray-900">Clear Order History</h3>
-                <p className="text-xs text-red-500">This cannot be undone</p>
-              </div>
-            </div>
-
-            <p className="mt-4 text-sm text-gray-600">
-              This will permanently delete all {orders.length} orders. Users will see an empty order history. Enter password to confirm.
-            </p>
-
-            <div className="mt-4">
-              <Input
-                type="password"
-                value={clearPassword}
-                onChange={(e) => setClearPassword(e.target.value)}
-                placeholder="Enter admin password"
-                onKeyDown={(e) => { if (e.key === "Enter" && clearPassword) handleClearOrders(); }}
-              />
-              {clearError && (
-                <p className="mt-2 text-xs text-red-500">{clearError}</p>
-              )}
-            </div>
-
-            <div className="mt-5 flex gap-3">
-              <Button
-                variant="outline"
-                className="flex-1"
-                onClick={() => { setShowClearModal(false); setClearPassword(""); setClearError(""); }}
-              >
-                Cancel
-              </Button>
-              <Button
-                variant="destructive"
-                className="flex-1"
-                disabled={!clearPassword || clearLoading}
-                onClick={handleClearOrders}
-              >
-                {clearLoading ? "Deleting..." : "Delete All Orders"}
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
     </>
   );
 }

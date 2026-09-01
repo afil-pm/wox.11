@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback, useRef } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { RefreshCw, Eye, MessageSquare, Send, Loader2 } from "lucide-react";
+import { Eye, MessageSquare, Send, Loader2 } from "lucide-react";
 import { adminFetch } from "@/lib/admin-api";
 import WoxLoader from "@/components/ui/wox-loader";
 
@@ -124,10 +124,6 @@ export default function AdminMessagesPage() {
             {lastUpdated.toLocaleTimeString("en-IN")}
           </p>
         </div>
-        <Button variant="outline" size="sm" onClick={() => fetchMessages()} className="gap-2">
-          <RefreshCw className="h-4 w-4" />
-          Refresh
-        </Button>
       </div>
 
       <div className="mb-4 flex flex-wrap gap-2">
