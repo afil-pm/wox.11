@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn, formatPrice } from "@/lib/utils";
-import { Eye, IndianRupee, TrendingUp, Calendar, BarChart3, BadgeCheck, Banknote, Check, X, Loader2 } from "lucide-react";
+import { Eye, IndianRupee, TrendingUp, Calendar, BarChart3, BadgeCheck, Banknote, Check, X, Loader2, RotateCcw, XCircle } from "lucide-react";
 import WoxLoader from "@/components/ui/wox-loader";
 import { adminFetch } from "@/lib/admin-api";
 
@@ -143,6 +143,306 @@ const refundStatusLabels: Record<string, string> = {
   completed: "Completed",
 };
 
+const returnStatusStyles: Record<string, string> = {
+  pending: "bg-yellow-100 text-yellow-800",
+  approved: "bg-blue-100 text-blue-800",
+  rejected: "bg-red-100 text-red-800",
+  processing: "bg-indigo-100 text-indigo-800",
+  completed: "bg-green-100 text-green-800",
+};
+
+const returnStatusLabels: Record<string, string> = {
+  pending: "Pending",
+  approved: "Approved",
+  rejected: "Rejected",
+  processing: "Processing",
+  completed: "Completed",
+};
+
+const cancelStatusStyles: Record<string, string> = {
+  pending: "bg-yellow-100 text-yellow-800",
+  approved: "bg-blue-100 text-blue-800",
+  rejected: "bg-red-100 text-red-800",
+  processing: "bg-indigo-100 text-indigo-800",
+  completed: "bg-green-100 text-green-800",
+};
+
+const cancelStatusLabels: Record<string, string> = {
+  pending: "Pending",
+  approved: "Approved",
+  rejected: "Rejected",
+  processing: "Processing",
+  completed: "Completed",
+};
+
+function FilterTabs({ tabs, active, onSelect }: { tabs: { key: string; label: string; count?: number }[]; active: string; onSelect: (key: string) => void }) {
+  return (
+    <div className="mb-3 flex flex-wrap gap-2">
+      {tabs.map((t) => (
+        <button
+          key={t.key}
+          onClick={() => onSelect(t.key)}
+          className={cn(
+            "rounded-full px-3 py-1 text-xs font-semibold transition-colors",
+            active === t.key
+              ? "bg-zinc-900 text-white"
+              : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+          )}
+        >
+          {t.label}
+          {t.count !== undefined && t.count > 0 && (
+            <span className="ml-1 inline-flex h-4 min-w-[16px] items-center justify-center rounded-full bg-yellow-500 px-1 text-[10px] text-white">
+              {t.count}
+            </span>
+          )}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function OrderTable({ orders, onSelect }: { orders: Order[]; onSelect: (o: Order) => void }) {
+  if (orders.length === 0) {
+    return (
+      <div className="rounded-xl border bg-white p-10 text-center shadow-sm">
+        <p className="text-sm text-gray-500">No orders found</p>
+      </div>
+    );
+  }
+  return (
+    <div className="rounded-xl border bg-white shadow-sm">
+      <div className="overflow-x-auto">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="border-b text-left text-xs font-medium uppercase text-gray-500">
+              <th className="px-4 py-3">Order #</th>
+              <th className="px-4 py-3">Customer</th>
+              <th className="px-4 py-3">Items</th>
+              <th className="px-4 py-3">Date</th>
+              <th className="px-4 py-3">Total</th>
+              <th className="px-4 py-3">Status</th>
+              <th className="px-4 py-3">Payment</th>
+              <th className="px-4 py-3">Actions</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y">
+            {orders.map((order) => (
+              <tr key={order._id} className="hover:bg-gray-50">
+                <td className="px-4 py-3 font-medium text-gray-900">{order.orderNumber}</td>
+                <td className="px-4 py-3">
+                  <div className="text-gray-900">{order.customerName}</div>
+                  <div className="text-xs text-gray-500">{order.customerPhone}</div>
+                </td>
+                <td className="px-4 py-3 text-gray-600">{order.items.length} item(s)</td>
+                <td className="px-4 py-3 text-gray-500">
+                  {new Date(order.createdAt).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
+                </td>
+                <td className="px-4 py-3 font-medium text-gray-900">{formatPrice(order.total)}</td>
+                <td className="px-4 py-3">
+                  <Badge className={cn(statusStyles[order.status] || "bg-gray-100 text-gray-800")}>
+                    {statusLabels[order.status] || order.status}
+                  </Badge>
+                </td>
+                <td className="px-4 py-3">
+                  <span className={cn("text-sm font-medium", paymentStyles[order.paymentStatus] || "text-gray-600")}>
+                    {order.paymentStatus}
+                  </span>
+                </td>
+                <td className="px-4 py-3">
+                  <Button variant="ghost" size="sm" onClick={() => onSelect(order)}>
+                    <Eye className="mr-1 h-3.5 w-3.5" />
+                    View
+                  </Button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+function RefundTable({ requests, onSelect }: { requests: RefundRequest[]; onSelect: (r: RefundRequest) => void }) {
+  if (requests.length === 0) {
+    return (
+      <div className="rounded-xl border bg-white p-10 text-center shadow-sm">
+        <p className="text-sm text-gray-500">No refund requests found</p>
+      </div>
+    );
+  }
+  return (
+    <div className="rounded-xl border bg-white shadow-sm">
+      <div className="overflow-x-auto">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="border-b text-left text-xs font-medium uppercase text-gray-500">
+              <th className="px-4 py-3">Order #</th>
+              <th className="px-4 py-3">Customer</th>
+              <th className="px-4 py-3">Type</th>
+              <th className="px-4 py-3">Amount</th>
+              <th className="px-4 py-3">Status</th>
+              <th className="px-4 py-3">Date</th>
+              <th className="px-4 py-3">Actions</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y">
+            {requests.map((req) => (
+              <tr key={req._id} className="hover:bg-gray-50">
+                <td className="px-4 py-3 font-medium text-gray-900">{req.orderNumber}</td>
+                <td className="px-4 py-3">
+                  <div className="text-gray-900">{req.customerName}</div>
+                  <div className="text-xs text-gray-500">{req.customerEmail}</div>
+                </td>
+                <td className="px-4 py-3 text-gray-600">
+                  {req.type === "cancel_refund" ? "Cancel & Refund" : "Return & Refund"}
+                </td>
+                <td className="px-4 py-3 font-medium text-gray-900">{formatPrice(req.amount)}</td>
+                <td className="px-4 py-3">
+                  <Badge className={cn(refundStatusStyles[req.status])}>{refundStatusLabels[req.status]}</Badge>
+                </td>
+                <td className="px-4 py-3 text-gray-500">
+                  {new Date(req.createdAt).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
+                </td>
+                <td className="px-4 py-3">
+                  <Button variant="ghost" size="sm" onClick={() => onSelect(req)}>
+                    <Eye className="mr-1 h-3.5 w-3.5" />
+                    Review
+                  </Button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+function ReturnTable({ orders, onSelect }: { orders: Order[]; onSelect: (o: Order) => void }) {
+  if (orders.length === 0) {
+    return (
+      <div className="rounded-xl border bg-white p-10 text-center shadow-sm">
+        <p className="text-sm text-gray-500">No return orders found</p>
+      </div>
+    );
+  }
+  return (
+    <div className="rounded-xl border bg-white shadow-sm">
+      <div className="overflow-x-auto">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="border-b text-left text-xs font-medium uppercase text-gray-500">
+              <th className="px-4 py-3">Order #</th>
+              <th className="px-4 py-3">Customer</th>
+              <th className="px-4 py-3">Items</th>
+              <th className="px-4 py-3">Date</th>
+              <th className="px-4 py-3">Total</th>
+              <th className="px-4 py-3">Status</th>
+              <th className="px-4 py-3">Payment</th>
+              <th className="px-4 py-3">Actions</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y">
+            {orders.map((order) => (
+              <tr key={order._id} className="hover:bg-gray-50">
+                <td className="px-4 py-3 font-medium text-gray-900">{order.orderNumber}</td>
+                <td className="px-4 py-3">
+                  <div className="text-gray-900">{order.customerName}</div>
+                  <div className="text-xs text-gray-500">{order.customerPhone}</div>
+                </td>
+                <td className="px-4 py-3 text-gray-600">{order.items.length} item(s)</td>
+                <td className="px-4 py-3 text-gray-500">
+                  {new Date(order.createdAt).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
+                </td>
+                <td className="px-4 py-3 font-medium text-gray-900">{formatPrice(order.total)}</td>
+                <td className="px-4 py-3">
+                  <Badge className={cn(statusStyles[order.status] || "bg-gray-100 text-gray-800")}>
+                    {statusLabels[order.status] || order.status}
+                  </Badge>
+                </td>
+                <td className="px-4 py-3">
+                  <span className={cn("text-sm font-medium", paymentStyles[order.paymentStatus] || "text-gray-600")}>
+                    {order.paymentStatus}
+                  </span>
+                </td>
+                <td className="px-4 py-3">
+                  <Button variant="ghost" size="sm" onClick={() => onSelect(order)}>
+                    <Eye className="mr-1 h-3.5 w-3.5" />
+                    View
+                  </Button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+function CancelTable({ orders, onSelect }: { orders: Order[]; onSelect: (o: Order) => void }) {
+  if (orders.length === 0) {
+    return (
+      <div className="rounded-xl border bg-white p-10 text-center shadow-sm">
+        <p className="text-sm text-gray-500">No canceled orders found</p>
+      </div>
+    );
+  }
+  return (
+    <div className="rounded-xl border bg-white shadow-sm">
+      <div className="overflow-x-auto">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="border-b text-left text-xs font-medium uppercase text-gray-500">
+              <th className="px-4 py-3">Order #</th>
+              <th className="px-4 py-3">Customer</th>
+              <th className="px-4 py-3">Items</th>
+              <th className="px-4 py-3">Date</th>
+              <th className="px-4 py-3">Total</th>
+              <th className="px-4 py-3">Status</th>
+              <th className="px-4 py-3">Payment</th>
+              <th className="px-4 py-3">Actions</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y">
+            {orders.map((order) => (
+              <tr key={order._id} className="hover:bg-gray-50">
+                <td className="px-4 py-3 font-medium text-gray-900">{order.orderNumber}</td>
+                <td className="px-4 py-3">
+                  <div className="text-gray-900">{order.customerName}</div>
+                  <div className="text-xs text-gray-500">{order.customerPhone}</div>
+                </td>
+                <td className="px-4 py-3 text-gray-600">{order.items.length} item(s)</td>
+                <td className="px-4 py-3 text-gray-500">
+                  {new Date(order.createdAt).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
+                </td>
+                <td className="px-4 py-3 font-medium text-gray-900">{formatPrice(order.total)}</td>
+                <td className="px-4 py-3">
+                  <Badge className={cn(statusStyles[order.status] || "bg-gray-100 text-gray-800")}>
+                    {statusLabels[order.status] || order.status}
+                  </Badge>
+                </td>
+                <td className="px-4 py-3">
+                  <span className={cn("text-sm font-medium", paymentStyles[order.paymentStatus] || "text-gray-600")}>
+                    {order.paymentStatus}
+                  </span>
+                </td>
+                <td className="px-4 py-3">
+                  <Button variant="ghost" size="sm" onClick={() => onSelect(order)}>
+                    <Eye className="mr-1 h-3.5 w-3.5" />
+                    View
+                  </Button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
 export default function AdminOrdersPage() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
@@ -156,6 +456,13 @@ export default function AdminOrdersPage() {
   const [refundAdminNotes, setRefundAdminNotes] = useState("");
   const [refundReference, setRefundReference] = useState("");
   const [showBankDetails, setShowBankDetails] = useState<string | null>(null);
+
+  const [orderFilter, setOrderFilter] = useState("ALL");
+  const [refundFilter, setRefundFilter] = useState("ALL");
+  const [returnFilter, setReturnFilter] = useState("ALL");
+  const [cancelFilter, setCancelFilter] = useState("ALL");
+
+  const [activeSection, setActiveSection] = useState<"orders" | "refunds" | "returns" | "canceled">("orders");
 
   const fetchOrders = useCallback(async () => {
     try {
@@ -209,9 +516,7 @@ export default function AdminOrdersPage() {
       });
       fetchOrders();
       if (selectedOrder?._id === orderId) {
-        setSelectedOrder((prev) =>
-          prev ? { ...prev, status: newStatus } : null
-        );
+        setSelectedOrder((prev) => prev ? { ...prev, status: newStatus } : null);
       }
     } catch (e) {
       console.error("Failed to update order:", e);
@@ -249,17 +554,73 @@ export default function AdminOrdersPage() {
     }
   }
 
-  const revenueOrders = orders;
-  const totalRevenue = revenueOrders.reduce((sum, o) => sum + (o.total || 0), 0);
-  const paidRevenue = revenueOrders
-    .filter((o) => o.paymentStatus === "PAID" || o.paymentStatus === "COMPLETED")
-    .reduce((sum, o) => sum + (o.total || 0), 0);
-  const pendingRevenue = revenueOrders
-    .filter((o) => o.paymentStatus === "PENDING")
-    .reduce((sum, o) => sum + (o.total || 0), 0);
-  const totalOrdersCount = revenueOrders.length;
+  const allActiveOrders = orders.filter((o) => o.status !== "RETURNED" && o.status !== "CANCELLED" && o.status !== "REFUNDED");
+  const returnedOrders = orders.filter((o) => o.status === "RETURNED");
+  const canceledOrders = orders.filter((o) => o.status === "CANCELLED");
+
+  const filteredOrders = orderFilter === "ALL" ? allActiveOrders : allActiveOrders.filter((o) => o.status === orderFilter);
+  const filteredRefunds = refundFilter === "ALL" ? refundRequests : refundRequests.filter((r) => r.status === refundFilter);
+  const filteredReturns = returnFilter === "ALL" ? returnedOrders : returnedOrders.filter((o) => {
+    const refund = refundRequests.find((r) => r.orderId === o._id && r.type === "return_refund");
+    if (!refund) return returnFilter === "pending";
+    return refund.status === returnFilter;
+  });
+  const filteredCancels = cancelFilter === "ALL" ? canceledOrders : canceledOrders.filter((o) => {
+    const refund = refundRequests.find((r) => r.orderId === o._id && r.type === "cancel_refund");
+    if (!refund) return cancelFilter === "pending";
+    return refund.status === cancelFilter;
+  });
+
+  const totalRevenue = orders.reduce((sum, o) => sum + (o.total || 0), 0);
+  const paidRevenue = orders.filter((o) => o.paymentStatus === "PAID" || o.paymentStatus === "COMPLETED").reduce((sum, o) => sum + (o.total || 0), 0);
+  const pendingRevenue = orders.filter((o) => o.paymentStatus === "PENDING").reduce((sum, o) => sum + (o.total || 0), 0);
+  const totalOrdersCount = orders.length;
   const avgOrderValue = totalOrdersCount > 0 ? totalRevenue / totalOrdersCount : 0;
   const pendingRefunds = refundRequests.filter((r) => r.status === "pending").length;
+
+  const orderTabs = [
+    { key: "ALL", label: "All", count: allActiveOrders.length },
+    { key: "PENDING", label: "Pending", count: allActiveOrders.filter((o) => o.status === "PENDING").length },
+    { key: "CONFIRMED", label: "Confirmed", count: allActiveOrders.filter((o) => o.status === "CONFIRMED").length },
+    { key: "PROCESSING", label: "Processing", count: allActiveOrders.filter((o) => o.status === "PROCESSING").length },
+    { key: "SHIPPED", label: "Shipped", count: allActiveOrders.filter((o) => o.status === "SHIPPED").length },
+    { key: "DELIVERED", label: "Delivered", count: allActiveOrders.filter((o) => o.status === "DELIVERED").length },
+    { key: "CANCELLED", label: "Cancelled", count: canceledOrders.length },
+  ];
+
+  const refundTabs = [
+    { key: "ALL", label: "All", count: refundRequests.length },
+    { key: "pending", label: "Pending Review", count: refundRequests.filter((r) => r.status === "pending").length },
+    { key: "approved", label: "Approved", count: refundRequests.filter((r) => r.status === "approved").length },
+    { key: "rejected", label: "Rejected", count: refundRequests.filter((r) => r.status === "rejected").length },
+    { key: "processed", label: "Refund Processing", count: refundRequests.filter((r) => r.status === "processed").length },
+    { key: "completed", label: "Completed", count: refundRequests.filter((r) => r.status === "completed").length },
+  ];
+
+  const returnTabs = [
+    { key: "ALL", label: "All", count: returnedOrders.length },
+    { key: "pending", label: "Pending", count: returnedOrders.filter((o) => { const r = refundRequests.find((x) => x.orderId === o._id && x.type === "return_refund"); return !r || r.status === "pending"; }).length },
+    { key: "approved", label: "Approved", count: returnedOrders.filter((o) => refundRequests.some((x) => x.orderId === o._id && x.type === "return_refund" && x.status === "approved")).length },
+    { key: "rejected", label: "Rejected", count: returnedOrders.filter((o) => refundRequests.some((x) => x.orderId === o._id && x.type === "return_refund" && x.status === "rejected")).length },
+    { key: "processing", label: "Processing", count: returnedOrders.filter((o) => refundRequests.some((x) => x.orderId === o._id && x.type === "return_refund" && x.status === "processed")).length },
+    { key: "completed", label: "Completed", count: returnedOrders.filter((o) => refundRequests.some((x) => x.orderId === o._id && x.type === "return_refund" && x.status === "completed")).length },
+  ];
+
+  const cancelTabs = [
+    { key: "ALL", label: "All", count: canceledOrders.length },
+    { key: "pending", label: "Pending", count: canceledOrders.filter((o) => { const r = refundRequests.find((x) => x.orderId === o._id && x.type === "cancel_refund"); return !r || r.status === "pending"; }).length },
+    { key: "approved", label: "Approved", count: canceledOrders.filter((o) => refundRequests.some((x) => x.orderId === o._id && x.type === "cancel_refund" && x.status === "approved")).length },
+    { key: "rejected", label: "Rejected", count: canceledOrders.filter((o) => refundRequests.some((x) => x.orderId === o._id && x.type === "cancel_refund" && x.status === "rejected")).length },
+    { key: "processing", label: "Processing", count: canceledOrders.filter((o) => refundRequests.some((x) => x.orderId === o._id && x.type === "cancel_refund" && x.status === "processed")).length },
+    { key: "completed", label: "Completed", count: canceledOrders.filter((o) => refundRequests.some((x) => x.orderId === o._id && x.type === "cancel_refund" && x.status === "completed")).length },
+  ];
+
+  const sectionTabs = [
+    { key: "orders" as const, label: "Orders", icon: IndianRupee, count: allActiveOrders.length },
+    { key: "refunds" as const, label: "Refunds", icon: Banknote, count: pendingRefunds },
+    { key: "returns" as const, label: "Returns", icon: RotateCcw, count: returnedOrders.length },
+    { key: "canceled" as const, label: "Canceled", icon: XCircle, count: canceledOrders.length },
+  ];
 
   return (
     <>
@@ -267,19 +628,17 @@ export default function AdminOrdersPage() {
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Orders</h1>
           <p className="text-sm text-gray-500">
-            {orders.length} order(s) &middot; Updated{" "}
-            {lastUpdated.toLocaleTimeString("en-IN")}
+            {orders.length} order(s) &middot; Updated {lastUpdated.toLocaleTimeString("en-IN")}
           </p>
         </div>
-        <div />
       </div>
 
       {/* Revenue Dashboard */}
       <div className="mb-6 rounded-xl border bg-white p-4 shadow-sm">
         <div className="mb-3 flex items-center gap-2">
-            <BarChart3 className="h-4 w-4 text-gray-500" />
-            <h2 className="text-sm font-semibold text-gray-900">Revenue Overview</h2>
-          </div>
+          <BarChart3 className="h-4 w-4 text-gray-500" />
+          <h2 className="text-sm font-semibold text-gray-900">Revenue Overview</h2>
+        </div>
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
           <div className="rounded-lg bg-zinc-50 p-3">
             <div className="flex items-center gap-1.5 text-gray-500">
@@ -320,170 +679,76 @@ export default function AdminOrdersPage() {
         </div>
       </div>
 
+      {/* Section Tabs */}
+      <div className="mb-6 flex gap-2 border-b border-gray-200 pb-px">
+        {sectionTabs.map((s) => (
+          <button
+            key={s.key}
+            onClick={() => setActiveSection(s.key)}
+            className={cn(
+              "flex items-center gap-2 rounded-t-lg px-4 py-2.5 text-sm font-semibold transition-colors",
+              activeSection === s.key
+                ? "border-b-2 border-zinc-900 bg-white text-zinc-900"
+                : "text-gray-500 hover:text-gray-700"
+            )}
+          >
+            <s.icon className="h-4 w-4" />
+            {s.label}
+            {s.count > 0 && (
+              <span className={cn(
+                "ml-1 inline-flex h-5 min-w-[20px] items-center justify-center rounded-full px-1.5 text-[11px] font-bold",
+                activeSection === s.key ? "bg-zinc-900 text-white" : "bg-gray-200 text-gray-600"
+              )}>
+                {s.count}
+              </span>
+            )}
+          </button>
+        ))}
+      </div>
+
       {loading ? (
         <div className="flex items-center justify-center py-20">
           <WoxLoader />
         </div>
-      ) : orders.length === 0 ? (
-        <div className="rounded-xl border bg-white p-10 text-center shadow-sm">
-          <p className="text-sm text-gray-500">No orders found</p>
-        </div>
       ) : (
-        <div className="rounded-xl border bg-white shadow-sm">
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b text-left text-xs font-medium uppercase text-gray-500">
-                  <th className="px-4 py-3">Order #</th>
-                  <th className="px-4 py-3">Customer</th>
-                  <th className="px-4 py-3">Items</th>
-                  <th className="px-4 py-3">Date</th>
-                  <th className="px-4 py-3">Total</th>
-                  <th className="px-4 py-3">Status</th>
-                  <th className="px-4 py-3">Payment</th>
-                  <th className="px-4 py-3">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y">
-                {orders.map((order) => (
-                  <tr key={order._id} className="hover:bg-gray-50">
-                    <td className="px-4 py-3 font-medium text-gray-900">
-                      {order.orderNumber}
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="text-gray-900">{order.customerName}</div>
-                      <div className="text-xs text-gray-500">
-                        {order.customerPhone}
-                      </div>
-                    </td>
-                    <td className="px-4 py-3 text-gray-600">
-                      {order.items.length} item(s)
-                    </td>
-                    <td className="px-4 py-3 text-gray-500">
-                      {new Date(order.createdAt).toLocaleDateString("en-IN", {
-                        day: "numeric",
-                        month: "short",
-                        year: "numeric",
-                      })}
-                    </td>
-                    <td className="px-4 py-3 font-medium text-gray-900">
-                      {formatPrice(order.total)}
-                    </td>
-                    <td className="px-4 py-3">
-                      <Badge
-                        className={cn(
-                          statusStyles[order.status] || "bg-gray-100 text-gray-800"
-                        )}
-                      >
-                        {statusLabels[order.status] || order.status}
-                      </Badge>
-                    </td>
-                    <td className="px-4 py-3">
-                      <span
-                        className={cn(
-                          "text-sm font-medium",
-                          paymentStyles[order.paymentStatus] || "text-gray-600"
-                        )}
-                      >
-                        {order.paymentStatus}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => setSelectedOrder(order)}
-                      >
-                        <Eye className="mr-1 h-3.5 w-3.5" />
-                        View
-                      </Button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
-
-      {/* Refund Requests Section */}
-      <div className="mt-8 mb-6">
-        <div className="flex items-center gap-2 mb-4">
-          <Banknote className="h-5 w-5 text-gray-700" />
-          <h2 className="text-lg font-bold text-gray-900">Refund Requests</h2>
-          {pendingRefunds > 0 && (
-            <Badge className="bg-orange-100 text-orange-800">{pendingRefunds} pending</Badge>
-          )}
-        </div>
-        {refundRequests.length === 0 ? (
-          <div className="rounded-xl border bg-white p-10 text-center shadow-sm">
-            <p className="text-sm text-gray-500">No refund requests found</p>
-          </div>
-        ) : (
-          <div className="rounded-xl border bg-white shadow-sm">
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b text-left text-xs font-medium uppercase text-gray-500">
-                    <th className="px-4 py-3">Order #</th>
-                    <th className="px-4 py-3">Customer</th>
-                    <th className="px-4 py-3">Type</th>
-                    <th className="px-4 py-3">Amount</th>
-                    <th className="px-4 py-3">Status</th>
-                    <th className="px-4 py-3">Date</th>
-                    <th className="px-4 py-3">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y">
-                  {refundRequests.map((req) => (
-                    <tr key={req._id} className="hover:bg-gray-50">
-                      <td className="px-4 py-3 font-medium text-gray-900">
-                        {req.orderNumber}
-                      </td>
-                      <td className="px-4 py-3">
-                        <div className="text-gray-900">{req.customerName}</div>
-                        <div className="text-xs text-gray-500">{req.customerEmail}</div>
-                      </td>
-                      <td className="px-4 py-3 text-gray-600">
-                        {req.type === "cancel_refund" ? "Cancel & Refund" : "Return & Refund"}
-                      </td>
-                      <td className="px-4 py-3 font-medium text-gray-900">
-                        {formatPrice(req.amount)}
-                      </td>
-                      <td className="px-4 py-3">
-                        <Badge className={cn(refundStatusStyles[req.status])}>
-                          {refundStatusLabels[req.status]}
-                        </Badge>
-                      </td>
-                      <td className="px-4 py-3 text-gray-500">
-                        {new Date(req.createdAt).toLocaleDateString("en-IN", {
-                          day: "numeric",
-                          month: "short",
-                          year: "numeric",
-                        })}
-                      </td>
-                      <td className="px-4 py-3">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => {
-                            setSelectedRefund(req);
-                            setRefundAdminNotes(req.adminNotes || "");
-                            setRefundReference(req.refundReferenceNumber || "");
-                          }}
-                        >
-                          <Eye className="mr-1 h-3.5 w-3.5" />
-                          Review
-                        </Button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+        <>
+          {/* Orders Section */}
+          {activeSection === "orders" && (
+            <div>
+              <FilterTabs tabs={orderTabs} active={orderFilter} onSelect={setOrderFilter} />
+              <OrderTable orders={filteredOrders} onSelect={setSelectedOrder} />
             </div>
-          </div>
-        )}
-      </div>
+          )}
+
+          {/* Refund Requests Section */}
+          {activeSection === "refunds" && (
+            <div>
+              <FilterTabs tabs={refundTabs} active={refundFilter} onSelect={setRefundFilter} />
+              <RefundTable requests={filteredRefunds} onSelect={(req) => {
+                setSelectedRefund(req);
+                setRefundAdminNotes(req.adminNotes || "");
+                setRefundReference(req.refundReferenceNumber || "");
+              }} />
+            </div>
+          )}
+
+          {/* Return Orders Section */}
+          {activeSection === "returns" && (
+            <div>
+              <FilterTabs tabs={returnTabs} active={returnFilter} onSelect={setReturnFilter} />
+              <ReturnTable orders={filteredReturns} onSelect={setSelectedOrder} />
+            </div>
+          )}
+
+          {/* Canceled Orders Section */}
+          {activeSection === "canceled" && (
+            <div>
+              <FilterTabs tabs={cancelTabs} active={cancelFilter} onSelect={setCancelFilter} />
+              <CancelTable orders={filteredCancels} onSelect={setSelectedOrder} />
+            </div>
+          )}
+        </>
+      )}
 
       {/* Order Detail Modal */}
       {selectedOrder && (
@@ -498,223 +763,185 @@ export default function AdminOrdersPage() {
             onClick={(e) => e.stopPropagation()}
           >
             <div className="p-6 pb-8">
-            <div className="flex items-center justify-between">
-              <div>
-                <h2 className="text-lg font-bold text-gray-900">
-                  {selectedOrder.orderNumber}
-                </h2>
-                <p className="text-xs text-gray-500">
-                  Placed on {new Date(selectedOrder.createdAt).toLocaleString("en-IN")}
-                </p>
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="text-lg font-bold text-gray-900">{selectedOrder.orderNumber}</h2>
+                  <p className="text-xs text-gray-500">Placed on {new Date(selectedOrder.createdAt).toLocaleString("en-IN")}</p>
+                </div>
+                <button onClick={() => setSelectedOrder(null)} className="text-gray-400 hover:text-gray-600 text-xl">&times;</button>
               </div>
-              <button
-                onClick={() => setSelectedOrder(null)}
-                className="text-gray-400 hover:text-gray-600 text-xl"
-              >
-                &times;
-              </button>
-            </div>
 
-            <div className="mt-4 rounded-lg bg-gray-50 p-4 text-sm">
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                <div>
-                  <span className="font-medium text-gray-700">Customer:</span>
-                  <p className="text-gray-900">{selectedOrder.customerName}</p>
-                </div>
-                <div>
-                  <span className="font-medium text-gray-700">Phone:</span>
-                  <p className="text-gray-900">{selectedOrder.customerPhone}</p>
-                </div>
-                {selectedOrder.customerEmail && (
+              <div className="mt-4 rounded-lg bg-gray-50 p-4 text-sm">
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                   <div>
-                    <span className="font-medium text-gray-700">Email:</span>
-                    <p className="text-gray-900">{selectedOrder.customerEmail}</p>
+                    <span className="font-medium text-gray-700">Customer:</span>
+                    <p className="text-gray-900">{selectedOrder.customerName}</p>
                   </div>
-                )}
-                <div className="sm:col-span-2">
-                  <span className="font-medium text-gray-700">Address:</span>
-                  <p className="text-gray-900">
-                    {selectedOrder.address.line1}
-                    {selectedOrder.address.line2 ? `, ${selectedOrder.address.line2}` : ""}
-                  </p>
-                  <p className="text-gray-900">
-                    {selectedOrder.address.city}, {selectedOrder.address.state} - {selectedOrder.address.pincode}
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            <div className="mt-4">
-              <h3 className="font-medium text-gray-700">
-                Items ({selectedOrder.items.length})
-              </h3>
-              <div className="mt-3 space-y-3">
-                {selectedOrder.items.map((item, i) => (
-                  <div
-                    key={i}
-                    className="flex items-center gap-4 rounded-lg border border-gray-100 p-3"
-                  >
-                    {item.image ? (
-                      <div className="relative h-20 w-20 flex-shrink-0 overflow-hidden rounded-lg bg-gray-100">
-                        <Image
-                          src={item.image}
-                          alt={item.name}
-                          fill
-                          className="object-cover"
-                          sizes="80px"
-                        />
-                      </div>
-                    ) : (
-                      <div className="flex h-20 w-20 flex-shrink-0 items-center justify-center rounded-lg bg-gray-100 text-xs text-gray-400">
-                        No Image
-                      </div>
-                    )}
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-gray-900 line-clamp-1">
-                        {item.name}
-                      </p>
-                      <p className="mt-0.5 text-xs text-gray-500">
-                        Size: {item.size} &middot; Qty: {item.quantity}
-                      </p>
-                      <p className="mt-0.5 text-xs text-gray-500">
-                        {formatPrice(item.price)} each
-                      </p>
-                    </div>
-                    <span className="text-sm font-semibold text-gray-900">
-                      {formatPrice(item.price * item.quantity)}
-                    </span>
+                  <div>
+                    <span className="font-medium text-gray-700">Phone:</span>
+                    <p className="text-gray-900">{selectedOrder.customerPhone}</p>
                   </div>
-                ))}
-              </div>
-            </div>
-
-            <div className="mt-4 space-y-1 border-t pt-4 text-sm">
-              <div className="flex justify-between">
-                <span className="text-gray-500">Subtotal</span>
-                <span>{formatPrice(selectedOrder.subtotal)}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-gray-500">Shipping</span>
-                <span>{selectedOrder.shippingCost === 0 ? "Free" : formatPrice(selectedOrder.shippingCost)}</span>
-              </div>
-              {selectedOrder.taxDetails && selectedOrder.taxDetails.totalTaxableAmount > 0 && (
-                <div className="flex justify-between">
-                  <span className="text-gray-500">Taxable Amount</span>
-                  <span>{formatPrice(selectedOrder.taxDetails.totalTaxableAmount)}</span>
-                </div>
-              )}
-              {selectedOrder.taxDetails && selectedOrder.taxDetails.totalGstAmount > 0 && (
-                <>
-                  {selectedOrder.taxDetails.isInterState ? (
-                    <div className="flex justify-between">
-                      <span className="text-gray-500">IGST</span>
-                      <span>{formatPrice(selectedOrder.taxDetails.totalGstAmount)}</span>
+                  {selectedOrder.customerEmail && (
+                    <div>
+                      <span className="font-medium text-gray-700">Email:</span>
+                      <p className="text-gray-900">{selectedOrder.customerEmail}</p>
                     </div>
-                  ) : (
-                    <>
-                      <div className="flex justify-between">
-                        <span className="text-gray-500">CGST</span>
-                        <span>{formatPrice(selectedOrder.taxDetails.totalCgst)}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-gray-500">SGST</span>
-                        <span>{formatPrice(selectedOrder.taxDetails.totalSgst)}</span>
-                      </div>
-                    </>
                   )}
-                </>
-              )}
-              {!selectedOrder.taxDetails && (
-                <div className="flex justify-between">
-                  <span className="text-gray-500">Tax (GST)</span>
-                  <span>{formatPrice(selectedOrder.tax)}</span>
-                </div>
-              )}
-              <div className="flex justify-between border-t pt-2 font-semibold">
-                <span>Total</span>
-                <span>{formatPrice(selectedOrder.total)}</span>
-              </div>
-            </div>
-
-            <div className="mt-4 flex items-center justify-between border-t pt-4">
-              <div className="flex items-center gap-2">
-                <span className="text-sm text-gray-500">Status:</span>
-                <Badge className={cn(statusStyles[selectedOrder.status] || "bg-gray-100 text-gray-800")}>
-                  {statusLabels[selectedOrder.status] || selectedOrder.status}
-                </Badge>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="text-sm text-gray-500">Payment:</span>
-                <span className={cn("text-sm font-medium", paymentStyles[selectedOrder.paymentStatus])}>
-                  {selectedOrder.paymentStatus}
-                </span>
-              </div>
-            </div>
-
-            {selectedOrder.paymentMethod === "cod" && selectedOrder.paymentStatus === "PENDING" && (
-              <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-3">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-amber-800">COD Payment Pending</p>
-                    <p className="text-xs text-amber-600">Confirm once you&apos;ve received the cash from customer</p>
+                  <div className="sm:col-span-2">
+                    <span className="font-medium text-gray-700">Address:</span>
+                    <p className="text-gray-900">
+                      {selectedOrder.address.line1}
+                      {selectedOrder.address.line2 ? `, ${selectedOrder.address.line2}` : ""}
+                    </p>
+                    <p className="text-gray-900">
+                      {selectedOrder.address.city}, {selectedOrder.address.state} - {selectedOrder.address.pincode}
+                    </p>
                   </div>
-                  <Button
-                    size="sm"
-                    className="bg-green-600 text-white hover:bg-green-700 gap-1.5"
-                    onClick={async () => {
-                      try {
-                        await adminFetch(`/api/wox/admin/orders/${selectedOrder._id}/confirm-cod`, {
-                          method: "POST",
-                        });
-                        setSelectedOrder((prev) =>
-                          prev ? { ...prev, paymentStatus: "PAID" } : null
-                        );
-                        fetchOrders();
-                      } catch (e) {
-                        console.error("Failed to confirm COD:", e);
-                        alert("Failed to confirm payment");
-                      }
-                    }}
-                  >
-                    <BadgeCheck className="h-4 w-4" />
-                    Confirm Payment
-                  </Button>
                 </div>
               </div>
-            )}
-            {selectedOrder.paymentMethod === "cod" && selectedOrder.paymentStatus === "PAID" && (
-              <div className="mt-3 rounded-lg border border-green-200 bg-green-50 p-3">
-                <div className="flex items-center gap-2">
-                  <BadgeCheck className="h-4 w-4 text-green-600" />
-                  <p className="text-sm font-medium text-green-800">COD Payment Confirmed</p>
-                </div>
-              </div>
-            )}
 
-            {nextStatuses[selectedOrder.status]?.length > 0 && (
-              <div className="mt-4 border-t pt-4 pb-2">
-                {selectedOrder.status === "PENDING" && (
-                  <p className="mb-3 text-xs text-gray-500">
-                    Review the order above, then approve or cancel.
-                  </p>
-                )}
-                <div className="flex flex-wrap gap-2">
-                  {nextStatuses[selectedOrder.status].map((s) => (
-                    <Button
-                      key={s}
-                      size="sm"
-                      variant={s === "CANCELLED" ? "destructive" : "default"}
-                      className={s === "CONFIRMED" ? "bg-green-600 text-white hover:bg-green-700" : ""}
-                      onClick={() => updateOrderStatus(selectedOrder._id, s)}
-                    >
-                      {selectedOrder.status === "PENDING" && s === "CONFIRMED"
-                        ? "Approve Order"
-                        : statusLabels[s] || s}
-                    </Button>
+              <div className="mt-4">
+                <h3 className="font-medium text-gray-700">Items ({selectedOrder.items.length})</h3>
+                <div className="mt-3 space-y-3">
+                  {selectedOrder.items.map((item, i) => (
+                    <div key={i} className="flex items-center gap-4 rounded-lg border border-gray-100 p-3">
+                      {item.image ? (
+                        <div className="relative h-20 w-20 flex-shrink-0 overflow-hidden rounded-lg bg-gray-100">
+                          <Image src={item.image} alt={item.name} fill className="object-cover" sizes="80px" />
+                        </div>
+                      ) : (
+                        <div className="flex h-20 w-20 flex-shrink-0 items-center justify-center rounded-lg bg-gray-100 text-xs text-gray-400">No Image</div>
+                      )}
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-gray-900 line-clamp-1">{item.name}</p>
+                        <p className="mt-0.5 text-xs text-gray-500">Size: {item.size} &middot; Qty: {item.quantity}</p>
+                        <p className="mt-0.5 text-xs text-gray-500">{formatPrice(item.price)} each</p>
+                      </div>
+                      <span className="text-sm font-semibold text-gray-900">{formatPrice(item.price * item.quantity)}</span>
+                    </div>
                   ))}
                 </div>
               </div>
-            )}
+
+              <div className="mt-4 space-y-1 border-t pt-4 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-gray-500">Subtotal</span>
+                  <span>{formatPrice(selectedOrder.subtotal)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-500">Shipping</span>
+                  <span>{selectedOrder.shippingCost === 0 ? "Free" : formatPrice(selectedOrder.shippingCost)}</span>
+                </div>
+                {selectedOrder.taxDetails && selectedOrder.taxDetails.totalTaxableAmount > 0 && (
+                  <div className="flex justify-between">
+                    <span className="text-gray-500">Taxable Amount</span>
+                    <span>{formatPrice(selectedOrder.taxDetails.totalTaxableAmount)}</span>
+                  </div>
+                )}
+                {selectedOrder.taxDetails && selectedOrder.taxDetails.totalGstAmount > 0 && (
+                  <>
+                    {selectedOrder.taxDetails.isInterState ? (
+                      <div className="flex justify-between">
+                        <span className="text-gray-500">IGST</span>
+                        <span>{formatPrice(selectedOrder.taxDetails.totalGstAmount)}</span>
+                      </div>
+                    ) : (
+                      <>
+                        <div className="flex justify-between">
+                          <span className="text-gray-500">CGST</span>
+                          <span>{formatPrice(selectedOrder.taxDetails.totalCgst)}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-gray-500">SGST</span>
+                          <span>{formatPrice(selectedOrder.taxDetails.totalSgst)}</span>
+                        </div>
+                      </>
+                    )}
+                  </>
+                )}
+                {!selectedOrder.taxDetails && (
+                  <div className="flex justify-between">
+                    <span className="text-gray-500">Tax (GST)</span>
+                    <span>{formatPrice(selectedOrder.tax)}</span>
+                  </div>
+                )}
+                <div className="flex justify-between border-t pt-2 font-semibold">
+                  <span>Total</span>
+                  <span>{formatPrice(selectedOrder.total)}</span>
+                </div>
+              </div>
+
+              <div className="mt-4 flex items-center justify-between border-t pt-4">
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-gray-500">Status:</span>
+                  <Badge className={cn(statusStyles[selectedOrder.status] || "bg-gray-100 text-gray-800")}>
+                    {statusLabels[selectedOrder.status] || selectedOrder.status}
+                  </Badge>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-gray-500">Payment:</span>
+                  <span className={cn("text-sm font-medium", paymentStyles[selectedOrder.paymentStatus])}>
+                    {selectedOrder.paymentStatus}
+                  </span>
+                </div>
+              </div>
+
+              {selectedOrder.paymentMethod === "cod" && selectedOrder.paymentStatus === "PENDING" && (
+                <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-3">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-medium text-amber-800">COD Payment Pending</p>
+                      <p className="text-xs text-amber-600">Confirm once you&apos;ve received the cash from customer</p>
+                    </div>
+                    <Button
+                      size="sm"
+                      className="bg-green-600 text-white hover:bg-green-700 gap-1.5"
+                      onClick={async () => {
+                        try {
+                          await adminFetch(`/api/wox/admin/orders/${selectedOrder._id}/confirm-cod`, { method: "POST" });
+                          setSelectedOrder((prev) => prev ? { ...prev, paymentStatus: "PAID" } : null);
+                          fetchOrders();
+                        } catch (e) {
+                          console.error("Failed to confirm COD:", e);
+                          alert("Failed to confirm payment");
+                        }
+                      }}
+                    >
+                      <BadgeCheck className="h-4 w-4" />
+                      Confirm Payment
+                    </Button>
+                  </div>
+                </div>
+              )}
+              {selectedOrder.paymentMethod === "cod" && selectedOrder.paymentStatus === "PAID" && (
+                <div className="mt-3 rounded-lg border border-green-200 bg-green-50 p-3">
+                  <div className="flex items-center gap-2">
+                    <BadgeCheck className="h-4 w-4 text-green-600" />
+                    <p className="text-sm font-medium text-green-800">COD Payment Confirmed</p>
+                  </div>
+                </div>
+              )}
+
+              {nextStatuses[selectedOrder.status]?.length > 0 && (
+                <div className="mt-4 border-t pt-4 pb-2">
+                  {selectedOrder.status === "PENDING" && (
+                    <p className="mb-3 text-xs text-gray-500">Review the order above, then approve or cancel.</p>
+                  )}
+                  <div className="flex flex-wrap gap-2">
+                    {nextStatuses[selectedOrder.status].map((s) => (
+                      <Button
+                        key={s}
+                        size="sm"
+                        variant={s === "CANCELLED" ? "destructive" : "default"}
+                        className={s === "CONFIRMED" ? "bg-green-600 text-white hover:bg-green-700" : ""}
+                        onClick={() => updateOrderStatus(selectedOrder._id, s)}
+                      >
+                        {selectedOrder.status === "PENDING" && s === "CONFIRMED" ? "Approve Order" : statusLabels[s] || s}
+                      </Button>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -733,185 +960,128 @@ export default function AdminOrdersPage() {
             onClick={(e) => e.stopPropagation()}
           >
             <div className="p-6 pb-8">
-            <div className="flex items-center justify-between">
-              <div>
-                <h2 className="text-lg font-bold text-gray-900">Refund Request</h2>
-                <p className="text-xs text-gray-500">Order {selectedRefund.orderNumber}</p>
-              </div>
-              <button
-                onClick={() => { setSelectedRefund(null); setRefundAdminNotes(""); setRefundReference(""); }}
-                className="text-gray-400 hover:text-gray-600 text-xl"
-              >
-                &times;
-              </button>
-            </div>
-
-            <div className="mt-4 rounded-lg bg-gray-50 p-4 text-sm space-y-2">
-              <div className="flex justify-between">
-                <span className="text-gray-500">Customer</span>
-                <span className="font-medium text-gray-900">{selectedRefund.customerName}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-gray-500">Email</span>
-                <span className="text-gray-900">{selectedRefund.customerEmail}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-gray-500">Type</span>
-                <span className="text-gray-900">{selectedRefund.type === "cancel_refund" ? "Cancel & Refund" : "Return & Refund"}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-gray-500">Refund Amount</span>
-                <span className="font-bold text-gray-900">{formatPrice(selectedRefund.amount)}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-gray-500">Payment Method</span>
-                <span className="text-gray-900">{selectedRefund.paymentMethod.toUpperCase()}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-gray-500">Status</span>
-                <Badge className={cn(refundStatusStyles[selectedRefund.status])}>
-                  {refundStatusLabels[selectedRefund.status]}
-                </Badge>
-              </div>
-              <div>
-                <span className="text-gray-500">Reason:</span>
-                <p className="mt-1 text-gray-900">{selectedRefund.reason}</p>
-              </div>
-            </div>
-
-            {/* Bank Details */}
-            <div className="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm">
-              <div className="flex items-center justify-between mb-2">
-                <h4 className="font-medium text-amber-800">Bank Details for Refund</h4>
-                <button
-                  onClick={() => setShowBankDetails(showBankDetails === selectedRefund._id ? null : selectedRefund._id)}
-                  className="text-xs text-amber-700 underline"
-                >
-                  {showBankDetails === selectedRefund._id ? "Hide" : "Show"}
-                </button>
-              </div>
-              {showBankDetails === selectedRefund._id ? (
-                <div className="space-y-1 text-amber-900">
-                  <p><span className="font-medium">Account Holder:</span> {selectedRefund.bankDetails.accountHolderName}</p>
-                  <p><span className="font-medium">Account Number:</span> {selectedRefund.bankDetails.accountNumber}</p>
-                  <p><span className="font-medium">IFSC:</span> {selectedRefund.bankDetails.ifscCode}</p>
-                  <p><span className="font-medium">Bank:</span> {selectedRefund.bankDetails.bankName}</p>
-                  {selectedRefund.bankDetails.upiId && (
-                    <p><span className="font-medium">UPI:</span> {selectedRefund.bankDetails.upiId}</p>
-                  )}
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="text-lg font-bold text-gray-900">Refund Request</h2>
+                  <p className="text-xs text-gray-500">Order {selectedRefund.orderNumber}</p>
                 </div>
-              ) : (
-                <p className="text-xs text-amber-700">Click &quot;Show&quot; to reveal sensitive bank details</p>
-              )}
-            </div>
+                <button onClick={() => { setSelectedRefund(null); setRefundAdminNotes(""); setRefundReference(""); }} className="text-gray-400 hover:text-gray-600 text-xl">&times;</button>
+              </div>
 
-            {selectedRefund.refundTransactionId && (
-              <div className="mt-3 rounded-lg border border-green-200 bg-green-50 p-3 text-sm">
-                <p className="font-medium text-green-800">Refund Transaction ID: {selectedRefund.refundTransactionId}</p>
-                {selectedRefund.refundReferenceNumber && (
-                  <p className="text-green-700">Reference: {selectedRefund.refundReferenceNumber}</p>
+              <div className="mt-4 rounded-lg bg-gray-50 p-4 text-sm space-y-2">
+                <div className="flex justify-between">
+                  <span className="text-gray-500">Customer</span>
+                  <span className="font-medium text-gray-900">{selectedRefund.customerName}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-500">Email</span>
+                  <span className="text-gray-900">{selectedRefund.customerEmail}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-500">Type</span>
+                  <span className="text-gray-900">{selectedRefund.type === "cancel_refund" ? "Cancel & Refund" : "Return & Refund"}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-500">Refund Amount</span>
+                  <span className="font-bold text-gray-900">{formatPrice(selectedRefund.amount)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-500">Payment Method</span>
+                  <span className="text-gray-900">{selectedRefund.paymentMethod.toUpperCase()}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-500">Status</span>
+                  <Badge className={cn(refundStatusStyles[selectedRefund.status])}>{refundStatusLabels[selectedRefund.status]}</Badge>
+                </div>
+                <div>
+                  <span className="text-gray-500">Reason:</span>
+                  <p className="mt-1 text-gray-900">{selectedRefund.reason}</p>
+                </div>
+              </div>
+
+              <div className="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm">
+                <div className="flex items-center justify-between mb-2">
+                  <h4 className="font-medium text-amber-800">Bank Details for Refund</h4>
+                  <button onClick={() => setShowBankDetails(showBankDetails === selectedRefund._id ? null : selectedRefund._id)} className="text-xs text-amber-700 underline">
+                    {showBankDetails === selectedRefund._id ? "Hide" : "Show"}
+                  </button>
+                </div>
+                {showBankDetails === selectedRefund._id ? (
+                  <div className="space-y-1 text-amber-900">
+                    <p><span className="font-medium">Account Holder:</span> {selectedRefund.bankDetails.accountHolderName}</p>
+                    <p><span className="font-medium">Account Number:</span> {selectedRefund.bankDetails.accountNumber}</p>
+                    <p><span className="font-medium">IFSC:</span> {selectedRefund.bankDetails.ifscCode}</p>
+                    <p><span className="font-medium">Bank:</span> {selectedRefund.bankDetails.bankName}</p>
+                    {selectedRefund.bankDetails.upiId && (
+                      <p><span className="font-medium">UPI:</span> {selectedRefund.bankDetails.upiId}</p>
+                    )}
+                  </div>
+                ) : (
+                  <p className="text-xs text-amber-700">Click &quot;Show&quot; to reveal sensitive bank details</p>
                 )}
               </div>
-            )}
 
-            {/* Admin Actions */}
-            {selectedRefund.status === "pending" && (
-              <div className="mt-4 border-t pt-4 space-y-3">
-                <div>
-                  <label className="text-sm font-medium text-gray-700">Admin Notes</label>
-                  <textarea
-                    value={refundAdminNotes}
-                    onChange={(e) => setRefundAdminNotes(e.target.value)}
-                    rows={2}
-                    placeholder="Add notes (required for rejection)..."
-                    className="mt-1 w-full rounded-lg border border-gray-200 px-3 py-2 text-sm"
-                  />
+              {selectedRefund.refundTransactionId && (
+                <div className="mt-3 rounded-lg border border-green-200 bg-green-50 p-3 text-sm">
+                  <p className="font-medium text-green-800">Refund Transaction ID: {selectedRefund.refundTransactionId}</p>
+                  {selectedRefund.refundReferenceNumber && (
+                    <p className="text-green-700">Reference: {selectedRefund.refundReferenceNumber}</p>
+                  )}
                 </div>
-                <div className="flex gap-2">
-                  <Button
-                    size="sm"
-                    className="bg-green-600 text-white hover:bg-green-700 gap-1.5"
-                    disabled={refundActionLoading}
-                    onClick={() => handleRefundAction(selectedRefund._id, "approve")}
-                  >
+              )}
+
+              {selectedRefund.status === "pending" && (
+                <div className="mt-4 border-t pt-4 space-y-3">
+                  <div>
+                    <label className="text-sm font-medium text-gray-700">Admin Notes</label>
+                    <textarea value={refundAdminNotes} onChange={(e) => setRefundAdminNotes(e.target.value)} rows={2} placeholder="Add notes (required for rejection)..." className="mt-1 w-full rounded-lg border border-gray-200 px-3 py-2 text-sm" />
+                  </div>
+                  <div className="flex gap-2">
+                    <Button size="sm" className="bg-green-600 text-white hover:bg-green-700 gap-1.5" disabled={refundActionLoading} onClick={() => handleRefundAction(selectedRefund._id, "approve")}>
+                      {refundActionLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Check className="h-3.5 w-3.5" />}
+                      Approve
+                    </Button>
+                    <Button size="sm" variant="destructive" disabled={refundActionLoading} onClick={() => handleRefundAction(selectedRefund._id, "reject")}>
+                      {refundActionLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <X className="h-3.5 w-3.5" />}
+                      Reject
+                    </Button>
+                  </div>
+                </div>
+              )}
+
+              {selectedRefund.status === "approved" && (
+                <div className="mt-4 border-t pt-4 space-y-3">
+                  <div>
+                    <label className="text-sm font-medium text-gray-700">Refund Reference Number (optional)</label>
+                    <Input type="text" value={refundReference} onChange={(e) => setRefundReference(e.target.value)} placeholder="Bank/UTR reference number" className="mt-1 text-sm" />
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium text-gray-700">Admin Notes (optional)</label>
+                    <textarea value={refundAdminNotes} onChange={(e) => setRefundAdminNotes(e.target.value)} rows={2} placeholder="Processing notes..." className="mt-1 w-full rounded-lg border border-gray-200 px-3 py-2 text-sm" />
+                  </div>
+                  <Button size="sm" className="bg-indigo-600 text-white hover:bg-indigo-700 gap-1.5" disabled={refundActionLoading} onClick={() => handleRefundAction(selectedRefund._id, "process")}>
+                    {refundActionLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Banknote className="h-3.5 w-3.5" />}
+                    Process Refund (via Razorpay)
+                  </Button>
+                </div>
+              )}
+
+              {selectedRefund.status === "processed" && (
+                <div className="mt-4 border-t pt-4 space-y-3">
+                  <div>
+                    <label className="text-sm font-medium text-gray-700">Admin Notes (optional)</label>
+                    <textarea value={refundAdminNotes} onChange={(e) => setRefundAdminNotes(e.target.value)} rows={2} placeholder="Completion notes..." className="mt-1 w-full rounded-lg border border-gray-200 px-3 py-2 text-sm" />
+                  </div>
+                  <Button size="sm" className="bg-green-600 text-white hover:bg-green-700 gap-1.5" disabled={refundActionLoading} onClick={() => handleRefundAction(selectedRefund._id, "complete")}>
                     {refundActionLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Check className="h-3.5 w-3.5" />}
-                    Approve
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="destructive"
-                    disabled={refundActionLoading}
-                    onClick={() => handleRefundAction(selectedRefund._id, "reject")}
-                  >
-                    {refundActionLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <X className="h-3.5 w-3.5" />}
-                    Reject
+                    Mark as Completed
                   </Button>
                 </div>
-              </div>
-            )}
-
-            {selectedRefund.status === "approved" && (
-              <div className="mt-4 border-t pt-4 space-y-3">
-                <div>
-                  <label className="text-sm font-medium text-gray-700">Refund Reference Number (optional)</label>
-                  <Input
-                    type="text"
-                    value={refundReference}
-                    onChange={(e) => setRefundReference(e.target.value)}
-                    placeholder="Bank/UTR reference number"
-                    className="mt-1 text-sm"
-                  />
-                </div>
-                <div>
-                  <label className="text-sm font-medium text-gray-700">Admin Notes (optional)</label>
-                  <textarea
-                    value={refundAdminNotes}
-                    onChange={(e) => setRefundAdminNotes(e.target.value)}
-                    rows={2}
-                    placeholder="Processing notes..."
-                    className="mt-1 w-full rounded-lg border border-gray-200 px-3 py-2 text-sm"
-                  />
-                </div>
-                <Button
-                  size="sm"
-                  className="bg-indigo-600 text-white hover:bg-indigo-700 gap-1.5"
-                  disabled={refundActionLoading}
-                  onClick={() => handleRefundAction(selectedRefund._id, "process")}
-                >
-                  {refundActionLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Banknote className="h-3.5 w-3.5" />}
-                  Process Refund (via Razorpay)
-                </Button>
-              </div>
-            )}
-
-            {selectedRefund.status === "processed" && (
-              <div className="mt-4 border-t pt-4 space-y-3">
-                <div>
-                  <label className="text-sm font-medium text-gray-700">Admin Notes (optional)</label>
-                  <textarea
-                    value={refundAdminNotes}
-                    onChange={(e) => setRefundAdminNotes(e.target.value)}
-                    rows={2}
-                    placeholder="Completion notes..."
-                    className="mt-1 w-full rounded-lg border border-gray-200 px-3 py-2 text-sm"
-                  />
-                </div>
-                <Button
-                  size="sm"
-                  className="bg-green-600 text-white hover:bg-green-700 gap-1.5"
-                  disabled={refundActionLoading}
-                  onClick={() => handleRefundAction(selectedRefund._id, "complete")}
-                >
-                  {refundActionLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Check className="h-3.5 w-3.5" />}
-                  Mark as Completed
-                </Button>
-              </div>
-            )}
+              )}
             </div>
           </div>
         </div>
       )}
-
     </>
   );
 }
