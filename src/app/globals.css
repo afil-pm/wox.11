@@ -301,9 +301,12 @@ body {
 
 /* Overlays */
 .dark .bg-black       { background-color: #000 !important; }
-.dark .bg-black\/40   { background-color: rgba(0,0,0,0.7) !important; }
+.dark .bg-black\/40   { background-color: rgba(0,0,0,0.5) !important; }
 .dark .bg-black\/50   { background-color: rgba(0,0,0,0.8) !important; }
-.dark .bg-black\/60   { background-color: rgba(0,0,0,0.85) !important; }
+.dark .bg-black\/60   { background-color: rgba(0,0,0,0.6) !important; }
+
+/* Hero section — remove dark overlay so image stays vivid */
+.dark .min-h-\[80vh\] .bg-black\/50 { background-color: transparent !important; }
 
 /* ── TEXT COLORS ────────────────────────────────────────────── */
 /* Keep white as-is */
