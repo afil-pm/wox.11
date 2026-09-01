@@ -20,7 +20,7 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const status = searchParams.get("status");
 
-    const filter: Record<string, unknown> = { type: "account-recovery" };
+    const filter: Record<string, unknown> = {};
     if (status && status !== "all") {
       filter.status = status;
     }

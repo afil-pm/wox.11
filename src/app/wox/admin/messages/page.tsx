@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback, useRef } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { Eye, MessageSquare, Send, Loader2 } from "lucide-react";
+import { Eye, MessageSquare, Send, Loader2, HelpCircle, Bug, MessageCircle } from "lucide-react";
 import { adminFetch } from "@/lib/admin-api";
 import WoxLoader from "@/components/ui/wox-loader";
 
@@ -37,10 +37,32 @@ const statusLabels: Record<string, string> = {
   complete: "Complete",
 };
 
+const typeLabels: Record<string, string> = {
+  "account-recovery": "Account Recovery",
+  "help-support": "Help / Support",
+  "feedback": "Feedback",
+  "bug-report": "Bug Report",
+};
+
+const typeStyles: Record<string, string> = {
+  "account-recovery": "bg-purple-100 text-purple-800",
+  "help-support": "bg-blue-100 text-blue-800",
+  "feedback": "bg-green-100 text-green-800",
+  "bug-report": "bg-red-100 text-red-800",
+};
+
+const typeIcons: Record<string, React.ComponentType<{ className?: string }>> = {
+  "account-recovery": MessageCircle,
+  "help-support": HelpCircle,
+  "feedback": MessageSquare,
+  "bug-report": Bug,
+};
+
 export default function AdminMessagesPage() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState("all");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [typeFilter, setTypeFilter] = useState("all");
   const [selectedMsg, setSelectedMsg] = useState<Message | null>(null);
   const [replyText, setReplyText] = useState("");
   const [replyLoading, setReplyLoading] = useState(false);
@@ -49,7 +71,7 @@ export default function AdminMessagesPage() {
 
   const fetchMessages = useCallback(async () => {
     try {
-      const url = filter === "all" ? "/api/wox/admin/messages" : `/api/wox/admin/messages?status=${filter}`;
+      const url = statusFilter === "all" ? "/api/wox/admin/messages" : `/api/wox/admin/messages?status=${statusFilter}`;
       const res = await adminFetch(url);
       const data = await res.json();
       setMessages(data.messages || []);
@@ -59,7 +81,7 @@ export default function AdminMessagesPage() {
     } finally {
       setLoading(false);
     }
-  }, [filter]);
+  }, [statusFilter]);
 
   useEffect(() => {
     fetchMessages();
@@ -112,6 +134,7 @@ export default function AdminMessagesPage() {
     }
   }
 
+  const filteredMessages = typeFilter === "all" ? messages : messages.filter((m) => m.type === typeFilter);
   const pendingCount = messages.filter((m) => m.status === "pending").length;
 
   return (
@@ -120,25 +143,50 @@ export default function AdminMessagesPage() {
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Messages</h1>
           <p className="text-sm text-gray-500">
-            {messages.length} request(s) &middot; {pendingCount} pending &middot; Updated{" "}
+            {filteredMessages.length} request(s) &middot; {pendingCount} pending &middot; Updated{" "}
             {lastUpdated.toLocaleTimeString("en-IN")}
           </p>
         </div>
       </div>
 
-      <div className="mb-4 flex flex-wrap gap-2">
-        {["all", "pending", "reviewing", "resolved", "rejected", "received", "complete"].map((s) => (
+      {/* Type Filter */}
+      <div className="mb-3 flex flex-wrap gap-2">
+        {[
+          { key: "all", label: "All Types" },
+          { key: "account-recovery", label: "Account Recovery" },
+          { key: "help-support", label: "Help / Support" },
+          { key: "feedback", label: "Feedback" },
+          { key: "bug-report", label: "Bug Report" },
+        ].map((t) => (
           <button
-            key={s}
-            onClick={() => setFilter(s)}
+            key={t.key}
+            onClick={() => setTypeFilter(t.key)}
             className={cn(
               "rounded-full px-3 py-1 text-xs font-semibold transition-colors",
-              filter === s
+              typeFilter === t.key
                 ? "bg-zinc-900 text-white"
                 : "bg-gray-100 text-gray-600 hover:bg-gray-200"
             )}
           >
-            {s === "all" ? "All" : statusLabels[s]}
+            {t.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Status Filter */}
+      <div className="mb-4 flex flex-wrap gap-2">
+        {["all", "pending", "reviewing", "resolved", "rejected", "received", "complete"].map((s) => (
+          <button
+            key={s}
+            onClick={() => setStatusFilter(s)}
+            className={cn(
+              "rounded-full px-3 py-1 text-xs font-semibold transition-colors",
+              statusFilter === s
+                ? "bg-zinc-900 text-white"
+                : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+            )}
+          >
+            {s === "all" ? "All Status" : statusLabels[s]}
             {s === "pending" && pendingCount > 0 && (
               <span className="ml-1 inline-flex h-4 w-4 items-center justify-center rounded-full bg-yellow-500 text-[10px] text-white">
                 {pendingCount}
@@ -152,7 +200,7 @@ export default function AdminMessagesPage() {
         <div className="flex items-center justify-center py-20">
           <WoxLoader />
         </div>
-      ) : messages.length === 0 ? (
+      ) : filteredMessages.length === 0 ? (
         <div className="rounded-xl border bg-white p-10 text-center shadow-sm">
           <MessageSquare className="mx-auto h-8 w-8 text-gray-300" />
           <p className="mt-2 text-sm text-gray-500">No messages found</p>
@@ -164,6 +212,7 @@ export default function AdminMessagesPage() {
               <thead>
                 <tr className="border-b text-left text-xs font-medium uppercase text-gray-500">
                   <th className="px-4 py-3">From</th>
+                  <th className="px-4 py-3">Type</th>
                   <th className="px-4 py-3">Message</th>
                   <th className="px-4 py-3">Date</th>
                   <th className="px-4 py-3">Status</th>
@@ -171,33 +220,42 @@ export default function AdminMessagesPage() {
                 </tr>
               </thead>
               <tbody className="divide-y">
-                {messages.map((msg) => (
-                  <tr key={msg._id} className="hover:bg-gray-50">
-                    <td className="px-4 py-3">
-                      <div className="font-medium text-gray-900">{msg.senderName}</div>
-                      <div className="text-xs text-gray-500">{msg.senderEmail}</div>
-                    </td>
-                    <td className="px-4 py-3 text-gray-600 max-w-xs truncate">{msg.message}</td>
-                    <td className="px-4 py-3 text-gray-500 whitespace-nowrap">
-                      {new Date(msg.createdAt).toLocaleDateString("en-IN", {
-                        day: "numeric",
-                        month: "short",
-                        year: "numeric",
-                      })}
-                    </td>
-                    <td className="px-4 py-3">
-                      <Badge className={cn(statusStyles[msg.status])}>
-                        {statusLabels[msg.status]}
-                      </Badge>
-                    </td>
-                    <td className="px-4 py-3">
-                      <Button variant="ghost" size="sm" onClick={() => { setSelectedMsg(msg); setReplyText(""); }}>
-                        <Eye className="mr-1 h-3.5 w-3.5" />
-                        View
-                      </Button>
-                    </td>
-                  </tr>
-                ))}
+                {filteredMessages.map((msg) => {
+                  const TypeIcon = typeIcons[msg.type] || MessageSquare;
+                  return (
+                    <tr key={msg._id} className="hover:bg-gray-50">
+                      <td className="px-4 py-3">
+                        <div className="font-medium text-gray-900">{msg.senderName}</div>
+                        <div className="text-xs text-gray-500">{msg.senderEmail}</div>
+                      </td>
+                      <td className="px-4 py-3">
+                        <Badge className={cn(typeStyles[msg.type] || "bg-gray-100 text-gray-800")}>
+                          <TypeIcon className="mr-1 h-3 w-3" />
+                          {typeLabels[msg.type] || msg.type}
+                        </Badge>
+                      </td>
+                      <td className="px-4 py-3 text-gray-600 max-w-xs truncate">{msg.message}</td>
+                      <td className="px-4 py-3 text-gray-500 whitespace-nowrap">
+                        {new Date(msg.createdAt).toLocaleDateString("en-IN", {
+                          day: "numeric",
+                          month: "short",
+                          year: "numeric",
+                        })}
+                      </td>
+                      <td className="px-4 py-3">
+                        <Badge className={cn(statusStyles[msg.status])}>
+                          {statusLabels[msg.status]}
+                        </Badge>
+                      </td>
+                      <td className="px-4 py-3">
+                        <Button variant="ghost" size="sm" onClick={() => { setSelectedMsg(msg); setReplyText(""); }}>
+                          <Eye className="mr-1 h-3.5 w-3.5" />
+                          View
+                        </Button>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
@@ -218,7 +276,12 @@ export default function AdminMessagesPage() {
           >
             <div className="flex items-center justify-between border-b border-zinc-200 px-6 py-4">
               <div>
-                <h2 className="text-lg font-bold text-gray-900">Recovery Request</h2>
+                <div className="flex items-center gap-2">
+                  <h2 className="text-lg font-bold text-gray-900">{typeLabels[selectedMsg.type] || selectedMsg.type}</h2>
+                  <Badge className={cn(typeStyles[selectedMsg.type] || "bg-gray-100 text-gray-800")}>
+                    {typeLabels[selectedMsg.type]}
+                  </Badge>
+                </div>
                 <p className="text-xs text-gray-500">
                   From {selectedMsg.senderName} &middot; {new Date(selectedMsg.createdAt).toLocaleString("en-IN")}
                 </p>
@@ -227,7 +290,6 @@ export default function AdminMessagesPage() {
             </div>
 
             <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
-              {/* User Info */}
               <div className="rounded-lg bg-gray-50 p-4">
                 <div className="grid grid-cols-2 gap-3 text-sm">
                   <div>
@@ -241,15 +303,13 @@ export default function AdminMessagesPage() {
                 </div>
               </div>
 
-              {/* Message */}
               <div>
-                <h3 className="text-sm font-medium text-gray-700 mb-2">User Message</h3>
+                <h3 className="text-sm font-medium text-gray-700 mb-2">Message</h3>
                 <div className="rounded-lg border border-zinc-200 bg-white p-4">
                   <p className="text-sm text-gray-800 whitespace-pre-wrap">{selectedMsg.message}</p>
                 </div>
               </div>
 
-              {/* Admin Reply */}
               {selectedMsg.adminReply && (
                 <div>
                   <h3 className="text-sm font-medium text-gray-700 mb-2">Admin Reply</h3>
@@ -259,7 +319,6 @@ export default function AdminMessagesPage() {
                 </div>
               )}
 
-              {/* Status Actions */}
               <div>
                 <h3 className="text-sm font-medium text-gray-700 mb-2">Status</h3>
                 <div className="flex flex-wrap gap-2">
@@ -277,7 +336,6 @@ export default function AdminMessagesPage() {
                 </div>
               </div>
 
-              {/* Reply Box */}
               <div>
                 <h3 className="text-sm font-medium text-gray-700 mb-2">Reply</h3>
                 <textarea

@@ -1,7 +1,7 @@
 import mongoose, { Schema, Document, Model } from "mongoose";
 
 export interface IMessage extends Document {
-  type: "account-recovery";
+  type: "account-recovery" | "help-support" | "feedback" | "bug-report";
   senderEmail: string;
   senderUserId: string;
   senderName: string;
@@ -15,7 +15,7 @@ export interface IMessage extends Document {
 
 const MessageSchema = new Schema<IMessage>(
   {
-    type: { type: String, default: "account-recovery", required: true },
+    type: { type: String, enum: ["account-recovery", "help-support", "feedback", "bug-report"], default: "account-recovery", required: true },
     senderEmail: { type: String, required: true, lowercase: true, trim: true },
     senderUserId: { type: String, default: "" },
     senderName: { type: String, required: true, trim: true },
