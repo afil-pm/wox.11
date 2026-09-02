@@ -29,6 +29,9 @@ export default function AccountSettingsPage() {
   const [bankEditing, setBankEditing] = useState(false);
   const [bankStatus, setBankStatus] = useState<"idle" | "success" | "error">("idle");
   const [bankError, setBankError] = useState("");
+  const [ifscVerifying, setIfscVerifying] = useState(false);
+  const [ifscVerified, setIfscVerified] = useState(false);
+  const [ifscError, setIfscError] = useState("");
   const [bankForm, setBankForm] = useState({
     accountHolderName: "",
     accountNumber: "",
@@ -182,6 +185,35 @@ export default function AccountSettingsPage() {
     }
   }
 
+  async function verifyIfsc() {
+    const code = bankForm.ifscCode.trim().toUpperCase();
+    if (!/^[A-Za-z]{4}0[A-Za-z0-9]{6}$/.test(code)) {
+      setIfscError("Invalid IFSC format");
+      setIfscVerified(false);
+      return;
+    }
+    setIfscVerifying(true);
+    setIfscError("");
+    try {
+      const res = await fetch(`https://ifsc.razorpay.com/${code}`);
+      if (!res.ok) throw new Error("Invalid IFSC code");
+      const data = await res.json();
+      if (data.BANK) {
+        setBankForm((p) => ({ ...p, bankName: data.BANK, ifscCode: code }));
+        setIfscVerified(true);
+        setIfscError("");
+      } else {
+        setIfscError("IFSC code not found");
+        setIfscVerified(false);
+      }
+    } catch {
+      setIfscError("Could not verify IFSC code");
+      setIfscVerified(false);
+    } finally {
+      setIfscVerifying(false);
+    }
+  }
+
   async function handleBankDelete() {
     const user = JSON.parse(localStorage.getItem("wox-user") || "{}");
     if (!user?.id) return;
@@ -309,12 +341,33 @@ export default function AccountSettingsPage() {
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="text-xs font-medium text-zinc-600">IFSC Code</label>
-                <Input value={bankForm.ifscCode} onChange={(e) => setBankForm((p) => ({ ...p, ifscCode: e.target.value.toUpperCase() }))} placeholder="e.g. SBIN0001234" className="mt-1 font-mono" />
+                <div className="flex gap-1.5 mt-1">
+                  <Input value={bankForm.ifscCode} onChange={(e) => { setBankForm((p) => ({ ...p, ifscCode: e.target.value.toUpperCase() })); setIfscVerified(false); setIfscError(""); }} placeholder="e.g. SBIN0001234" className="font-mono flex-1" maxLength={11} />
+                  <button
+                    type="button"
+                    onClick={verifyIfsc}
+                    disabled={ifscVerifying || bankForm.ifscCode.length < 11}
+                    className={cn(
+                      "flex-shrink-0 rounded-lg px-3 text-xs font-medium transition-colors",
+                      ifscVerified
+                        ? "bg-green-50 text-green-700"
+                        : "bg-zinc-100 text-zinc-600 hover:bg-zinc-200 disabled:opacity-50"
+                    )}
+                  >
+                    {ifscVerifying ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : ifscVerified ? <CheckCircle className="h-3.5 w-3.5" /> : "Verify"}
+                  </button>
+                </div>
+                {ifscError && <p className="mt-1 text-[11px] text-red-500">{ifscError}</p>}
+                {ifscVerified && <p className="mt-1 text-[11px] text-green-600">IFSC verified</p>}
               </div>
               <div>
-                <label className="text-xs font-medium text-zinc-600">UPI ID (optional)</label>
-                <Input value={bankForm.upiId} onChange={(e) => setBankForm((p) => ({ ...p, upiId: e.target.value }))} placeholder="e.g. name@upi" className="mt-1" />
+                <label className="text-xs font-medium text-zinc-600">Bank Name</label>
+                <Input value={bankForm.bankName} onChange={(e) => setBankForm((p) => ({ ...p, bankName: e.target.value }))} placeholder={ifscVerified ? "Auto-filled" : "e.g. State Bank of India"} className="mt-1" disabled={ifscVerified} />
               </div>
+            </div>
+            <div>
+              <label className="text-xs font-medium text-zinc-600">UPI ID (optional)</label>
+              <Input value={bankForm.upiId} onChange={(e) => setBankForm((p) => ({ ...p, upiId: e.target.value }))} placeholder="e.g. name@upi" className="mt-1" />
             </div>
 
             {bankStatus === "success" && (

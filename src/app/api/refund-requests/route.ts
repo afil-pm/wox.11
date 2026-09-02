@@ -147,8 +147,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "A refund request for this order is already being processed" }, { status: 400 });
     }
 
-    let encryptedAccountNumber: string;
-    if (useSavedBank) {
+    let encryptedAccountNumber: string | undefined;
+    if (isCODCancel) {
+      encryptedAccountNumber = undefined;
+    } else if (useSavedBank) {
       encryptedAccountNumber = bankDetails.accountNumber;
     } else {
       try {
@@ -170,7 +172,13 @@ export async function POST(request: NextRequest) {
       type,
       reason: reason.trim(),
       amount: order.total,
-      bankDetails: {
+      bankDetails: isCODCancel ? {
+        accountHolderName: "",
+        accountNumber: "",
+        ifscCode: "",
+        bankName: "",
+        upiId: "",
+      } : {
         accountHolderName: bankDetails.accountHolderName.trim(),
         accountNumber: encryptedAccountNumber,
         ifscCode: bankDetails.ifscCode.trim().toUpperCase(),
@@ -181,7 +189,7 @@ export async function POST(request: NextRequest) {
       paymentId: order.paymentId || "",
     });
 
-    if (saveBankDetails && !useSavedBank) {
+    if (saveBankDetails && !useSavedBank && bankDetails) {
       const existing = await SavedBankDetails.findOne({ userId });
       if (existing) {
         await SavedBankDetails.updateOne(
