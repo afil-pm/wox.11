@@ -240,6 +240,9 @@ export default function OrderActionPage({
       return;
     }
 
+    const isCODOrder = order.paymentMethod === "cod";
+    const needsBankDetails = validAction !== "replace" && !(validAction === "cancel" && isCODOrder);
+
     if (validAction === "replace") {
       setSubmitting(true);
       try {
@@ -274,7 +277,7 @@ export default function OrderActionPage({
       return;
     }
 
-    if (!useSavedBank) {
+    if (needsBankDetails && !useSavedBank) {
       if (!bankDetails.accountHolderName.trim()) {
         setError("Account holder name is required"); return;
       }
