@@ -311,6 +311,14 @@ body {
 .dark a.bg-zinc-900 .text-zinc-600 { color: #a1a1aa !important; }
 .dark a.bg-zinc-900 .bg-zinc-600 { background-color: #52525b !important; }
 
+/* Admin sidebar — keep dark theme intact, override inverted hovers */
+.dark aside.bg-zinc-900 { background-color: #18181b !important; }
+.dark aside.bg-zinc-900 .text-zinc-400 { color: #a1a1aa !important; }
+.dark aside.bg-zinc-900 .hover\:text-white:hover { color: #fafafa !important; }
+.dark aside.bg-zinc-900 .hover\:bg-zinc-800:hover { background-color: #27272a !important; }
+.dark aside.bg-zinc-900 .bg-zinc-800 { background-color: #27272a !important; }
+.dark aside.bg-zinc-900 .border-zinc-800 { border-color: #27272a !important; }
+
 /* Hero section — remove dark overlay so image stays vivid */
 .dark .min-h-\[80vh\] .bg-black\/50 { background-color: transparent !important; }
 
