@@ -4,7 +4,7 @@ import { useEffect, useState, use } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
-import { ArrowLeft, XCircle, RotateCcw, RefreshCw, Banknote } from "lucide-react";
+import { ArrowLeft, XCircle, RotateCcw, RefreshCw, Banknote, CheckCircle, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn, formatPrice } from "@/lib/utils";
@@ -100,6 +100,7 @@ const actionConfig: Record<ActionType, {
 };
 
 const cancelableStatuses = ["PENDING", "CONFIRMED", "PROCESSING", "PACKED"];
+const shippedStatuses = ["SHIPPED", "IN_TRANSIT", "OUT_FOR_DELIVERY"];
 const returnableStatuses = ["DELIVERED"];
 const replaceableStatuses = ["DELIVERED"];
 
@@ -134,6 +135,9 @@ export default function OrderActionPage({
     bankName: "",
     upiId: "",
   });
+  const [ifscVerifying, setIfscVerifying] = useState(false);
+  const [ifscVerified, setIfscVerified] = useState(false);
+  const [ifscError, setIfscError] = useState("");
 
   useEffect(() => {
     async function fetchOrder() {
@@ -179,6 +183,8 @@ export default function OrderActionPage({
 
   function openNewBank() {
     setUseSavedBank(false);
+    setIfscVerified(false);
+    setIfscError("");
     setBankDetails({
       accountHolderName: "",
       accountNumber: "",
@@ -187,6 +193,42 @@ export default function OrderActionPage({
       bankName: "",
       upiId: "",
     });
+  }
+
+  async function verifyIfsc() {
+    const code = bankDetails.ifscCode.trim().toUpperCase();
+    if (!/^[A-Za-z]{4}0[A-Za-z0-9]{6}$/.test(code)) {
+      setIfscError("Invalid IFSC format");
+      setIfscVerified(false);
+      return;
+    }
+    setIfscVerifying(true);
+    setIfscError("");
+    try {
+      const res = await fetch(`https://ifsc.razorpay.com/${code}`);
+      if (!res.ok) throw new Error("Invalid IFSC code");
+      const data = await res.json();
+      if (data.BANK) {
+        setBankDetails((p) => ({ ...p, bankName: data.BANK, ifscCode: code }));
+        setIfscVerified(true);
+        setIfscError("");
+      } else {
+        setIfscError("IFSC code not found");
+        setIfscVerified(false);
+      }
+    } catch {
+      setIfscError("Could not verify IFSC code");
+      setIfscVerified(false);
+    } finally {
+      setIfscVerifying(false);
+    }
+  }
+
+  function validateAccountNumber(): string | null {
+    const num = bankDetails.accountNumber.trim();
+    if (!num) return "Account number is required";
+    if (!/^\d{9,18}$/.test(num)) return "Account number must be 9-18 digits";
+    return null;
   }
 
   async function handleSubmit() {
@@ -236,14 +278,16 @@ export default function OrderActionPage({
       if (!bankDetails.accountHolderName.trim()) {
         setError("Account holder name is required"); return;
       }
-      if (!bankDetails.accountNumber.trim()) {
-        setError("Account number is required"); return;
-      }
+      const accError = validateAccountNumber();
+      if (accError) { setError(accError); return; }
       if (bankDetails.accountNumber !== bankDetails.confirmAccountNumber) {
         setError("Account numbers do not match"); return;
       }
       if (!/^[A-Za-z]{4}0[A-Za-z0-9]{6}$/.test(bankDetails.ifscCode.trim())) {
         setError("Invalid IFSC code format (e.g., SBIN0001234)"); return;
+      }
+      if (!ifscVerified && !bankDetails.bankName.trim()) {
+        setError("Please verify IFSC code or enter bank name"); return;
       }
       if (!bankDetails.bankName.trim()) {
         setError("Bank name is required"); return;
@@ -335,6 +379,8 @@ export default function OrderActionPage({
   if (validAction === "cancel") {
     if (isPreDelivery && cancelableStatuses.includes(order.status)) {
       canDoAction = true;
+    } else if (shippedStatuses.includes(order.status)) {
+      blockReason = "This order has already been shipped and cannot be cancelled. Please wait for delivery and request a return instead.";
     } else if (isDelivered) {
       blockReason = "This order has already been delivered. You can request a return instead.";
     } else {
@@ -550,11 +596,28 @@ export default function OrderActionPage({
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="mb-1 block text-xs text-zinc-500">IFSC Code</label>
-                  <Input type="text" value={bankDetails.ifscCode} onChange={(e) => setBankDetails((p) => ({ ...p, ifscCode: e.target.value.toUpperCase() }))} placeholder="e.g. SBIN0001234" className="text-sm uppercase" maxLength={11} />
+                  <div className="flex gap-1.5">
+                    <Input type="text" value={bankDetails.ifscCode} onChange={(e) => { setBankDetails((p) => ({ ...p, ifscCode: e.target.value.toUpperCase() })); setIfscVerified(false); setIfscError(""); }} placeholder="e.g. SBIN0001234" className="text-sm uppercase flex-1" maxLength={11} />
+                    <button
+                      type="button"
+                      onClick={verifyIfsc}
+                      disabled={ifscVerifying || bankDetails.ifscCode.length < 11}
+                      className={cn(
+                        "flex-shrink-0 rounded-lg px-3 text-xs font-medium transition-colors",
+                        ifscVerified
+                          ? "bg-green-50 text-green-700"
+                          : "bg-zinc-100 text-zinc-600 hover:bg-zinc-200 disabled:opacity-50"
+                      )}
+                    >
+                      {ifscVerifying ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : ifscVerified ? <CheckCircle className="h-3.5 w-3.5" /> : "Verify"}
+                    </button>
+                  </div>
+                  {ifscError && <p className="mt-1 text-[11px] text-red-500">{ifscError}</p>}
+                  {ifscVerified && <p className="mt-1 text-[11px] text-green-600">IFSC verified</p>}
                 </div>
                 <div>
                   <label className="mb-1 block text-xs text-zinc-500">Bank Name</label>
-                  <Input type="text" value={bankDetails.bankName} onChange={(e) => setBankDetails((p) => ({ ...p, bankName: e.target.value }))} placeholder="e.g. State Bank of India" className="text-sm" />
+                  <Input type="text" value={bankDetails.bankName} onChange={(e) => setBankDetails((p) => ({ ...p, bankName: e.target.value }))} placeholder={ifscVerified ? "Auto-filled" : "e.g. State Bank of India"} className="text-sm" disabled={ifscVerified} />
                 </div>
               </div>
               <div>
