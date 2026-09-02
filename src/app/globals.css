@@ -322,6 +322,15 @@ body {
 /* Hero section — remove dark overlay so image stays vivid */
 .dark .min-h-\[80vh\] .bg-black\/50 { background-color: transparent !important; }
 
+/* Hero buttons & text — warm visible colors for dark theme */
+.dark .min-h-\[80vh\] .bg-white { background-color: #f5f0eb !important; }
+.dark .min-h-\[80vh\] .text-zinc-900 { color: #1a1a1a !important; }
+.dark .min-h-\[80vh\] .hover\:bg-white:hover { background-color: #f5f0eb !important; }
+.dark .min-h-\[80vh\] .hover\:text-zinc-900:hover { color: #1a1a1a !important; }
+.dark .min-h-\[80vh\] .border-white { border-color: #f5f0eb !important; }
+.dark .min-h-\[80vh\] .text-white { color: #f5f0eb !important; }
+.dark .min-h-\[80vh\] .text-zinc-300 { color: #d6d0ca !important; }
+
 /* ── TEXT COLORS ────────────────────────────────────────────── */
 /* Keep white as-is */
 .dark .text-white     { color: #fafafa !important; }
