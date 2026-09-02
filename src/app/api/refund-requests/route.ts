@@ -16,7 +16,7 @@ function isAdmin(request: NextRequest): boolean {
 const refundableStatuses = ["PENDING", "CONFIRMED", "PROCESSING", "PACKED", "SHIPPED", "OUT_FOR_DELIVERY", "DELIVERED"];
 const returnRefundStatuses = ["DELIVERED"];
 const RETURN_WINDOW_DAYS = 7;
-const MIN_PRODUCT_VALUE_FOR_RETURN = 199;
+const MIN_PRODUCT_VALUE_FOR_RETURN = 1;
 
 export async function POST(request: NextRequest) {
   try {
@@ -92,7 +92,7 @@ export async function POST(request: NextRequest) {
     );
     if (!hasEligibleProduct) {
       return NextResponse.json(
-        { error: "Return/Refund is only available for products with value above ₹199" },
+        { error: "Return/Refund is only available for products with value above ₹1" },
         { status: 400 }
       );
     }
