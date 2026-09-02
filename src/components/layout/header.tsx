@@ -246,7 +246,7 @@ export default function Header() {
                   </div>
                   <div className="py-1">
                     <Link
-                      href={user.role === "ADMIN" ? "/wox/admin" : "/account"}
+                      href="/account"
                       className="flex items-center gap-3 px-4 py-2.5 text-sm text-zinc-700 transition-colors hover:bg-zinc-50"
                       onClick={() => setUserMenuOpen(false)}
                     >
@@ -420,10 +420,10 @@ export default function Header() {
                 {user ? (
                   <>
                     <Link
-                      href={user.role === "ADMIN" ? "/wox/admin" : "/account"}
+                      href="/account"
                       className={cn(
                         "drawer-item-hover nav-press-effect flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium transition-all duration-200 active:scale-[0.97] tap-highlight-none animate-drawer-in",
-                        (pathname === "/account" || pathname.startsWith("/wox/admin"))
+                        pathname === "/account"
                           ? "bg-zinc-900 text-white shadow-sm"
                           : "text-zinc-700 hover:bg-zinc-50 hover:text-zinc-900"
                       )}
@@ -440,11 +440,24 @@ export default function Header() {
                       </span>
                       {user.name}
                     </Link>
+                    {isAdmin && (
+                      <li>
+                        <Link
+                          href="/wox/admin"
+                          className="drawer-item-hover nav-press-effect flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium transition-all duration-200 active:scale-[0.97] tap-highlight-none animate-drawer-in"
+                          style={{ animationDelay: `${(navLinks.length + 3) * 40}ms` }}
+                          onClick={() => setMobileOpen(false)}
+                        >
+                          <Settings className="h-4 w-4" strokeWidth={1.5} />
+                          Admin Panel
+                        </Link>
+                      </li>
+                    )}
                     <button
                       type="button"
                       onClick={() => { handleLogoutClick(); setMobileOpen(false); }}
                       className="nav-press-effect flex w-full items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium text-red-600 transition-all duration-200 hover:bg-red-50 active:scale-[0.97] tap-highlight-none animate-drawer-in"
-                      style={{ animationDelay: `${(navLinks.length + 3) * 40}ms` }}
+                      style={{ animationDelay: `${(navLinks.length + 4) * 40}ms` }}
                     >
                       <LogOut className="h-4 w-4" strokeWidth={1.5} />
                       Sign Out
