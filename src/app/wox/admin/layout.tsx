@@ -18,6 +18,7 @@ import {
 import { cn } from "@/lib/utils";
 import WoxLoader from "@/components/ui/wox-loader";
 import SignOutModal from "@/components/ui/sign-out-modal";
+import ThemeProvider from "@/lib/theme-context";
 import { useSignOutStore } from "@/lib/stores/sign-out";
 import { useUnreadCounts } from "@/hooks/use-unread-counts";
 import { subscribeToPush } from "@/lib/push-client";
@@ -139,6 +140,7 @@ export default function AdminLayout({
   }
 
   return (
+    <ThemeProvider>
     <div className="flex h-screen bg-gray-50">
       {sidebarOpen && (
         <div
@@ -229,5 +231,6 @@ export default function AdminLayout({
       </div>
       <SignOutModal />
     </div>
+    </ThemeProvider>
   );
 }
