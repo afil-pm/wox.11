@@ -37,9 +37,27 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Invalid refund type" }, { status: 400 });
     }
 
+    if (reason.trim().length < 5 || reason.trim().length > 500) {
+      return NextResponse.json({ error: "Reason must be 5-500 characters" }, { status: 400 });
+    }
+
+    const order = await Order.findById(orderId).lean();
+    if (!order) {
+      return NextResponse.json({ error: "Order not found" }, { status: 404 });
+    }
+
+    if (order.userId !== userId) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
+    }
+
+    // COD cancel doesn't need bank details
+    const isCODCancel = type === "cancel_refund" && order.paymentMethod === "cod";
+
     let bankDetails = body.bankDetails;
 
-    if (useSavedBank) {
+    if (isCODCancel) {
+      bankDetails = null;
+    } else if (useSavedBank) {
       const saved = await SavedBankDetails.findOne({ userId }).lean();
       if (!saved) {
         return NextResponse.json({ error: "No saved bank details found" }, { status: 400 });
@@ -55,25 +73,12 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Bank details are required" }, { status: 400 });
     }
 
-    if (!bankDetails.accountHolderName?.trim() || !bankDetails.accountNumber?.trim() || !bankDetails.ifscCode?.trim() || !bankDetails.bankName?.trim()) {
+    if (!isCODCancel && (!bankDetails?.accountHolderName?.trim() || !bankDetails?.accountNumber?.trim() || !bankDetails?.ifscCode?.trim() || !bankDetails?.bankName?.trim())) {
       return NextResponse.json({ error: "All bank details are required" }, { status: 400 });
     }
 
-    if (!/^[A-Za-z]{4}0[A-Za-z0-9]{6}$/.test(bankDetails.ifscCode.trim())) {
+    if (!isCODCancel && !/^[A-Za-z]{4}0[A-Za-z0-9]{6}$/.test(bankDetails?.ifscCode?.trim() || "")) {
       return NextResponse.json({ error: "Invalid IFSC code format (e.g., SBIN0001234)" }, { status: 400 });
-    }
-
-    if (reason.trim().length < 5 || reason.trim().length > 500) {
-      return NextResponse.json({ error: "Reason must be 5-500 characters" }, { status: 400 });
-    }
-
-    const order = await Order.findById(orderId).lean();
-    if (!order) {
-      return NextResponse.json({ error: "Order not found" }, { status: 404 });
-    }
-
-    if (order.userId !== userId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
     }
 
     // Both online payment and COD are eligible for refund

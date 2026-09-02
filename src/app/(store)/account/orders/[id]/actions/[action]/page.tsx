@@ -167,7 +167,7 @@ export default function OrderActionPage({
     fetchOrder();
   }, [id]);
 
-  function openSavedBank() {
+  async function openSavedBank() {
     if (savedBank) {
       setUseSavedBank(true);
       setBankDetails({
@@ -178,6 +178,30 @@ export default function OrderActionPage({
         bankName: savedBank.bankName,
         upiId: savedBank.upiId || "",
       });
+      try {
+        const stored = localStorage.getItem("wox-user");
+        const user = stored ? JSON.parse(stored) : null;
+        const userId = user?.id || localStorage.getItem("wox-user-id") || "";
+        const headers: Record<string, string> = {};
+        if (userId) headers["x-user-id"] = userId;
+        const res = await fetch("/api/saved-bank-details/decrypt", { headers });
+        if (res.ok) {
+          const data = await res.json();
+          if (data.bankDetails) {
+            setBankDetails({
+              accountHolderName: data.bankDetails.accountHolderName,
+              accountNumber: data.bankDetails.accountNumber,
+              confirmAccountNumber: data.bankDetails.accountNumber,
+              ifscCode: data.bankDetails.ifscCode,
+              bankName: data.bankDetails.bankName,
+              upiId: data.bankDetails.upiId || "",
+            });
+            setIfscVerified(true);
+          }
+        }
+      } catch {
+        // Keep partial fill
+      }
     }
   }
 

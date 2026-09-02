@@ -333,9 +333,9 @@ body {
 .dark .min-h-\[80vh\] .text-white { color: #f5f0eb !important; }
 .dark .min-h-\[80vh\] .text-zinc-300 { color: #d6d0ca !important; }
 
-/* Buy Now / Pay button — warm beige in dark mode */
-.dark .bg-zinc-900.hover\:bg-zinc-800 { background-color: #f5f0eb !important; color: #1a1a1a !important; }
-.dark .bg-zinc-900.hover\:bg-zinc-800:hover { background-color: #ebe5de !important; }
+/* Buy Now / Pay button — warm beige in dark mode (only buttons, not links) */
+.dark button.bg-zinc-900.hover\:bg-zinc-800 { background-color: #f5f0eb !important; color: #1a1a1a !important; }
+.dark button.bg-zinc-900.hover\:bg-zinc-800:hover { background-color: #ebe5de !important; }
 
 /* ── TEXT COLORS ────────────────────────────────────────────── */
 /* Keep white as-is */

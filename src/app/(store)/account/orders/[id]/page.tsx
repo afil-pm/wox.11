@@ -446,6 +446,8 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
 
       {/* Actions */}
       {!existingRefund && order.status !== "CANCELLED" && order.status !== "RETURNED" && order.status !== "REFUNDED" && (
+        (isPreDelivery && cancelableStatuses.includes(order.status)) || isDelivered
+      ) && (
         <div className="mt-4 flex flex-wrap gap-3 rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
           {/* Cancel: COD before delivery OR Online paid (before delivery with refund) */}
           {isPreDelivery && cancelableStatuses.includes(order.status) && (
