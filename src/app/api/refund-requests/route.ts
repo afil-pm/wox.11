@@ -147,6 +147,42 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "A refund request for this order is already being processed" }, { status: 400 });
     }
 
+    // COD cancel — no refund needed, just cancel the order directly
+    if (isCODCancel) {
+      await Order.findByIdAndUpdate(orderId, { status: "CANCELLED" });
+
+      const { default: Notification } = await import("@/lib/models/notification");
+      const { sendPushToUser } = await import("@/lib/push");
+
+      Notification.create({
+        userId,
+        title: "Order Cancelled",
+        body: `Your order ${order.orderNumber} has been cancelled successfully.`,
+        type: "order_update",
+        orderId,
+      }).catch(() => {});
+
+      Notification.create({
+        userId: "admin-env",
+        title: "Order Cancelled",
+        body: `${order.customerName} cancelled order ${order.orderNumber}.`,
+        type: "order_update",
+        orderId,
+      }).catch(() => {});
+
+      sendPushToUser(userId, {
+        title: "Order Cancelled",
+        body: `Your order ${order.orderNumber} has been cancelled.`,
+        url: `/account/orders/${orderId}`,
+        tag: `order-cancel-${orderId}`,
+      }).catch(() => {});
+
+      return NextResponse.json({
+        message: "Order cancelled successfully",
+        refundRequest: { _id: "", status: "completed", amount: 0 },
+      }, { status: 201 });
+    }
+
     let encryptedAccountNumber: string | undefined;
     if (isCODCancel) {
       encryptedAccountNumber = undefined;
