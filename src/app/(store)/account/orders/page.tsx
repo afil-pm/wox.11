@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
-import Image from "next/image";
+import { ProductImage } from "@/components/ui/product-image";
 import { Package, ArrowLeft, Eye, XCircle, RotateCcw, Truck, CheckCircle2, Clock, Box } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -230,7 +230,7 @@ export default function AccountOrdersPage() {
                   {order.items.slice(0, 3).map((item, i) => (
                     <div key={i} className="relative h-10 w-10 overflow-hidden rounded-lg border-2 border-white bg-zinc-100">
                       {item.image ? (
-                        <Image src={item.image} alt={item.name} fill className="object-cover" sizes="40px" />
+                        <ProductImage src={item.image} alt={item.name} fill className="object-cover" sizes="40px" />
                       ) : (
                         <div className="flex h-full items-center justify-center text-[8px] text-zinc-400">N/A</div>
                       )}

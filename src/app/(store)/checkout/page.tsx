@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
-import Image from "next/image";
+import { ProductImage } from "@/components/ui/product-image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -1327,7 +1327,7 @@ export default function CheckoutPage() {
                         className="flex items-center gap-4"
                       >
                         <div className="relative h-16 w-16 flex-shrink-0 overflow-hidden bg-zinc-100">
-                          <Image
+                          <ProductImage
                             src={item.image}
                             alt={item.name}
                             fill
@@ -1529,7 +1529,7 @@ export default function CheckoutPage() {
                     {confirmedOrder.items.map((item, i) => (
                       <div key={i} className="flex items-center gap-3">
                         <div className="relative h-14 w-14 flex-shrink-0 overflow-hidden rounded-lg bg-zinc-100">
-                          <Image
+                          <ProductImage
                             src={item.image}
                             alt={item.name}
                             fill
@@ -1616,7 +1616,7 @@ export default function CheckoutPage() {
                   {items.map((item) => (
                     <div key={item.id} className="flex items-center gap-3">
                       <div className="relative h-14 w-14 flex-shrink-0 overflow-hidden bg-zinc-100">
-                        <Image
+                        <ProductImage
                           src={item.image}
                           alt={item.name}
                           fill
@@ -1717,7 +1717,7 @@ export default function CheckoutPage() {
                   {items.map((item) => (
                     <div key={item.id} className="flex items-center gap-3">
                       <div className="relative h-12 w-12 flex-shrink-0 overflow-hidden bg-zinc-100">
-                        <Image
+                        <ProductImage
                           src={item.image}
                           alt={item.name}
                           fill

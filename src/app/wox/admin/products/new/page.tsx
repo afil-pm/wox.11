@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { adminFetch } from "@/lib/admin-api";
 import PremiumSelect from "@/components/ui/premium-select";
+import ImageUrlField from "@/components/admin/image-url-field";
 
 type Category = { _id: string; name: string; slug: string; gender: string; type: string };
 
@@ -103,6 +104,10 @@ export default function NewProductPage() {
   function removeImage(index: number) {
     setImageFiles((prev) => prev.filter((_, i) => i !== index));
     setImagePreviews((prev) => prev.filter((_, i) => i !== index));
+  }
+
+  function addImageByUrl(url: string) {
+    setImagePreviews((prev) => [...prev, url]);
   }
 
   function updateVariant(index: number, field: keyof VariantInput, value: string) {
@@ -355,6 +360,10 @@ export default function NewProductPage() {
               {imagePreviews.length > 0 ? "Add More Images" : "Upload Images"}
             </Button>
             <p className="mt-1 text-xs text-gray-400">Images are stored as data URLs. Max 2MB per image.</p>
+
+            <div className="mt-4 border-t border-zinc-100 pt-4">
+              <ImageUrlField onAdd={addImageByUrl} existingUrls={imagePreviews} />
+            </div>
           </div>
 
           {/* Rating */}

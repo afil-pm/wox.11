@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import Link from "next/link";
-import Image from "next/image";
+import { ProductImage } from "@/components/ui/product-image";
 
 import { Search, X, Clock, TrendingUp } from "lucide-react";
 import { cn, formatPrice } from "@/lib/utils";
@@ -221,7 +221,7 @@ export default function SearchModal({ isOpen, onClose }: SearchModalProps) {
                     className="group flex flex-col overflow-hidden rounded-xl border border-zinc-200 transition-all hover:border-zinc-300 hover:shadow-md"
                   >
                     <div className="relative aspect-[3/4] overflow-hidden bg-zinc-100">
-                      <Image
+                      <ProductImage
                         src={product.image}
                         alt={product.name}
                         fill

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import Image from "next/image";
+import { ProductImage } from "@/components/ui/product-image";
 import { Clock, X } from "lucide-react";
 import { formatPrice } from "@/lib/utils";
 import { useRecentlyViewed } from "@/lib/hooks/use-recently-viewed";
@@ -45,7 +45,7 @@ export default function RecentlyViewed() {
                 className="group flex-shrink-0 w-40 sm:w-52"
               >
                 <div className="relative aspect-[3/4] overflow-hidden bg-zinc-100 rounded-lg">
-                  <Image
+                  <ProductImage
                     src={item.image}
                     alt={item.name}
                     fill

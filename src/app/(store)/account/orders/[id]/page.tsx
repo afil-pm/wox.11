@@ -2,7 +2,7 @@
 
 import { useEffect, useState, use } from "react";
 import Link from "next/link";
-import Image from "next/image";
+import { ProductImage } from "@/components/ui/product-image";
 import { ArrowLeft, XCircle, RotateCcw, RefreshCw, Truck, CheckCircle2, Clock, Box, Star, Banknote } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -375,7 +375,7 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
               <div key={i} className="flex items-center gap-4 rounded-xl border border-zinc-100 p-4">
                 <div className="relative h-20 w-20 flex-shrink-0 overflow-hidden rounded-lg bg-zinc-100">
                   {item.image ? (
-                    <Image src={item.image} alt={item.name} fill className="object-cover" sizes="80px" />
+                    <ProductImage src={item.image} alt={item.name} fill className="object-cover" sizes="80px" />
                   ) : (
                     <div className="flex h-full items-center justify-center text-[10px] text-zinc-400">No Image</div>
                   )}

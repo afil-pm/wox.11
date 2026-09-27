@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { adminFetch } from "@/lib/admin-api";
 import PremiumSelect from "@/components/ui/premium-select";
+import ImageUrlField from "@/components/admin/image-url-field";
 
 type Category = { _id: string; id: string; name: string; slug: string; gender: string; type: string };
 type ProductData = {
@@ -162,6 +163,10 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
 
   function removeNewImage(index: number) {
     setImagePreviews((prev) => prev.filter((_, i) => i !== index));
+  }
+
+  function addImageByUrl(url: string) {
+    setImagePreviews((prev) => [...prev, url]);
   }
 
   function updateVariant(index: number, field: keyof VariantInput, value: string) {
@@ -399,6 +404,13 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
                 <ImagePlus className="mr-2 h-4 w-4" />
                 {imagePreviews.length > 0 ? "Add More Images" : "Upload Images"}
               </Button>
+
+              <div className="mt-4 border-t border-zinc-100 pt-4">
+                <ImageUrlField
+                  onAdd={addImageByUrl}
+                  existingUrls={[...existingImages.map((img) => img.url), ...imagePreviews]}
+                />
+              </div>
             </div>
 
             {/* Rating */}

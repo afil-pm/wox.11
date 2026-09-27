@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import Image from "next/image";
+import { ProductImage } from "@/components/ui/product-image";
 import { formatPrice } from "@/lib/utils";
 
 type Product = {
@@ -70,7 +70,7 @@ export default function RelatedProducts({ category, gender, excludeSlug }: Props
                 className="group flex-shrink-0 w-40 sm:w-52"
               >
                 <div className="relative aspect-[3/4] overflow-hidden bg-zinc-100 rounded-lg">
-                  <Image
+                  <ProductImage
                     src={img}
                     alt={product.name}
                     fill

@@ -3,7 +3,7 @@
 import { useEffect, useState, use } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import Image from "next/image";
+import { ProductImage } from "@/components/ui/product-image";
 import { ArrowLeft, XCircle, RotateCcw, RefreshCw, Banknote, CheckCircle, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -504,7 +504,7 @@ export default function OrderActionPage({
         <div className="flex items-center gap-3">
           <div className="relative h-16 w-16 flex-shrink-0 overflow-hidden rounded-lg bg-zinc-100">
             {order.items[0]?.image ? (
-              <Image src={order.items[0].image} alt={order.items[0].name} fill className="object-cover" sizes="64px" />
+              <ProductImage src={order.items[0].image} alt={order.items[0].name} fill className="object-cover" sizes="64px" />
             ) : (
               <div className="flex h-full items-center justify-center text-[10px] text-zinc-400">No Image</div>
             )}

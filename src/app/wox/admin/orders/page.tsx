@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback, useRef } from "react";
-import Image from "next/image";
+import { ProductImage } from "@/components/ui/product-image";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -807,7 +807,7 @@ export default function AdminOrdersPage() {
                     <div key={i} className="flex items-center gap-4 rounded-lg border border-gray-100 p-3">
                       {item.image ? (
                         <div className="relative h-20 w-20 flex-shrink-0 overflow-hidden rounded-lg bg-gray-100">
-                          <Image src={item.image} alt={item.name} fill className="object-cover" sizes="80px" />
+                          <ProductImage src={item.image} alt={item.name} fill className="object-cover" sizes="80px" />
                         </div>
                       ) : (
                         <div className="flex h-20 w-20 flex-shrink-0 items-center justify-center rounded-lg bg-gray-100 text-xs text-gray-400">No Image</div>

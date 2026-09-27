@@ -1,5 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
 import { generateProductSlug } from "@/lib/seo";
+import { validateProductImageUrl } from "@/lib/images";
+
+function validateImages(
+  images: { url: string; alt?: string; position?: number }[]
+): string | null {
+  for (const [i, img] of images.entries()) {
+    const result = validateProductImageUrl(img.url);
+    if (!result.ok) {
+      return `Invalid image URL at position ${i + 1}: ${result.error}`;
+    }
+  }
+  return null;
+}
 
 function isAdmin(req: NextRequest): boolean {
   const adminHeader = req.headers.get("x-admin-email");
@@ -133,6 +146,11 @@ export async function POST(request: NextRequest) {
         }))
       : [];
 
+    const imageError = validateImages(productImages);
+    if (imageError) {
+      return NextResponse.json({ error: imageError }, { status: 400 });
+    }
+
     const productVariants = Array.isArray(variants)
       ? variants.map((v: { name: string; color?: string; colorCode?: string; sizes?: { name: string; quantity: number }[] }) => ({
           name: v.name || "Default",
@@ -240,6 +258,11 @@ export async function PUT(request: NextRequest) {
         alt: img.alt || "",
         position: img.position ?? i,
       }));
+
+      const imageError = validateImages(data.images);
+      if (imageError) {
+        return NextResponse.json({ error: imageError }, { status: 400 });
+      }
     }
 
     if (data.variants && Array.isArray(data.variants)) {

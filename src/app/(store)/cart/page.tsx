@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
-import Image from "next/image";
+import { ProductImage } from "@/components/ui/product-image";
 import { Trash2, Plus, Minus, ShoppingBag, Tag, Shield } from "lucide-react";
 import useCartStore from "@/lib/stores/cart";
 import { cn, formatPrice } from "@/lib/utils";
@@ -137,7 +137,7 @@ export default function CartPage() {
                   href={`/${item.gender || "men"}/${item.category || "shirts"}/${item.slug}`}
                   className="relative h-[100px] w-[80px] flex-shrink-0 overflow-hidden rounded-md bg-zinc-100"
                 >
-                  <Image
+                  <ProductImage
                     src={item.image}
                     alt={item.name}
                     fill

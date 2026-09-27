@@ -1,12 +1,10 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import Image from "next/image";
+import { ProductImage } from "@/components/ui/product-image";
 import { X, Minus, Plus, Truck, Shield, CreditCard } from "lucide-react";
 import { cn, formatPrice, calculateDiscount } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-
-type ProductImage = { url: string; alt: string | null };
 
 type BuyNowProduct = {
   productId: string;
@@ -101,7 +99,7 @@ export default function BuyNowModal({ product, open, onClose }: Props) {
         <div className="px-5 py-4">
           <div className="flex gap-4">
             <div className="relative h-24 w-24 flex-shrink-0 overflow-hidden rounded-lg bg-zinc-100">
-              <Image src={product.image} alt={product.name} fill className="object-cover" sizes="96px" />
+              <ProductImage src={product.image} alt={product.name} fill className="object-cover" sizes="96px" />
               {discount > 0 && (
                 <div className="absolute left-1 top-1 rounded bg-zinc-900 px-1 py-0.5 text-[9px] font-bold text-white">
                   -{discount}%
