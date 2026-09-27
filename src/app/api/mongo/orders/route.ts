@@ -9,14 +9,8 @@ import { sendNewOrderEmail } from "@/lib/email";
 import { prepareOrderPayload } from "@/lib/orders/prepare";
 import { getPaymentById } from "@/lib/payments/razorpay";
 import { recordPaymentReconciliation } from "@/lib/payments/reconciliation";
+import { isAdmin } from "@/lib/auth/guards";
 
-function isAdmin(request: NextRequest): boolean {
-  const adminHeader = request.headers.get("x-admin-email");
-  if (!adminHeader) return false;
-  const adminEmail = process.env.ADMIN_EMAIL || "";
-  if (!adminEmail) return true;
-  return adminHeader.toLowerCase() === adminEmail.toLowerCase();
-}
 
 export async function GET(request: NextRequest) {
   try {
@@ -79,6 +73,7 @@ export async function POST(request: NextRequest) {
       tax,
       taxDetails,
       items: serverItems,
+      supplierIds,
     } = data;
 
 
@@ -149,6 +144,7 @@ export async function POST(request: NextRequest) {
       tax,
       total,
       taxDetails,
+      supplierIds,
       paymentMethod: paymentMethod || "cod",
       paymentId: paymentId || "",
       paymentStatus,

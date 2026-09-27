@@ -85,6 +85,7 @@ export async function POST(request: NextRequest) {
       tax: data.tax,
       total: data.total,
       taxDetails: data.taxDetails,
+      supplierIds: data.supplierIds,
       paymentMethod: "razorpay",
       paymentStatus: "PAYMENT_PROCESSING",
       status: "PENDING",

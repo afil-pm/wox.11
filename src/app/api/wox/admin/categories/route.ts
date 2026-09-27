@@ -1,12 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
+import { isAdmin } from "@/lib/auth/guards";
 
-function isAdmin(request: NextRequest): boolean {
-  const adminHeader = request.headers.get("x-admin-email");
-  if (!adminHeader) return false;
-  const adminEmail = process.env.ADMIN_EMAIL || "";
-  if (!adminEmail) return true;
-  return adminHeader.toLowerCase() === adminEmail.toLowerCase();
-}
 
 const defaultCategories = [
   { id: "cat-men-shirts", name: "Shirts", slug: "shirts", gender: "men", type: "shirts" },

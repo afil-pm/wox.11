@@ -51,6 +51,9 @@ export interface IProduct extends Document {
   sku: string;
   categoryId: mongoose.Types.ObjectId;
   store: string;
+  /** Owner supplier user id ("" = product owned by the store/admin). */
+  supplierId: string;
+  supplierName: string;
   images: IProductImage[];
   variants: IProductVariant[];
   tax: IProductTax;
@@ -134,6 +137,8 @@ const ProductSchema = new Schema<IProduct>(
     sku: { type: String, required: true, unique: true },
     categoryId: { type: Schema.Types.ObjectId, ref: "Category", required: true },
     store: { type: String, default: "" },
+    supplierId: { type: String, default: "" },
+    supplierName: { type: String, default: "" },
     images: { type: [ProductImageSchema], default: [] },
     variants: { type: [ProductVariantSchema], default: [] },
     averageRating: { type: Number, default: 0, min: 0, max: 5 },
@@ -150,6 +155,7 @@ const ProductSchema = new Schema<IProduct>(
 ProductSchema.index({ slug: 1 }, { unique: true });
 ProductSchema.index({ sku: 1 }, { unique: true });
 ProductSchema.index({ categoryId: 1 });
+ProductSchema.index({ supplierId: 1, createdAt: -1 });
 ProductSchema.index({ createdAt: -1 });
 
 let Product: Model<IProduct>;

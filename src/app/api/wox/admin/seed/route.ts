@@ -1,13 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { products as staticProducts } from "@/lib/data/products";
+import { isAdmin } from "@/lib/auth/guards";
 
-function isAdmin(request: NextRequest): boolean {
-  const adminHeader = request.headers.get("x-admin-email");
-  if (!adminHeader) return false;
-  const adminEmail = process.env.ADMIN_EMAIL || "";
-  if (!adminEmail) return true;
-  return adminHeader.toLowerCase() === adminEmail.toLowerCase();
-}
 
 export async function POST(request: NextRequest) {
   try {

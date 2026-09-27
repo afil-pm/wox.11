@@ -3,14 +3,7 @@ import { connectMongoDB } from "@/lib/mongodb";
 import Order from "@/lib/models/order";
 import Notification from "@/lib/models/notification";
 import { sendPushToUser } from "@/lib/push";
-
-function isAdmin(request: NextRequest): boolean {
-  const adminHeader = request.headers.get("x-admin-email");
-  if (!adminHeader) return false;
-  const adminEmail = process.env.ADMIN_EMAIL || "";
-  if (!adminEmail) return true;
-  return adminHeader.toLowerCase() === adminEmail.toLowerCase();
-}
+import { getAdminEmail, isAdmin } from "@/lib/auth/guards";
 
 export async function POST(
   request: NextRequest,
@@ -43,7 +36,7 @@ export async function POST(
       );
     }
 
-    const adminEmail = request.headers.get("x-admin-email") || "";
+    const adminEmail = getAdminEmail(request);
 
     order.paymentStatus = "PAID";
     order.paymentConfirmedAt = new Date();

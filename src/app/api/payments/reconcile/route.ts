@@ -9,17 +9,11 @@ import {
 } from "@/lib/payments/confirm";
 import { listPayments } from "@/lib/payments/razorpay";
 import { recordPaymentReconciliation } from "@/lib/payments/reconciliation";
+import { isAdmin } from "@/lib/auth/guards";
 
 const MAX_PAGES = 5;
 const PAGE_SIZE = 100;
 
-function isAdmin(request: NextRequest): boolean {
-  const adminHeader = request.headers.get("x-admin-email");
-  if (!adminHeader) return false;
-  const adminEmail = process.env.ADMIN_EMAIL || "";
-  if (!adminEmail) return true;
-  return adminHeader.toLowerCase() === adminEmail.toLowerCase();
-}
 
 /** Lists payments that are waiting for manual reconciliation. */
 export async function GET(request: NextRequest) {

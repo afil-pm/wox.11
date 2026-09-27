@@ -4,14 +4,8 @@ import RefundRequest from "@/lib/models/refund-request";
 import SavedBankDetails from "@/lib/models/saved-bank-details";
 import Order from "@/lib/models/order";
 import { encrypt, decrypt, maskAccountNumber } from "@/lib/encryption";
+import { isAdmin } from "@/lib/auth/guards";
 
-function isAdmin(request: NextRequest): boolean {
-  const adminHeader = request.headers.get("x-admin-email");
-  if (!adminHeader) return false;
-  const adminEmail = process.env.ADMIN_EMAIL || "";
-  if (!adminEmail) return true;
-  return adminHeader.toLowerCase() === adminEmail.toLowerCase();
-}
 
 const refundableStatuses = ["PENDING", "CONFIRMED", "PROCESSING", "PACKED", "SHIPPED", "OUT_FOR_DELIVERY", "DELIVERED"];
 const returnRefundStatuses = ["DELIVERED"];

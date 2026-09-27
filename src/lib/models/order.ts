@@ -93,6 +93,8 @@ export interface IOrder extends Document {
   notes: string;
   couponCode: string;
   couponDiscount: number;
+  /** Suppliers whose products this order contains ("" entries are store owned). */
+  supplierIds: string[];
   paymentConfirmedAt?: Date;
   paymentConfirmedBy?: string;
   paymentConfirmationMethod?: "online" | "manual";
@@ -205,6 +207,7 @@ const OrderSchema = new Schema<IOrder>(
     notes: { type: String, default: "" },
     couponCode: { type: String, default: "" },
     couponDiscount: { type: Number, default: 0 },
+    supplierIds: { type: [String], default: [] },
     paymentConfirmedAt: { type: Date },
     paymentConfirmedBy: { type: String, default: "" },
     paymentConfirmationMethod: {
@@ -222,6 +225,7 @@ OrderSchema.index({ createdAt: -1 });
 OrderSchema.index({ razorpayOrderId: 1 });
 OrderSchema.index({ checkoutSessionId: 1 }, { unique: true, sparse: true });
 OrderSchema.index({ paymentStatus: 1, paymentExpiresAt: 1 });
+OrderSchema.index({ supplierIds: 1 });
 
 let Order: Model<IOrder>;
 

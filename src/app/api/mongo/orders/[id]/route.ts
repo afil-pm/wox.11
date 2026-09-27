@@ -4,14 +4,8 @@ import Order from "@/lib/models/order";
 import Product from "@/lib/models/product";
 import Notification from "@/lib/models/notification";
 import { sendPushToUser } from "@/lib/push";
+import { isAdmin } from "@/lib/auth/guards";
 
-function isAdmin(request: NextRequest): boolean {
-  const adminHeader = request.headers.get("x-admin-email");
-  if (!adminHeader) return false;
-  const adminEmail = process.env.ADMIN_EMAIL || "";
-  if (!adminEmail) return true;
-  return adminHeader.toLowerCase() === adminEmail.toLowerCase();
-}
 
 export async function GET(
   request: NextRequest,

@@ -3,6 +3,7 @@ import bcrypt from "bcryptjs";
 import crypto from "crypto";
 import { connectMongoDB } from "@/lib/mongodb";
 import User from "@/lib/models/user";
+import { createSessionToken } from "@/lib/auth/session";
 
 function generateRecoveryCode(): string {
   const bytes = crypto.randomBytes(16);
@@ -34,7 +35,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Too many registration attempts. Please try again later." }, { status: 429 });
     }
 
-    const { name, email, password, phone } = await request.json();
+    const { name, email, password, phone, role, supplierName } = await request.json();
 
     if (!name || !email || !password) {
       return NextResponse.json({ error: "Name, email and password are required" }, { status: 400 });
@@ -42,6 +43,12 @@ export async function POST(request: NextRequest) {
 
     if (password.length < 8) {
       return NextResponse.json({ error: "Password must be at least 8 characters" }, { status: 400 });
+    }
+
+    // Self-registration only ever creates CUSTOMER or pending SUPPLIER accounts.
+    const requestedRole = role === "SUPPLIER" ? "SUPPLIER" : "CUSTOMER";
+    if (requestedRole === "SUPPLIER" && (!supplierName || !String(supplierName).trim())) {
+      return NextResponse.json({ error: "Supplier name is required" }, { status: 400 });
     }
 
     await connectMongoDB();
@@ -59,12 +66,34 @@ export async function POST(request: NextRequest) {
       email: email.toLowerCase(),
       password: passwordHash,
       phone: phone || undefined,
-      role: "CUSTOMER",
+      role: requestedRole,
       recoveryCode,
+      ...(requestedRole === "SUPPLIER"
+        ? {
+            supplierName: String(supplierName).trim(),
+            supplierStatus: "PENDING",
+            supplierPermissions: { canUpdateOrderStatus: false },
+          }
+        : {}),
+    });
+
+    const token = createSessionToken({
+      sub: String(user._id),
+      role: user.role,
+      email: user.email,
+      name: user.name,
     });
 
     return NextResponse.json({
-      user: { id: user._id, name: user.name, email: user.email, role: user.role },
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        supplierName: user.supplierName || "",
+        supplierStatus: user.supplierStatus,
+        token,
+      },
       recoveryCode,
     }, { status: 201 });
   } catch (error) {

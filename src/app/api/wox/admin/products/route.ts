@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { generateProductSlug } from "@/lib/seo";
 import { validateProductImageUrl } from "@/lib/images";
+import { isAdmin } from "@/lib/auth/guards";
 
 function validateImages(
   images: { url: string; alt?: string; position?: number }[]
@@ -14,13 +15,6 @@ function validateImages(
   return null;
 }
 
-function isAdmin(req: NextRequest): boolean {
-  const adminHeader = req.headers.get("x-admin-email");
-  if (!adminHeader) return false;
-  const adminEmail = process.env.ADMIN_EMAIL || "";
-  if (!adminEmail) return true;
-  return adminHeader.toLowerCase() === adminEmail.toLowerCase();
-}
 
 function escapeRegex(str: string): string {
   return str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");

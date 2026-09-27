@@ -2,16 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import crypto from "crypto";
 import { connectMongoDB } from "@/lib/mongodb";
 import Order from "@/lib/models/order";
+import { isAdmin } from "@/lib/auth/guards";
 
 const CLEAR_PASSWORD = process.env.ORDER_CLEAR_PASSWORD || "";
 
-function isAdmin(request: NextRequest): boolean {
-  const adminHeader = request.headers.get("x-admin-email");
-  if (!adminHeader) return false;
-  const adminEmail = process.env.ADMIN_EMAIL || "";
-  if (!adminEmail) return true;
-  return adminHeader.toLowerCase() === adminEmail.toLowerCase();
-}
 
 const clearAttempts = new Map<string, { count: number; resetAt: number }>();
 const MAX_CLEAR_ATTEMPTS = 3;

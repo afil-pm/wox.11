@@ -3,6 +3,7 @@ import bcrypt from "bcryptjs";
 import crypto from "crypto";
 import { connectMongoDB } from "@/lib/mongodb";
 import User from "@/lib/models/user";
+import { createSessionToken } from "@/lib/auth/session";
 
 const loginAttempts = new Map<string, { count: number; resetAt: number }>();
 const MAX_LOGIN_ATTEMPTS = 10;
@@ -47,7 +48,13 @@ export async function POST(request: NextRequest) {
     if (adminEmail && adminPassword && email.toLowerCase() === adminEmail) {
       if (timingSafeEqualStr(password, adminPassword)) {
         return NextResponse.json({
-          user: { id: "admin-env", name: "Admin", email: email.toLowerCase(), role: "ADMIN" },
+          user: {
+            id: "admin-env",
+            name: "Admin",
+            email: email.toLowerCase(),
+            role: "ADMIN",
+            token: createSessionToken({ sub: "admin-env", role: "ADMIN", email: email.toLowerCase(), name: "Admin" }),
+          },
         }, { status: 200 });
       }
     }
@@ -65,7 +72,20 @@ export async function POST(request: NextRequest) {
     }
 
     return NextResponse.json({
-      user: { id: user._id, name: user.name, email: user.email, role: user.role },
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        supplierName: user.role === "SUPPLIER" ? user.supplierName || "" : undefined,
+        supplierStatus: user.role === "SUPPLIER" ? user.supplierStatus : undefined,
+        token: createSessionToken({
+          sub: String(user._id),
+          role: user.role,
+          email: user.email,
+          name: user.name,
+        }),
+      },
     }, { status: 200 });
   } catch (error) {
     console.error("[LOGIN_POST]", error);

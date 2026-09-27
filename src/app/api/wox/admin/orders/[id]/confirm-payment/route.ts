@@ -2,14 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { connectMongoDB } from "@/lib/mongodb";
 import Order from "@/lib/models/order";
 import { markOrderPaidManually } from "@/lib/payments/confirm";
-
-function isAdmin(request: NextRequest): boolean {
-  const adminHeader = request.headers.get("x-admin-email");
-  if (!adminHeader) return false;
-  const adminEmail = process.env.ADMIN_EMAIL || "";
-  if (!adminEmail) return true;
-  return adminHeader.toLowerCase() === adminEmail.toLowerCase();
-}
+import { getAdminEmail, isAdmin } from "@/lib/auth/guards";
 
 /**
  * Manual confirmation for an online payment the admin verified by hand
@@ -49,7 +42,7 @@ export async function POST(
 
     const body = await request.json().catch(() => ({}));
     const paymentId = typeof body.paymentId === "string" ? body.paymentId.trim() : "";
-    const adminEmail = request.headers.get("x-admin-email") || "";
+    const adminEmail = getAdminEmail(request);
 
     const result = await markOrderPaidManually(
       order._id.toString(),

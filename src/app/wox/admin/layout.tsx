@@ -14,6 +14,7 @@ import {
   LogOut,
   Search,
   Tag,
+  Truck,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import WoxLoader from "@/components/ui/wox-loader";
@@ -27,6 +28,7 @@ const navItems = [
   { label: "Dashboard", icon: LayoutDashboard, href: "/wox/admin", section: "" },
   { label: "Products", icon: Package, href: "/wox/admin/products", section: "" },
   { label: "Orders", icon: ShoppingCart, href: "/wox/admin/orders", section: "orders" },
+  { label: "Suppliers", icon: Truck, href: "/wox/admin/suppliers", section: "" },
   { label: "Messages", icon: MessageSquare, href: "/wox/admin/messages", section: "messages" },
   { label: "Coupons", icon: Tag, href: "/wox/admin/coupons", section: "" },
   { label: "SEO", icon: Search, href: "/wox/admin/seo", section: "" },
