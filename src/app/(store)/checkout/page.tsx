@@ -162,6 +162,11 @@ export default function CheckoutPage() {
   const [orderNumber, setOrderNumber] = useState<string | null>(null);
   const [orderError, setOrderError] = useState<string | null>(null);
   const [orderSaving, setOrderSaving] = useState(false);
+  const [orderInfo, setOrderInfo] = useState<string | null>(null);
+  const [checkoutOrderNumber, setCheckoutOrderNumber] = useState("");
+  const checkoutSessionRef = useRef("");
+  const gatewayOrderRef = useRef("");
+  const checkoutOrderRef = useRef("");
   const [confirmedOrder, setConfirmedOrder] = useState<{
     items: typeof items;
     subtotal: number;
@@ -327,7 +332,96 @@ export default function CheckoutPage() {
     return `#WOX11${code}`;
   }
 
-  async function saveOrderToDB(orderNum: string, paymentId?: string) {
+  function createSessionId(): string {
+    if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+      return crypto.randomUUID();
+    }
+    return `co-${Date.now()}-${Math.floor(Math.random() * 1e9)}`;
+  }
+
+  // One id per checkout attempt, so retries reuse the same server side order
+  // instead of leaving a trail of abandoned ones.
+  function getCheckoutSessionId(): string {
+    if (!checkoutSessionRef.current) {
+      checkoutSessionRef.current = createSessionId();
+    }
+    return checkoutSessionRef.current;
+  }
+
+  interface OnlinePaymentRef {
+    razorpay_order_id?: string;
+    razorpay_payment_id?: string;
+    razorpay_signature?: string;
+  }
+
+  interface ConfirmOutcome {
+    ok: boolean;
+    status?: string;
+    orderNumber?: string;
+    message?: string;
+  }
+
+  // Asks the server to verify the payment against Razorpay. Retries briefly
+  // while the gateway settles instead of failing the checkout outright.
+  async function confirmOnlinePayment(payload: OnlinePaymentRef): Promise<ConfirmOutcome> {
+    let lastStatus = "";
+    let lastMessage = "";
+
+    for (let attempt = 0; attempt < 4; attempt++) {
+      try {
+        const res = await fetch("/api/payments/confirm", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+        const data = await res.json();
+        lastStatus = data?.status || "";
+        lastMessage = data?.message || "";
+
+        if (res.ok && data?.ok) {
+          return { ok: true, status: data.status, orderNumber: data.orderNumber };
+        }
+        // Definitive answers: bad signature or a mismatch will not self-heal.
+        if (res.status === 409 || res.status === 400 || res.status === 404) {
+          return { ok: false, status: lastStatus || "failed", message: lastMessage };
+        }
+      } catch {
+        // network hiccup: retried below
+      }
+      if (attempt < 3) {
+        await new Promise((resolve) => setTimeout(resolve, 1500));
+      }
+    }
+
+    return { ok: false, status: lastStatus || "unconfirmed", message: lastMessage };
+  }
+
+  // Tells the server a payment session was abandoned (modal dismissed, QR
+  // expired, ...). Returns true when the gateway says it was actually paid.
+  async function cancelPendingCheckout(): Promise<boolean> {
+    const razorpayOrderId = gatewayOrderRef.current;
+    if (!razorpayOrderId) return false;
+
+    try {
+      const res = await fetch("/api/payments/cancel", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ razorpayOrderId }),
+      });
+      const data = await res.json();
+      gatewayOrderRef.current = "";
+      if (data?.status === "already_paid" || data?.paid) {
+        return true;
+      }
+    } catch {
+      // the server expires abandoned checkouts on its own
+    }
+    return false;
+  }
+
+  // COD orders are placed directly; online payments never go through here
+  // (their payment state is decided server side).
+  async function saveOrderToDB(orderNum: string) {
     const stored = localStorage.getItem("wox-user");
     const user = stored ? JSON.parse(stored) : null;
     const visitorId = localStorage.getItem("wox-user-id") || "";
@@ -366,8 +460,8 @@ export default function CheckoutPage() {
         tax,
         total,
         paymentMethod,
-        paymentId: paymentId || "",
-        paymentStatus: paymentId ? "PAID" : "PENDING",
+        paymentId: "",
+        paymentStatus: "PENDING",
         couponCode: appliedCoupon?.code || "",
         couponDiscount: couponDiscount,
       }),
@@ -426,24 +520,44 @@ export default function CheckoutPage() {
         saveSavedAddresses([...existing, newSaved]);
       }
     }
+    // The order lives server side now; start the next checkout clean.
+    checkoutSessionRef.current = "";
+    gatewayOrderRef.current = "";
+    checkoutOrderRef.current = "";
+    setCheckoutOrderNumber("");
+    setQrRazorpayOrderId("");
+    setOrderInfo(null);
+
     setCurrentStep(5);
   }
 
-  function handleQrPaymentSuccess(paymentId: string) {
-    const orderNum = generateOrderNumber();
+  async function handleQrPaymentSuccess(paymentId: string) {
+    const orderNum = checkoutOrderRef.current;
     setOrderSaving(true);
     setOrderError(null);
-    saveOrderToDB(orderNum, paymentId)
-      .then(() => finalizeOrder(orderNum))
-      .catch((e) => {
-        setOrderError(
-          e instanceof Error ? e.message : "Payment successful but order save failed. Please contact support."
-        );
-      })
-      .finally(() => setOrderSaving(false));
+    setOrderInfo("Confirming your payment...");
+
+    const result = await confirmOnlinePayment({
+      razorpay_order_id: qrRazorpayOrderId,
+      razorpay_payment_id: paymentId,
+    });
+
+    if (result.ok) {
+      finalizeOrder(result.orderNumber || orderNum);
+    } else if (result.status === "amount_mismatch") {
+      setOrderError(
+        `Payment verification failed. Please contact support with payment ID: ${paymentId}`
+      );
+    } else {
+      setOrderInfo(
+        "Your payment is being confirmed. Your order will show up in My Orders shortly."
+      );
+    }
+    setOrderSaving(false);
   }
 
   function handleQrPaymentFailure(error: string) {
+    cancelPendingCheckout();
     setOrderError(error);
     setPayViaQr(false);
     setQrRazorpayOrderId("");
@@ -472,6 +586,7 @@ export default function CheckoutPage() {
     const orderNum = generateOrderNumber();
     setOrderSaving(true);
     setOrderError(null);
+    setOrderInfo(null);
 
     if (paymentMethod === "cod") {
       try {
@@ -488,20 +603,62 @@ export default function CheckoutPage() {
       return;
     }
 
-    // Razorpay flow
+    // Online payment: the order is created on the server first, so a payment
+    // can always be matched back to it even if this tab never reports back.
     try {
-      const payRes = await fetch("/api/payments/create-order", {
+      const stored = localStorage.getItem("wox-user");
+      const user = stored ? JSON.parse(stored) : null;
+
+      const payRes = await fetch("/api/payments/checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ amount: total, currency: "INR" }),
+        body: JSON.stringify({
+          orderNumber: orderNum,
+          checkoutSessionId: getCheckoutSessionId(),
+          userId: user?.id || localStorage.getItem("wox-user-id") || "",
+          customerName: newAddress.name,
+          customerPhone: newAddress.phone,
+          customerEmail: user?.email || "",
+          address: {
+            name: newAddress.name,
+            phone: newAddress.phone,
+            line1: newAddress.line1,
+            line2: newAddress.line2,
+            city: newAddress.city,
+            taluk: newAddress.taluk,
+            district: newAddress.district,
+            state: newAddress.state,
+            pincode: newAddress.pincode,
+            landmark: newAddress.landmark,
+          },
+          items: items.map((item) => ({
+            name: item.name,
+            price: item.price,
+            quantity: item.quantity,
+            size: item.size,
+            image: item.image,
+            slug: item.slug,
+          })),
+          couponCode: appliedCoupon?.code || "",
+          paymentMethod: "razorpay",
+        }),
       });
 
+      const payData = await payRes.json();
+
+      if (payData?.alreadyPaid) {
+        finalizeOrder(payData.orderNumber || orderNum);
+        setOrderSaving(false);
+        return;
+      }
+
       if (!payRes.ok) {
-        const payData = await payRes.json();
         throw new Error(payData.error || "Payment gateway unavailable");
       }
 
-      const payData = await payRes.json();
+      checkoutOrderRef.current = payData.orderNumber || orderNum;
+      gatewayOrderRef.current = payData.orderId || "";
+      setCheckoutOrderNumber(checkoutOrderRef.current);
 
       if (payViaQr) {
         setQrRazorpayOrderId(payData.orderId);
@@ -510,15 +667,12 @@ export default function CheckoutPage() {
         return;
       }
 
-      const stored = localStorage.getItem("wox-user");
-      const user = stored ? JSON.parse(stored) : null;
-
       const razorpay = new window.Razorpay({
         key: payData.keyId,
         amount: payData.amount,
         currency: payData.currency,
         name: "WOX.11",
-        description: `Order ${orderNum}`,
+        description: `Order ${checkoutOrderRef.current}`,
         order_id: payData.orderId,
         prefill: {
           name: newAddress.name,
@@ -527,13 +681,28 @@ export default function CheckoutPage() {
         },
         theme: { color: "#18181b" },
         handler: async (response: RazorpayResponse) => {
+          setOrderInfo("Confirming your payment...");
           try {
-            await saveOrderToDB(orderNum, response.razorpay_payment_id);
-            finalizeOrder(orderNum);
+            const result = await confirmOnlinePayment(response);
+            if (result.ok) {
+              finalizeOrder(result.orderNumber || checkoutOrderRef.current);
+              return;
+            }
+            if (result.status === "amount_mismatch" || result.status === "invalid_signature") {
+              setOrderError(
+                "Payment verification failed. Please contact support with payment ID: " +
+                  response.razorpay_payment_id
+              );
+            } else {
+              setOrderInfo(
+                "Your payment is being confirmed. Your order will appear in My Orders shortly. Payment ID: " +
+                  response.razorpay_payment_id
+              );
+            }
           } catch (e) {
-            console.error("Order save after payment failed:", e);
-            setOrderError(
-              "Payment successful but order save failed. Please contact support with payment ID: " +
+            console.error("Payment confirmation failed:", e);
+            setOrderInfo(
+              "Your payment is being confirmed. Your order will appear in My Orders shortly. Payment ID: " +
                 response.razorpay_payment_id
             );
           } finally {
@@ -541,16 +710,23 @@ export default function CheckoutPage() {
           }
         },
         modal: {
-          ondismiss: () => {
+          ondismiss: async () => {
+            const paid = await cancelPendingCheckout();
             setOrderSaving(false);
-            setOrderError("Payment cancelled. Your order was not placed.");
+            if (paid) {
+              finalizeOrder(checkoutOrderRef.current || orderNum);
+            } else {
+              setOrderError("Payment cancelled. Your order was not placed.");
+            }
           },
         },
       });
 
       razorpay.on("payment.failed", (response: { error: { description: string } }) => {
         setOrderSaving(false);
-        setOrderError("Payment failed: " + response.error.description);
+        setOrderError(
+          "Payment failed: " + response.error.description + ". You can try again."
+        );
       });
 
       razorpay.open();
@@ -1288,7 +1464,7 @@ export default function CheckoutPage() {
                     </h2>
                     <QrPayment
                       amount={total}
-                      orderNumber={generateOrderNumber()}
+                      orderNumber={checkoutOrderNumber || generateOrderNumber()}
                       razorpayOrderId={qrRazorpayOrderId}
                       razorpayKeyId={qrRazorpayKeyId}
                       customerName={newAddress.name}
@@ -1300,6 +1476,7 @@ export default function CheckoutPage() {
                       <Button
                         variant="outline"
                         onClick={() => {
+                          cancelPendingCheckout();
                           setQrRazorpayOrderId("");
                           setPayViaQr(false);
                         }}
@@ -1465,6 +1642,17 @@ export default function CheckoutPage() {
                 {isOutsideIndia && (
                   <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-600">
                     Currently unavailable for this location. We only deliver within India.
+                  </div>
+                )}
+                {orderInfo && !orderError && (
+                  <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+                    <p>{orderInfo}</p>
+                    <Link
+                      href="/account/orders"
+                      className="mt-1 inline-block font-medium underline underline-offset-2"
+                    >
+                      View my orders
+                    </Link>
                   </div>
                 )}
                 {orderError && (

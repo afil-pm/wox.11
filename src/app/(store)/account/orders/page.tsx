@@ -7,6 +7,7 @@ import { Package, ArrowLeft, Eye, XCircle, RotateCcw, Truck, CheckCircle2, Clock
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { cn, formatPrice } from "@/lib/utils";
+import { paymentLabels, paymentStyles, isPaidPaymentStatus } from "@/lib/order-payment";
 import WoxLoader from "@/components/ui/wox-loader";
 
 interface OrderItem {
@@ -169,6 +170,11 @@ export default function AccountOrdersPage() {
                   <Badge className={cn(statusStyles[order.status] || "bg-gray-100 text-gray-800")}>
                     {statusLabels[order.status] || order.status}
                   </Badge>
+                  {order.paymentMethod !== "cod" && !isPaidPaymentStatus(order.paymentStatus) && (
+                    <Badge className={cn(paymentStyles[order.paymentStatus] || "bg-gray-100 text-gray-700")}>
+                      {paymentLabels[order.paymentStatus] || order.paymentStatus}
+                    </Badge>
+                  )}
                   <span className="font-semibold text-zinc-900">{formatPrice(order.total)}</span>
                 </div>
               </div>

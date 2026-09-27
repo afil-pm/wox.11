@@ -6,17 +6,9 @@ import Coupon from "@/lib/models/coupon";
 import Notification from "@/lib/models/notification";
 import { sendPushToUser } from "@/lib/push";
 import { sendNewOrderEmail } from "@/lib/email";
-import { calculateOrderTax, SELLER_STATE, TaxInput } from "@/lib/tax";
-
-const INDIAN_STATES = [
-  "kerala","andhra pradesh","arunachal pradesh","assam","bihar","chhattisgarh",
-  "goa","gujarat","haryana","himachal pradesh","jharkhand","karnataka",
-  "madhya pradesh","maharashtra","manipur","meghalaya","mizoram","nagaland",
-  "odisha","punjab","rajasthan","sikkim","tamil nadu","telangana","tripura",
-  "uttar pradesh","uttarakhand","west bengal","andaman and nicobar islands",
-  "chandigarh","dadra and nagar haveli and daman and diu","delhi",
-  "jammu and kashmir","ladakh","lakshadweep","puducherry",
-];
+import { prepareOrderPayload } from "@/lib/orders/prepare";
+import { getPaymentById } from "@/lib/payments/razorpay";
+import { recordPaymentReconciliation } from "@/lib/payments/reconciliation";
 
 function isAdmin(request: NextRequest): boolean {
   const adminHeader = request.headers.get("x-admin-email");
@@ -24,13 +16,6 @@ function isAdmin(request: NextRequest): boolean {
   const adminEmail = process.env.ADMIN_EMAIL || "";
   if (!adminEmail) return true;
   return adminHeader.toLowerCase() === adminEmail.toLowerCase();
-}
-
-function computeShippingCost(state: string): number {
-  const s = state.trim().toLowerCase();
-  if (s === "kerala") return 0;
-  if (INDIAN_STATES.includes(s)) return 50;
-  return -1;
 }
 
 export async function GET(request: NextRequest) {
@@ -71,6 +56,11 @@ export async function POST(request: NextRequest) {
     await connectMongoDB();
     const body = await request.json();
 
+    const prepared = await prepareOrderPayload(body);
+    if (!prepared.ok) {
+      return NextResponse.json({ error: prepared.error }, { status: prepared.status });
+    }
+    const data = prepared.data;
     const {
       orderNumber,
       userId,
@@ -78,176 +68,59 @@ export async function POST(request: NextRequest) {
       customerPhone,
       customerEmail,
       address,
-      items,
       paymentMethod,
       paymentId,
       notes,
       couponCode,
-    } = body;
+      total,
+      subtotal: serverSubtotal,
+      couponDiscount,
+      shippingCost,
+      tax,
+      taxDetails,
+      items: serverItems,
+    } = data;
 
-    if (!orderNumber || !items?.length || !address) {
-      return NextResponse.json(
-        { error: "Missing required fields" },
-        { status: 400 }
-      );
-    }
 
-    const requiredAddressFields = ["name", "phone", "line1", "city", "state", "pincode"];
-    const missingFields = requiredAddressFields.filter((f) => !address[f]?.trim());
-    if (missingFields.length > 0) {
-      return NextResponse.json(
-        { error: `Missing required address fields: ${missingFields.join(", ")}` },
-        { status: 400 }
-      );
-    }
-
-    const stateNormalized = address.state.trim().toLowerCase();
-    const shippingCost = computeShippingCost(address.state);
-    if (shippingCost === -1) {
-      return NextResponse.json(
-        { error: "Currently unavailable for this location. We only deliver within India." },
-        { status: 400 }
-      );
-    }
-
-    const slugs = items.map((item: { slug?: string }) => item.slug).filter(Boolean);
-    const products = await Product.find({ slug: { $in: slugs } }).lean();
-    const productMap = new Map(products.map((p) => [p.slug, p]));
-
-    let serverSubtotal = 0;
-    const taxInputs: TaxInput[] = [];
-    const serverItems = items.map((item: { name: string; slug?: string; size: string; quantity: number; image?: string }) => {
-      const product = item.slug ? productMap.get(item.slug) : null;
-      const price = product ? (product.salePrice > 0 ? product.salePrice : product.basePrice) : 0;
-      const gstRate = product?.tax?.gstRate ?? 5;
-      const taxInclusive = product?.tax?.taxInclusive ?? true;
-      serverSubtotal += price * item.quantity;
-      taxInputs.push({ salePrice: price, quantity: item.quantity, gstRate, taxInclusive });
-      return {
-        name: item.name,
-        price,
-        quantity: item.quantity,
-        size: item.size,
-        image: item.image || "",
-        slug: item.slug || "",
-        hsnCode: product?.tax?.hsnCode || "6211",
-        gstRate,
-        taxableAmount: 0,
-        gstAmount: 0,
-        cgstAmount: 0,
-        sgstAmount: 0,
-        igstAmount: 0,
-        finalAmount: 0,
-      };
-    });
-
-    if (serverItems.some((item: { price: number; quantity: number }) => item.price <= 0 || item.quantity <= 0)) {
-      return NextResponse.json(
-        { error: "One or more products are unavailable or have invalid pricing" },
-        { status: 400 }
-      );
-    }
-
-    let couponDiscount = 0;
-    let validatedCouponCode = "";
-    if (couponCode && typeof couponCode === "string" && couponCode.trim()) {
-      const coupon = await Coupon.findOne({ code: couponCode.toUpperCase().trim(), active: true });
-      if (!coupon) {
-        return NextResponse.json({ error: "Invalid coupon code" }, { status: 400 });
-      }
-      if (coupon.expiresAt && new Date() > coupon.expiresAt) {
-        return NextResponse.json({ error: "Invalid coupon code" }, { status: 400 });
-      }
-      if (coupon.usageLimit > 0 && coupon.usedCount >= coupon.usageLimit) {
-        return NextResponse.json({ error: "Invalid coupon code" }, { status: 400 });
+    // A payment reference sent by the client is never trusted on its own: the
+    // payment is re-fetched from the gateway and must be captured for exactly
+    // the server computed amount before this order can be marked as paid.
+    let paymentStatus: "PENDING" | "PAID" | "REVIEW" = "PENDING";
+    if (paymentId) {
+      const expectedPaise = Math.round(total * 100);
+      let verified = false;
+      let reportedAmount = 0;
+      let reportedCurrency = "";
+      try {
+        const payment = await getPaymentById(paymentId);
+        reportedAmount = payment.amount;
+        reportedCurrency = payment.currency;
+        verified =
+          payment.status === "captured" &&
+          payment.amount === expectedPaise &&
+          payment.currency.toUpperCase() === "INR";
+      } catch {
+        verified = false;
       }
 
-      let applicableSubtotal = 0;
-      if (coupon.allProducts) {
-        applicableSubtotal = serverSubtotal;
+      if (verified) {
+        paymentStatus = "PAID";
       } else {
-        for (const item of serverItems) {
-          if (coupon.applicableProducts.includes(item.slug)) {
-            applicableSubtotal += item.price * item.quantity;
-          }
-        }
-      }
-
-      if (coupon.minOrderAmount > 0 && applicableSubtotal < coupon.minOrderAmount) {
-        return NextResponse.json({ error: "Invalid coupon code" }, { status: 400 });
-      }
-
-      if (coupon.discountType === "percent") {
-        couponDiscount = Math.round(applicableSubtotal * (coupon.discountValue / 100));
-        if (coupon.maxDiscount > 0 && couponDiscount > coupon.maxDiscount) {
-          couponDiscount = coupon.maxDiscount;
-        }
-      } else {
-        couponDiscount = Math.min(coupon.discountValue, applicableSubtotal);
-      }
-      couponDiscount = Math.max(0, Math.min(couponDiscount, applicableSubtotal));
-      validatedCouponCode = coupon.code;
-    }
-
-    const discountedSubtotal = Math.max(serverSubtotal - couponDiscount, 0);
-    const customerState = address.state.trim();
-    const orderTax = calculateOrderTax(taxInputs, SELLER_STATE, customerState);
-
-    // Fill tax snapshot into serverItems
-    for (let i = 0; i < serverItems.length; i++) {
-      const r = orderTax.items[i];
-      serverItems[i].taxableAmount = r.taxableAmount;
-      serverItems[i].gstAmount = r.gstAmount;
-      serverItems[i].cgstAmount = r.cgstAmount;
-      serverItems[i].sgstAmount = r.sgstAmount;
-      serverItems[i].igstAmount = r.igstAmount;
-      serverItems[i].finalAmount = r.finalAmount;
-    }
-
-    const tax = orderTax.totalGstAmount;
-    const total = discountedSubtotal + shippingCost + tax;
-
-    if (total <= 0) {
-      return NextResponse.json(
-        { error: "Order total must be greater than ₹0" },
-        { status: 400 }
-      );
-    }
-
-    const stockErrors: string[] = [];
-    for (const item of items) {
-      if (!item.slug) continue;
-      const product = productMap.get(item.slug);
-      if (!product) continue;
-
-      const variant = product.variants?.find(
-        (v: { sizes: { name: string; quantity: number }[] }) =>
-          v.sizes?.some((s: { name: string; quantity: number }) => s.name === item.size)
-      );
-      if (!variant) {
-        stockErrors.push(`${item.name} (${item.size}) - variant not found`);
-        continue;
-      }
-      const sizeData = variant.sizes.find(
-        (s: { name: string; quantity: number }) => s.name === item.size
-      );
-      if (!sizeData) {
-        stockErrors.push(`${item.name} (${item.size}) - size not found`);
-        continue;
-      }
-      if (sizeData.quantity < item.quantity) {
-        stockErrors.push(`${item.name} (${item.size}) - only ${sizeData.quantity} left`);
+        paymentStatus = "REVIEW";
+        recordPaymentReconciliation({
+          paymentId,
+          amountPaise: reportedAmount,
+          currency: reportedCurrency,
+          status: "UNMATCHED",
+          orderNumber,
+          reason: reportedAmount
+            ? `Payment ${paymentId} is not a captured payment of the expected amount for ${orderNumber} (expected ${expectedPaise} paise, received ${reportedAmount} ${reportedCurrency}).`
+            : `Payment ${paymentId} could not be verified with the gateway for ${orderNumber}.`,
+        }).catch(() => {});
       }
     }
 
-    if (stockErrors.length > 0) {
-      return NextResponse.json(
-        { error: `Insufficient stock: ${stockErrors.join("; ")}` },
-        { status: 400 }
-      );
-    }
-
-    for (const item of items) {
+    for (const item of serverItems) {
       if (!item.slug) continue;
       await Product.updateOne(
         { slug: item.slug },
@@ -270,26 +143,25 @@ export async function POST(request: NextRequest) {
       address,
       items: serverItems,
       subtotal: serverSubtotal,
-      couponCode: validatedCouponCode,
+      couponCode,
       couponDiscount,
       shippingCost,
       tax,
       total,
-      taxDetails: {
-        totalTaxableAmount: orderTax.totalTaxableAmount,
-        totalGstAmount: orderTax.totalGstAmount,
-        totalCgst: orderTax.totalCgst,
-        totalSgst: orderTax.totalSgst,
-        totalIgst: orderTax.totalIgst,
-        sellerState: SELLER_STATE,
-        customerState,
-        isInterState: SELLER_STATE.trim().toLowerCase() !== customerState.trim().toLowerCase(),
-      },
+      taxDetails,
       paymentMethod: paymentMethod || "cod",
       paymentId: paymentId || "",
-      paymentStatus: paymentId ? "PAID" : "PENDING",
+      paymentStatus,
+      razorpayOrderId: "",
+      inventoryAdjusted: true,
+      paymentConfirmedAt: paymentStatus === "PAID" ? new Date() : undefined,
+      paymentConfirmedBy: paymentStatus === "PAID" ? "client" : undefined,
+      paymentConfirmationMethod: paymentStatus === "PAID" ? "online" : undefined,
       status: "CONFIRMED",
-      notes: notes || "",
+      notes:
+        paymentStatus === "REVIEW"
+          ? `${notes ? `${notes}\n` : ""}Payment reference ${paymentId} requires manual verification.`
+          : notes || "",
     });
 
     if (userId) {
@@ -309,8 +181,27 @@ export async function POST(request: NextRequest) {
       }).catch(() => {});
     }
 
-    if (validatedCouponCode && couponDiscount > 0) {
-      Coupon.updateOne({ code: validatedCouponCode }, { $inc: { usedCount: 1 } }).catch(() => {});
+    // A payment that still needs review has not really been paid yet: coupon
+    // usage and the confirmation email wait for the admin decision.
+    if (couponCode && couponDiscount > 0 && paymentStatus !== "REVIEW") {
+      Coupon.updateOne({ code: couponCode }, { $inc: { usedCount: 1 } }).catch(() => {});
+    }
+
+    if (paymentStatus === "REVIEW") {
+      Notification.create({
+        userId: "admin-env",
+        title: "Payment needs review",
+        body: `Order ${orderNumber} was created with an unverified payment reference (${paymentId}).`,
+        type: "order_update",
+        orderId: order._id.toString(),
+      }).catch(() => {});
+
+      sendPushToUser("admin-env", {
+        title: "Payment needs review",
+        body: `Order ${orderNumber} has an unverified payment reference (${paymentId}).`,
+        url: `/wox/admin/orders`,
+        tag: `payment-review-${order._id}`,
+      }).catch(() => {});
     }
 
     Notification.create({
@@ -328,17 +219,19 @@ export async function POST(request: NextRequest) {
       tag: `admin-order-${order._id}`,
     }).catch(() => {});
 
-    sendNewOrderEmail({
-      orderNumber,
-      customerName: customerName || address.name,
-      customerPhone: customerPhone || address.phone,
-      customerEmail: customerEmail || "",
-      address,
-      items: serverItems,
-      total,
-      paymentMethod: paymentMethod || "cod",
-      paymentStatus: paymentId ? "PAID" : "PENDING",
-    }).catch(() => {});
+    if (paymentStatus !== "REVIEW") {
+      sendNewOrderEmail({
+        orderNumber,
+        customerName: customerName || address.name,
+        customerPhone: customerPhone || address.phone,
+        customerEmail: customerEmail || "",
+        address,
+        items: serverItems,
+        total,
+        paymentMethod: paymentMethod || "cod",
+        paymentStatus,
+      }).catch(() => {});
+    }
 
     return NextResponse.json({ order }, { status: 201 });
   } catch (error) {

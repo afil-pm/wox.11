@@ -7,6 +7,7 @@ import { ArrowLeft, XCircle, RotateCcw, RefreshCw, Truck, CheckCircle2, Clock, B
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { cn, formatPrice } from "@/lib/utils";
+import { paymentLabels, paymentStyles } from "@/lib/order-payment";
 import WoxLoader from "@/components/ui/wox-loader";
 
 interface OrderItem {
@@ -274,8 +275,11 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
         <Badge className={cn(statusStyles[order.status])}>
           {statusLabels[order.status]}
         </Badge>
-        <span className="text-sm text-zinc-500">
-          Payment: {order.paymentMethod.toUpperCase()} ({order.paymentStatus})
+        <span className="flex items-center gap-2 text-sm text-zinc-500">
+          Payment: {order.paymentMethod.toUpperCase()}
+          <Badge className={cn(paymentStyles[order.paymentStatus] || "bg-gray-100 text-gray-700")}>
+            {paymentLabels[order.paymentStatus] || order.paymentStatus}
+          </Badge>
         </span>
         <span className="ml-auto text-lg font-bold text-zinc-900">{formatPrice(order.total)}</span>
       </div>

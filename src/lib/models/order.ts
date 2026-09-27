@@ -1,5 +1,15 @@
 import mongoose, { Schema, Document, Model } from "mongoose";
 
+export const PAID_PAYMENT_STATUSES = ["PAID", "COMPLETED", "REFUNDED"] as const;
+
+export const UNPAID_PAYMENT_STATUSES = [
+  "PENDING",
+  "PAYMENT_PROCESSING",
+  "FAILED",
+  "CANCELLED",
+  "REVIEW",
+] as const;
+
 export interface IOrderItem {
   name: string;
   price: number;
@@ -54,7 +64,21 @@ export interface IOrder extends Document {
   taxDetails: IOrderTax;
   paymentMethod: "razorpay" | "cod";
   paymentId: string;
-  paymentStatus: "PENDING" | "PAID" | "COMPLETED" | "FAILED" | "REFUNDED";
+  paymentStatus:
+    | "PENDING"
+    | "PAYMENT_PROCESSING"
+    | "PAID"
+    | "COMPLETED"
+    | "FAILED"
+    | "CANCELLED"
+    | "REVIEW"
+    | "REFUNDED";
+  razorpayOrderId: string;
+  checkoutSessionId?: string;
+  paymentAmountPaise?: number;
+  paymentCurrency?: string;
+  paymentExpiresAt?: Date;
+  inventoryAdjusted?: boolean;
   status:
     | "PENDING"
     | "CONFIRMED"
@@ -144,9 +168,24 @@ const OrderSchema = new Schema<IOrder>(
     paymentId: { type: String, default: "" },
     paymentStatus: {
       type: String,
-      enum: ["PENDING", "PAID", "COMPLETED", "FAILED", "REFUNDED"],
+      enum: [
+        "PENDING",
+        "PAYMENT_PROCESSING",
+        "PAID",
+        "COMPLETED",
+        "FAILED",
+        "CANCELLED",
+        "REVIEW",
+        "REFUNDED",
+      ],
       default: "PENDING",
     },
+    razorpayOrderId: { type: String, default: "" },
+    checkoutSessionId: { type: String },
+    paymentAmountPaise: { type: Number },
+    paymentCurrency: { type: String, default: "" },
+    paymentExpiresAt: { type: Date },
+    inventoryAdjusted: { type: Boolean },
     status: {
       type: String,
       enum: [
@@ -180,6 +219,9 @@ const OrderSchema = new Schema<IOrder>(
 OrderSchema.index({ orderNumber: 1 }, { unique: true });
 OrderSchema.index({ userId: 1, createdAt: -1 });
 OrderSchema.index({ createdAt: -1 });
+OrderSchema.index({ razorpayOrderId: 1 });
+OrderSchema.index({ checkoutSessionId: 1 }, { unique: true, sparse: true });
+OrderSchema.index({ paymentStatus: 1, paymentExpiresAt: 1 });
 
 let Order: Model<IOrder>;
 

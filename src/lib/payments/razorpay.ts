@@ -215,3 +215,86 @@ export async function getPaymentById(
 
   return data as RazorpayPayment;
 }
+
+/**
+ * Fetch a Razorpay order by ID.
+ * @param orderId - The Razorpay order ID
+ * @returns Razorpay order details
+ */
+export async function getOrderById(orderId: string): Promise<RazorpayOrder> {
+  const response = await fetch(`https://api.razorpay.com/v1/orders/${orderId}`, {
+    headers: {
+      Authorization: getAuthHeader(),
+    },
+  });
+
+  const data = (await response.json()) as RazorpayOrder | RazorpayError;
+
+  if (!response.ok) {
+    const error = data as RazorpayError;
+    throw new Error(`Razorpay getOrder failed: ${error.error.description}`);
+  }
+
+  return data as RazorpayOrder;
+}
+
+/**
+ * List payments attached to a gateway order (newest first). Used as a
+ * fallback when a confirmation call only carries the gateway order id, e.g.
+ * the `order.paid` webhook or a status poll after the tab was closed.
+ */
+export async function listOrderPayments(orderId: string): Promise<RazorpayPayment[]> {
+  const response = await fetch(`https://api.razorpay.com/v1/orders/${orderId}/payments`, {
+    headers: {
+      Authorization: getAuthHeader(),
+    },
+  });
+
+  const data = (await response.json()) as
+    | { items?: RazorpayPayment[] }
+    | RazorpayError;
+
+  if (!response.ok) {
+    const error = data as RazorpayError;
+    throw new Error(
+      `Razorpay listOrderPayments failed: ${error.error?.description || "unknown"}`
+    );
+  }
+
+  return (data as { items?: RazorpayPayment[] }).items || [];
+}
+
+/**
+ * List payments captured on the account (newest first).
+ * Used by the reconciliation sweep to find payments that never produced an
+ * order.
+ */
+export async function listPayments(options: {
+  from?: number;
+  to?: number;
+  count?: number;
+  skip?: number;
+}): Promise<RazorpayPayment[]> {
+  const params = new URLSearchParams();
+  if (options.from) params.set("from", String(options.from));
+  if (options.to) params.set("to", String(options.to));
+  params.set("count", String(Math.min(options.count ?? 100, 100)));
+  if (options.skip) params.set("skip", String(options.skip));
+
+  const response = await fetch(`https://api.razorpay.com/v1/payments?${params.toString()}`, {
+    headers: {
+      Authorization: getAuthHeader(),
+    },
+  });
+
+  const data = (await response.json()) as
+    | { items?: RazorpayPayment[] }
+    | RazorpayError;
+
+  if (!response.ok) {
+    const error = data as RazorpayError;
+    throw new Error(`Razorpay listPayments failed: ${error.error?.description || "unknown"}`);
+  }
+
+  return (data as { items?: RazorpayPayment[] }).items || [];
+}

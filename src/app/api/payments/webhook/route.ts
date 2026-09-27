@@ -1,8 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { connectMongoDB } from "@/lib/mongodb";
-import Order from "@/lib/models/order";
 import { verifyWebhookSignature } from "@/lib/payments/razorpay";
+import { confirmOrderPayment, markPaymentFailed } from "@/lib/payments/confirm";
+import { recordPaymentReconciliation } from "@/lib/payments/reconciliation";
 
+/**
+ * Razorpay webhook. Signature verified, order matching is idempotent, so this
+ * is the recovery path for a customer who paid and then left the site: the
+ * order is created/confirmed here even if no browser callback ever runs.
+ */
 export async function POST(request: NextRequest) {
   try {
     const rawBody = await request.text();
@@ -14,66 +20,49 @@ export async function POST(request: NextRequest) {
 
     const event = JSON.parse(rawBody);
     const eventType = event.event;
+    const payment = event.payload?.payment?.entity;
 
-    if (eventType === "payment.captured") {
-      const payment = event.payload?.payment?.entity;
-      if (!payment) {
-        return NextResponse.json({ received: true });
-      }
-
-      const razorpayOrderId = payment.order_id;
-      const razorpayPaymentId = payment.id;
-
+    if ((eventType === "payment.captured" || eventType === "order.paid") && payment) {
       await connectMongoDB();
 
-      const order = await Order.findOne({ paymentId: razorpayOrderId });
-      if (order && order.paymentStatus !== "PAID") {
-        order.paymentId = razorpayPaymentId;
-        order.paymentStatus = "PAID";
-        order.paymentConfirmedAt = new Date();
-        order.paymentConfirmationMethod = "online";
-        await order.save();
+      const result = await confirmOrderPayment({
+        razorpayOrderId: payment.order_id,
+        razorpayPaymentId: payment.id,
+        payment,
+        amountPaise: payment.amount,
+        currency: payment.currency,
+        source: "webhook",
+      });
 
-        const { default: Notification } = await import("@/lib/models/notification");
-        const { sendPushToUser } = await import("@/lib/push");
-
-        Notification.create({
-          userId: order.userId,
-          title: "Payment Confirmed",
-          body: `Payment received for order ${order.orderNumber}.`,
-          type: "order_update",
-          orderId: order._id.toString(),
-        }).catch(() => {});
-
-        sendPushToUser(order.userId, {
-          title: "Payment Confirmed",
-          body: `Payment received for order ${order.orderNumber}.`,
-          url: `/account/orders/${order._id}`,
-          tag: `payment-captured-${order._id}`,
-        }).catch(() => {});
+      if (result.status === "order_not_found") {
+        // Payment is real but could not be linked to an order: keep it for
+        // reconciliation instead of dropping it.
+        await recordPaymentReconciliation({
+          paymentId: payment.id,
+          razorpayOrderId: payment.order_id,
+          amountPaise: payment.amount,
+          currency: payment.currency,
+          paymentStatus: payment.status,
+          status: "UNMATCHED",
+          reason: `Captured payment ${payment.id} has no matching order (gateway order ${payment.order_id}).`,
+        });
       }
+
+      return NextResponse.json({ received: true, status: result.status });
     }
 
-    if (eventType === "payment.failed") {
-      const payment = event.payload?.payment?.entity;
-      if (!payment) {
-        return NextResponse.json({ received: true });
-      }
-
-      const razorpayOrderId = payment.order_id;
-
-      await connectMongoDB();
-
-      const order = await Order.findOne({ paymentId: razorpayOrderId });
-      if (order) {
-        order.paymentStatus = "FAILED";
-        await order.save();
-      }
+    if (eventType === "payment.failed" && payment) {
+      await markPaymentFailed({
+        razorpayOrderId: payment.order_id,
+        razorpayPaymentId: payment.id,
+      });
+      return NextResponse.json({ received: true });
     }
 
     return NextResponse.json({ received: true });
   } catch (error) {
     console.error("Webhook error:", error);
+    // A 500 makes Razorpay retry, which gives transient failures a second run.
     return NextResponse.json({ error: "Webhook processing failed" }, { status: 500 });
   }
 }

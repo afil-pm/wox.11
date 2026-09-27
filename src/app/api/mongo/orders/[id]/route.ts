@@ -111,6 +111,13 @@ export async function PATCH(
       update.paymentStatus = paymentStatus;
     }
 
+    if (status === "CANCELLED") {
+      // An online checkout that never captured a payment is cancelled too.
+      if (order.paymentStatus === "PAYMENT_PROCESSING" || order.paymentStatus === "FAILED") {
+        update.paymentStatus = "CANCELLED";
+      }
+    }
+
     if (Object.keys(update).length === 0) {
       return NextResponse.json({ error: "No valid updates provided" }, { status: 400 });
     }
@@ -119,7 +126,9 @@ export async function PATCH(
 
     if (status === "CANCELLED" && order.items?.length) {
       const fullOrder = await Order.findById(id).lean();
-      if (fullOrder?.items?.length) {
+      // Stock is only ever restored for orders that actually deducted it;
+      // unpaid online checkouts hold no inventory.
+      if (fullOrder?.items?.length && fullOrder.inventoryAdjusted !== false) {
         for (const item of fullOrder.items) {
           if (!item.slug) continue;
           await Product.updateOne(
@@ -133,6 +142,11 @@ export async function PATCH(
             }
           ).catch(() => {});
         }
+        // The stock is back on the shelf: a late payment for this order must
+        // deduct it again instead of double counting.
+        await Order.updateOne({ _id: id }, { $set: { inventoryAdjusted: false } }).catch(
+          () => {}
+        );
       }
     }
 

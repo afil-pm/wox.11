@@ -95,9 +95,20 @@ export async function PUT(request: NextRequest) {
       );
     }
 
-    const order = await Order.findByIdAndUpdate(orderId, { status }, { new: true }).lean();
+    const update: Record<string, unknown> = { status };
+    if (
+      status === "CANCELLED" &&
+      (existingOrder.paymentStatus === "PAYMENT_PROCESSING" ||
+        existingOrder.paymentStatus === "FAILED")
+    ) {
+      update.paymentStatus = "CANCELLED";
+    }
 
-    if (status === "CANCELLED" && existingOrder.items?.length) {
+    const order = await Order.findByIdAndUpdate(orderId, update, { new: true }).lean();
+
+    // Stock is only restored for orders that actually deducted it; unpaid
+    // online checkouts hold no inventory.
+    if (status === "CANCELLED" && existingOrder.items?.length && existingOrder.inventoryAdjusted !== false) {
       for (const item of existingOrder.items) {
         if (!item.slug) continue;
         await Product.updateOne(
@@ -111,6 +122,11 @@ export async function PUT(request: NextRequest) {
           }
         ).catch(() => {});
       }
+      // The stock is back on the shelf: a late payment for this order must
+      // deduct it again instead of double counting.
+      await Order.updateOne({ _id: orderId }, { $set: { inventoryAdjusted: false } }).catch(
+        () => {}
+      );
     }
 
     if (existingOrder.userId && STATUS_MESSAGES[status]) {

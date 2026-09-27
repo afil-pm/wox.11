@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn, formatPrice } from "@/lib/utils";
-import { Eye, IndianRupee, TrendingUp, Calendar, BarChart3, BadgeCheck, Banknote, Check, X, Loader2, RotateCcw, XCircle } from "lucide-react";
+import { Eye, IndianRupee, TrendingUp, Calendar, BarChart3, BadgeCheck, Banknote, Check, X, Loader2, RotateCcw, XCircle, AlertTriangle, RefreshCw } from "lucide-react";
 import WoxLoader from "@/components/ui/wox-loader";
 import { adminFetch } from "@/lib/admin-api";
 
@@ -97,8 +97,22 @@ const paymentStyles: Record<string, string> = {
   PAID: "text-green-600",
   COMPLETED: "text-green-600",
   PENDING: "text-yellow-600",
+  PAYMENT_PROCESSING: "text-amber-600",
   FAILED: "text-red-600",
+  CANCELLED: "text-gray-400",
+  REVIEW: "text-orange-600",
   REFUNDED: "text-gray-600",
+};
+
+const paymentLabels: Record<string, string> = {
+  PENDING: "Pending",
+  PAYMENT_PROCESSING: "Payment Processing",
+  PAID: "Paid",
+  COMPLETED: "Completed",
+  FAILED: "Failed",
+  CANCELLED: "Cancelled",
+  REVIEW: "Needs Review",
+  REFUNDED: "Refunded",
 };
 
 const statusLabels: Record<string, string> = {
@@ -245,7 +259,7 @@ function OrderTable({ orders, onSelect }: { orders: Order[]; onSelect: (o: Order
                 </td>
                 <td className="px-4 py-3">
                   <span className={cn("text-sm font-medium", paymentStyles[order.paymentStatus] || "text-gray-600")}>
-                    {order.paymentStatus}
+                    {paymentLabels[order.paymentStatus] || order.paymentStatus}
                   </span>
                 </td>
                 <td className="px-4 py-3">
@@ -363,7 +377,7 @@ function ReturnTable({ orders, onSelect }: { orders: Order[]; onSelect: (o: Orde
                 </td>
                 <td className="px-4 py-3">
                   <span className={cn("text-sm font-medium", paymentStyles[order.paymentStatus] || "text-gray-600")}>
-                    {order.paymentStatus}
+                    {paymentLabels[order.paymentStatus] || order.paymentStatus}
                   </span>
                 </td>
                 <td className="px-4 py-3">
@@ -425,7 +439,7 @@ function CancelTable({ orders, onSelect }: { orders: Order[]; onSelect: (o: Orde
                 </td>
                 <td className="px-4 py-3">
                   <span className={cn("text-sm font-medium", paymentStyles[order.paymentStatus] || "text-gray-600")}>
-                    {order.paymentStatus}
+                    {paymentLabels[order.paymentStatus] || order.paymentStatus}
                   </span>
                 </td>
                 <td className="px-4 py-3">
@@ -441,6 +455,22 @@ function CancelTable({ orders, onSelect }: { orders: Order[]; onSelect: (o: Orde
       </div>
     </div>
   );
+}
+
+interface ReconciliationRecord {
+  _id: string;
+  key: string;
+  paymentId: string;
+  razorpayOrderId: string;
+  amountPaise: number;
+  currency: string;
+  paymentStatus: string;
+  status: string;
+  reason: string;
+  orderId: string;
+  orderNumber: string;
+  customerName: string;
+  createdAt: string;
 }
 
 export default function AdminOrdersPage() {
@@ -462,7 +492,12 @@ export default function AdminOrdersPage() {
   const [returnFilter, setReturnFilter] = useState("ALL");
   const [cancelFilter, setCancelFilter] = useState("ALL");
 
-  const [activeSection, setActiveSection] = useState<"orders" | "refunds" | "returns" | "canceled">("orders");
+  const [activeSection, setActiveSection] = useState<"orders" | "refunds" | "returns" | "canceled" | "payments">("orders");
+
+  const [reconRecords, setReconRecords] = useState<ReconciliationRecord[]>([]);
+  const [reconLoading, setReconLoading] = useState(false);
+  const [reconRunning, setReconRunning] = useState(false);
+  const [reconMessage, setReconMessage] = useState<string | null>(null);
 
   const fetchOrders = useCallback(async () => {
     try {
@@ -486,6 +521,47 @@ export default function AdminOrdersPage() {
       console.error("Failed to fetch refund requests:", e);
     }
   }, []);
+
+  const fetchReconciliation = useCallback(async () => {
+    setReconLoading(true);
+    try {
+      const res = await adminFetch("/api/payments/reconcile");
+      const data = await res.json();
+      setReconRecords(data.records || []);
+    } catch (e) {
+      console.error("Failed to fetch reconciliation records:", e);
+    } finally {
+      setReconLoading(false);
+    }
+  }, []);
+
+  async function runReconciliation() {
+    setReconRunning(true);
+    setReconMessage(null);
+    try {
+      const res = await adminFetch("/api/payments/reconcile?days=7", { method: "POST" });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Reconciliation failed");
+      const s = data.summary;
+      setReconMessage(
+        `Scanned ${s.scanned} payment(s): ${s.confirmed} confirmed, ${s.alreadyPaid} already paid, ` +
+          `${s.unmatched} unmatched, ${s.mismatched} flagged for review, ${s.repaired} stock repair(s), ` +
+          `${s.expiredCheckouts} expired checkout(s), ${s.errors} error(s).`
+      );
+      await fetchReconciliation();
+      fetchOrders();
+    } catch (e) {
+      setReconMessage(e instanceof Error ? e.message : "Reconciliation failed");
+    } finally {
+      setReconRunning(false);
+    }
+  }
+
+  useEffect(() => {
+    if (activeSection === "payments") {
+      fetchReconciliation();
+    }
+  }, [activeSection, fetchReconciliation]);
 
   useEffect(() => {
     fetchOrders();
@@ -573,7 +649,9 @@ export default function AdminOrdersPage() {
 
   const totalRevenue = orders.reduce((sum, o) => sum + (o.total || 0), 0);
   const paidRevenue = orders.filter((o) => o.paymentStatus === "PAID" || o.paymentStatus === "COMPLETED").reduce((sum, o) => sum + (o.total || 0), 0);
-  const pendingRevenue = orders.filter((o) => o.paymentStatus === "PENDING").reduce((sum, o) => sum + (o.total || 0), 0);
+  const pendingRevenue = orders.filter((o) => o.paymentStatus === "PENDING" || o.paymentStatus === "PAYMENT_PROCESSING").reduce((sum, o) => sum + (o.total || 0), 0);
+  const reviewPayments = orders.filter((o) => o.paymentStatus === "REVIEW").length;
+  const unmatchedPayments = reconRecords.filter((r) => r.status === "UNMATCHED").length;
   const totalOrdersCount = orders.length;
   const avgOrderValue = totalOrdersCount > 0 ? totalRevenue / totalOrdersCount : 0;
   const pendingRefunds = refundRequests.filter((r) => r.status === "pending").length;
@@ -620,6 +698,7 @@ export default function AdminOrdersPage() {
     { key: "refunds" as const, label: "Refunds", icon: Banknote, count: pendingRefunds },
     { key: "returns" as const, label: "Returns", icon: RotateCcw, count: returnedOrders.length },
     { key: "canceled" as const, label: "Canceled", icon: XCircle, count: canceledOrders.length },
+    { key: "payments" as const, label: "Payments", icon: AlertTriangle, count: unmatchedPayments + reviewPayments },
   ];
 
   return (
@@ -745,6 +824,96 @@ export default function AdminOrdersPage() {
             <div>
               <FilterTabs tabs={cancelTabs} active={cancelFilter} onSelect={setCancelFilter} />
               <CancelTable orders={filteredCancels} onSelect={setSelectedOrder} />
+            </div>
+          )}
+
+          {/* Payment Reconciliation Section */}
+          {activeSection === "payments" && (
+            <div className="space-y-4">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <p className="text-sm text-gray-500">
+                  Captured payments that could not be matched to an order, plus orders flagged for
+                  payment review.
+                </p>
+                <Button
+                  onClick={runReconciliation}
+                  disabled={reconRunning}
+                  className="bg-zinc-900 text-white hover:bg-zinc-800"
+                >
+                  {reconRunning ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : (
+                    <RefreshCw className="mr-2 h-4 w-4" />
+                  )}
+                  {reconRunning ? "Reconciling..." : "Run reconciliation"}
+                </Button>
+              </div>
+
+              {reconMessage && (
+                <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+                  {reconMessage}
+                </div>
+              )}
+
+              {reconLoading ? (
+                <div className="flex items-center justify-center py-16">
+                  <WoxLoader />
+                </div>
+              ) : reconRecords.length === 0 ? (
+                <div className="rounded-xl border bg-white p-10 text-center shadow-sm">
+                  <p className="text-sm text-gray-500">No payments are waiting for reconciliation</p>
+                </div>
+              ) : (
+                <div className="rounded-xl border bg-white shadow-sm">
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="border-b text-left text-xs font-medium uppercase text-gray-500">
+                          <th className="px-4 py-3">Payment</th>
+                          <th className="px-4 py-3">Amount</th>
+                          <th className="px-4 py-3">Order</th>
+                          <th className="px-4 py-3">Status</th>
+                          <th className="px-4 py-3">Reason</th>
+                          <th className="px-4 py-3">Date</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y">
+                        {reconRecords.map((record) => (
+                          <tr key={record._id} className="hover:bg-gray-50">
+                            <td className="px-4 py-3">
+                              <div className="font-medium text-gray-900">{record.paymentId || "-"}</div>
+                              <div className="text-xs text-gray-500">{record.razorpayOrderId || "-"}</div>
+                            </td>
+                            <td className="px-4 py-3 font-medium text-gray-900">
+                              {formatPrice((record.amountPaise || 0) / 100)}
+                            </td>
+                            <td className="px-4 py-3 text-gray-600">
+                              {record.orderNumber || (record.orderId ? `...${record.orderId.slice(-6)}` : "-")}
+                            </td>
+                            <td className="px-4 py-3">
+                              <Badge
+                                className={cn(
+                                  record.status === "UNMATCHED"
+                                    ? "bg-orange-100 text-orange-800"
+                                    : record.status === "IGNORED"
+                                      ? "bg-gray-100 text-gray-700"
+                                      : "bg-green-100 text-green-800"
+                                )}
+                              >
+                                {record.status}
+                              </Badge>
+                            </td>
+                            <td className="max-w-md px-4 py-3 text-xs text-gray-500">{record.reason}</td>
+                            <td className="px-4 py-3 text-gray-500">
+                              {new Date(record.createdAt).toLocaleString("en-IN")}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </>
@@ -881,7 +1050,7 @@ export default function AdminOrdersPage() {
                 <div className="flex items-center gap-2">
                   <span className="text-sm text-gray-500">Payment:</span>
                   <span className={cn("text-sm font-medium", paymentStyles[selectedOrder.paymentStatus])}>
-                    {selectedOrder.paymentStatus}
+                    {paymentLabels[selectedOrder.paymentStatus] || selectedOrder.paymentStatus}
                   </span>
                 </div>
               </div>
@@ -921,6 +1090,56 @@ export default function AdminOrdersPage() {
                   </div>
                 </div>
               )}
+
+              {selectedOrder.paymentMethod !== "cod" &&
+                !["PAID", "COMPLETED", "REFUNDED"].includes(selectedOrder.paymentStatus) && (
+                  <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-3">
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                      <div>
+                        <p className="text-sm font-medium text-amber-800">
+                          {selectedOrder.paymentStatus === "REVIEW"
+                            ? "Payment needs review"
+                            : "Payment not confirmed"}
+                        </p>
+                        <p className="text-xs text-amber-600">
+                          {selectedOrder.paymentStatus === "REVIEW"
+                            ? "The payment did not match this order. Confirm only after verifying the money arrived."
+                            : "Confirm once you have verified the payment with Razorpay."}
+                        </p>
+                      </div>
+                      <Button
+                        size="sm"
+                        className="bg-green-600 text-white hover:bg-green-700 gap-1.5"
+                        onClick={async () => {
+                          try {
+                            const res = await adminFetch(
+                              `/api/wox/admin/orders/${selectedOrder._id}/confirm-payment`,
+                              { method: "POST", body: JSON.stringify({}) }
+                            );
+                            const data = await res.json();
+                            if (!res.ok) throw new Error(data.error || "Failed to confirm payment");
+                            setSelectedOrder((prev) =>
+                              prev
+                                ? {
+                                    ...prev,
+                                    paymentStatus: "PAID",
+                                    status: data.order?.status || prev.status,
+                                  }
+                                : null
+                            );
+                            fetchOrders();
+                          } catch (e) {
+                            console.error("Failed to confirm payment:", e);
+                            alert(e instanceof Error ? e.message : "Failed to confirm payment");
+                          }
+                        }}
+                      >
+                        <BadgeCheck className="h-4 w-4" />
+                        Confirm Payment
+                      </Button>
+                    </div>
+                  </div>
+                )}
 
               {nextStatuses[selectedOrder.status]?.length > 0 && (
                 <div className="mt-4 border-t pt-4 pb-2">
