@@ -174,19 +174,34 @@ export default function ProductDetailPage({ params }: { params: Promise<{ catego
       .filter((idx) => idx >= 0)
   );
   const storeName = (product.store || product.supplierName || "").trim();
+  // A product only needs selector controls when there is something to choose.
+  const showColorSelector =
+    product.variants.length > 1 ||
+    (!!currentVariant.name && currentVariant.name !== "Default");
 
   const handleSelectColor = (idx: number) => {
     if (idx === selectedColor) return;
-    setSelectedColor(idx);
-    setSelectedImage(0);
-    setQuantity(1);
     const variant = product.variants[idx];
     if (!variant) return;
+
+    setSelectedColor(idx);
+    // The gallery always opens on the new colour's own photos.
+    setSelectedImage(0);
+
+    // Keep the size when the new colour offers it (size ids are shared across
+    // colours), otherwise move to the first size that is actually in stock.
     const sizeIds = new Set(variant.sizes.map((s) => s.id));
-    if (!selectedSize || !sizeIds.has(selectedSize)) {
+    let nextSizeId = selectedSize;
+    if (!nextSizeId || !sizeIds.has(nextSizeId)) {
       const firstAvailable = variant.sizes.find((s) => (s.inventory?.quantity ?? 0) > 0);
-      setSelectedSize(firstAvailable?.id ?? variant.sizes[0]?.id ?? null);
+      nextSizeId = firstAvailable?.id ?? variant.sizes[0]?.id ?? null;
+      setSelectedSize(nextSizeId);
     }
+
+    // Keep the quantity too — only clamp it to what this colour/size can serve.
+    const nextStock =
+      variant.sizes.find((s) => s.id === nextSizeId)?.inventory?.quantity ?? 0;
+    setQuantity((q) => Math.max(1, Math.min(q, Math.max(nextStock, 1))));
   };
 
   const handleAddToCart = () => {
@@ -379,46 +394,63 @@ export default function ProductDetailPage({ params }: { params: Promise<{ catego
             </div>
 
             {/* Color Selector */}
-            {(product.variants.length > 1 ||
-              (currentVariant.name && currentVariant.name !== "Default")) && (
+            {showColorSelector && (
               <div className="mt-4">
-                <p className="mb-2 text-sm font-medium text-zinc-900">
-                  COLOR: <span className="font-normal text-zinc-500">{currentVariant.name}</span>
+                <p className="text-sm font-medium text-zinc-900">
+                  Selected Color:{" "}
+                  <span className="font-normal text-zinc-600">{currentVariant.name}</span>
                 </p>
-                <div className="flex flex-wrap gap-2">
-                  {product.variants.map((variant, idx) => {
-                    const soldOut = soldOutColors.has(idx);
-                    return (
-                      <button
-                        key={variant.id}
-                        onClick={() => handleSelectColor(idx)}
-                        disabled={soldOut}
-                        title={soldOut ? `${variant.name} — Out of stock` : variant.name}
-                        aria-label={`${variant.name}${soldOut ? " (out of stock)" : ""}`}
-                        className={cn(
-                          "relative h-10 w-10 rounded-full border-2 transition-all",
-                          selectedColor === idx
-                            ? "border-zinc-900 ring-2 ring-zinc-900 ring-offset-2"
-                            : soldOut
-                              ? "cursor-not-allowed border-zinc-200 opacity-40"
-                              : "border-zinc-200 hover:border-zinc-400"
-                        )}
-                      >
-                        <span
-                          className="block h-full w-full rounded-full"
-                          style={{
-                            backgroundColor: variant.colorCode ?? variant.color ?? "#ccc",
-                          }}
-                        />
-                        {soldOut && (
-                          <span className="absolute inset-0 flex items-center justify-center text-[9px] font-bold uppercase text-white mix-blend-difference">
-                            Out
-                          </span>
-                        )}
-                      </button>
-                    );
-                  })}
-                </div>
+                {product.variants.length > 1 && (
+                  <div
+                    className="mt-2.5 flex gap-2.5 overflow-x-auto pb-1 touch-manipulation [&::-webkit-scrollbar]:hidden sm:gap-3"
+                    style={{ scrollbarWidth: "none" }}
+                  >
+                    {product.variants.map((variant, idx) => {
+                      const soldOut = soldOutColors.has(idx);
+                      const isSelected = selectedColor === idx;
+                      const thumb =
+                        variant.images[0]?.url ||
+                        product.images[0]?.url ||
+                        "https://placehold.co/160x160?text=No+Image";
+                      return (
+                        <button
+                          key={variant.id}
+                          type="button"
+                          onClick={() => handleSelectColor(idx)}
+                          disabled={soldOut}
+                          title={soldOut ? `${variant.name} — Out of stock` : variant.name}
+                          aria-label={`Select color ${variant.name}${soldOut ? " (out of stock)" : ""}`}
+                          aria-pressed={isSelected}
+                          className={cn(
+                            "relative h-16 w-16 shrink-0 overflow-hidden rounded-xl border-2 transition-all sm:h-[72px] sm:w-[72px]",
+                            isSelected
+                              ? "border-zinc-900 shadow-md ring-1 ring-zinc-900"
+                              : soldOut
+                                ? "cursor-not-allowed border-zinc-200 opacity-40"
+                                : "border-zinc-200 hover:border-zinc-400"
+                          )}
+                        >
+                          <img
+                            src={thumb}
+                            alt={variant.name}
+                            className="h-full w-full object-cover"
+                            loading="lazy"
+                          />
+                          {isSelected && (
+                            <span className="absolute bottom-1 right-1 flex h-4 w-4 items-center justify-center rounded-full bg-zinc-900 text-white shadow">
+                              <Check className="h-3 w-3" strokeWidth={3} />
+                            </span>
+                          )}
+                          {soldOut && (
+                            <span className="absolute inset-x-0 bottom-0 bg-black/60 py-0.5 text-center text-[8px] font-semibold uppercase tracking-wide text-white">
+                              Sold out
+                            </span>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
                 {soldOutColors.size > 0 && (
                   <p className="mt-2 text-xs text-zinc-400">Greyed colours are out of stock</p>
                 )}
