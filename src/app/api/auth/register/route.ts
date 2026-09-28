@@ -4,6 +4,7 @@ import crypto from "crypto";
 import { connectMongoDB } from "@/lib/mongodb";
 import User from "@/lib/models/user";
 import { createSessionToken } from "@/lib/auth/session";
+import { notifyUser } from "@/lib/notify";
 
 function generateRecoveryCode(): string {
   const bytes = crypto.randomBytes(16);
@@ -87,6 +88,21 @@ export async function POST(request: NextRequest) {
       email: user.email,
       name: user.name,
     });
+
+    // A new supplier account is waiting for review: tell the admin both in
+    // the panel (durable row) and as a push. `dedupeKey` makes this idempotent,
+    // and notifyUser never throws so registration cannot fail because of it.
+    if (requestedRole === "SUPPLIER") {
+      await notifyUser({
+        userId: "admin-env",
+        title: "New supplier verification pending",
+        body: `${user.supplierName} (${user.email}) registered and is awaiting verification.`,
+        type: "supplier_verification",
+        url: "/wox/admin/suppliers",
+        tag: `supplier-verification-${user._id}`,
+        dedupeKey: `supplier:${user._id}:pending`,
+      });
+    }
 
     return NextResponse.json({
       user: {

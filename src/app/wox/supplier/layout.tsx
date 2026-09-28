@@ -20,6 +20,7 @@ import SignOutModal from "@/components/ui/sign-out-modal";
 import ThemeProvider from "@/lib/theme-context";
 import { useSignOutStore } from "@/lib/stores/sign-out";
 import { supplierFetch } from "@/lib/supplier-api";
+import { subscribeToPush } from "@/lib/push-client";
 
 const navItems = [
   { label: "Dashboard", icon: LayoutDashboard, href: "/wox/supplier" },
@@ -80,6 +81,34 @@ export default function SupplierLayout({ children }: { children: React.ReactNode
       router.replace("/wox/supplier/login");
     }
   }, [isLoginPage, router]);
+
+  // Keep a push subscription alive for this supplier. The verification
+  // completion push has to arrive even while the supplier is sitting on the
+  // pending screen (or has the browser closed), which is exactly when this
+  // layout runs — unlike the store header, which only mounts elsewhere.
+  useEffect(() => {
+    if (isLoginPage || authorized !== true) return;
+    if (!("Notification" in window) || !("serviceWorker" in navigator)) return;
+    if (Notification.permission === "denied") return;
+
+    let userId: string | null = null;
+    try {
+      const raw = localStorage.getItem("wox-user");
+      const user = raw ? JSON.parse(raw) : null;
+      if (user?.id) userId = user.id;
+    } catch {}
+    if (!userId) return;
+
+    if (Notification.permission === "granted") {
+      navigator.serviceWorker.ready.then((reg) => {
+        reg.pushManager.getSubscription().then((sub) => {
+          if (!sub) subscribeToPush(userId).catch(() => {});
+        });
+      });
+    } else if (Notification.permission === "default") {
+      subscribeToPush(userId).catch(() => {});
+    }
+  }, [isLoginPage, authorized]);
 
   // Server side check of the signed-in supplier. The verification state lives
   // in the database, so it cannot be skipped by closing the browser, going

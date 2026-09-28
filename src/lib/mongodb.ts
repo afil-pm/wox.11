@@ -22,9 +22,17 @@ export async function connectMongoDB() {
   if (cached.conn) return cached.conn;
 
   if (!cached.promise) {
-    cached.promise = mongoose.connect(MONGODB_URI, {
-      bufferCommands: false,
-    });
+    cached.promise = mongoose
+      .connect(MONGODB_URI, {
+        bufferCommands: false,
+      })
+      .catch((err) => {
+        // A failed attempt must never be cached: one dropped connection would
+        // otherwise poison this process and turn every later request into an
+        // error until the instance is recycled.
+        cached.promise = null;
+        throw err;
+      });
   }
 
   cached.conn = await cached.promise;

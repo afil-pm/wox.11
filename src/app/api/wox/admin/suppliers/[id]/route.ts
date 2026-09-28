@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { connectMongoDB } from "@/lib/mongodb";
 import User from "@/lib/models/user";
 import { isAdmin } from "@/lib/auth/guards";
+import { notifyUser } from "@/lib/notify";
 
 export const dynamic = "force-dynamic";
 
@@ -58,6 +59,13 @@ export async function PATCH(
       return NextResponse.json({ error: "Nothing to update" }, { status: 400 });
     }
 
+    // Only a real transition into VERIFIED notifies the supplier, so clicking
+    // "Verify" twice can never send (or store) the same event twice.
+    const alreadyVerified =
+      body.verificationStatus === "VERIFIED" &&
+      (await User.findById(id).select("verificationStatus").lean())?.verificationStatus ===
+        "VERIFIED";
+
     const supplier = await User.findOneAndUpdate(
       { _id: id, role: "SUPPLIER" },
       {
@@ -71,6 +79,18 @@ export async function PATCH(
 
     if (!supplier) {
       return NextResponse.json({ error: "Supplier not found" }, { status: 404 });
+    }
+
+    if (body.verificationStatus === "VERIFIED" && !alreadyVerified) {
+      await notifyUser({
+        userId: String(supplier._id),
+        title: "Supplier verification completed",
+        body: `Hi ${supplier.name}, your supplier account has been verified. You can now sign in to your supplier panel.`,
+        type: "supplier_verification",
+        url: "/wox/supplier",
+        tag: `supplier-verification-${supplier._id}`,
+        dedupeKey: `supplier:${supplier._id}:verified`,
+      });
     }
 
     return NextResponse.json({

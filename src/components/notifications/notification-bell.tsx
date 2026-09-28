@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
-import { Bell, Package, MessageSquare, Info } from "lucide-react";
+import { Bell, Package, MessageSquare, Info, UserCheck } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { subscribeToPush } from "@/lib/push-client";
 
@@ -11,6 +11,7 @@ type Notification = {
   body: string;
   type: string;
   orderId?: string;
+  url?: string | null;
   read: boolean;
   createdAt: string;
 };
@@ -141,6 +142,8 @@ export default function NotificationBell() {
         return <MessageSquare className="h-4 w-4 text-green-500" />;
       case "new_product":
         return <Package className="h-4 w-4 text-purple-500" />;
+      case "supplier_verification":
+        return <UserCheck className="h-4 w-4 text-amber-500" />;
       default:
         return <Info className="h-4 w-4 text-zinc-400" />;
     }
@@ -159,6 +162,12 @@ export default function NotificationBell() {
 
   function handleNotificationClick(n: Notification) {
     if (!n.read) markOneRead(n._id);
+    // Notifications that know where they belong take the user straight there
+    // (e.g. a new supplier verification opens the suppliers page).
+    if (n.url) {
+      window.location.href = n.url;
+      return;
+    }
     const stored = localStorage.getItem("wox-user");
     const user = stored ? JSON.parse(stored) : null;
     const isAdminUser = user?.role === "ADMIN";

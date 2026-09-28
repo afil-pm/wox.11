@@ -77,6 +77,11 @@ export default function ProductDetailPage({ params }: { params: Promise<{ catego
   const [product, setProduct] = useState<ApiProduct | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  // `notFound` is set only by a real 404 from the API. Anything else keeps
+  // `error`, so a slow database or a dropped request never looks like a
+  // missing product to the customer.
+  const [notFound, setNotFound] = useState(false);
+  const [loadAttempt, setLoadAttempt] = useState(0);
 
   const [selectedColor, setSelectedColor] = useState(0);
   const [selectedSize, setSelectedSize] = useState<string | null>(null);
@@ -96,44 +101,81 @@ export default function ProductDetailPage({ params }: { params: Promise<{ catego
   const [reviews, setReviews] = useState<Review[]>([]);
 
   useEffect(() => {
+    let cancelled = false;
+
     async function fetchProduct() {
-      try {
-        setLoading(true);
-        const res = await fetch(`/api/products/${slug}`);
-        if (!res.ok) throw new Error("Product not found");
-        const data = await res.json();
-        const p: ApiProduct = data.product;
-        setProduct(p);
-        setReviews(p.reviews || []);
-        if (p.variants.length > 0) {
-          // Open on the first colour that actually has stock.
-          const firstAvailableIdx = p.variants.findIndex((v) =>
-            v.sizes.some((s) => (s.inventory?.quantity ?? 0) > 0)
-          );
-          const startIdx = firstAvailableIdx >= 0 ? firstAvailableIdx : 0;
-          setSelectedColor(startIdx);
-          const firstAvailable = p.variants[startIdx]?.sizes.find(
-            (s) => (s.inventory?.quantity ?? 0) > 0
-          );
-          if (firstAvailable) setSelectedSize(firstAvailable.id);
+      setLoading(true);
+      setError(null);
+      setNotFound(false);
+
+      const MAX_ATTEMPTS = 3;
+      for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+        try {
+          const res = await fetch(`/api/products/${encodeURIComponent(slug)}`, {
+            cache: "no-store",
+          });
+
+          // Only a real 404 means the product is gone. 5xx answers and network
+          // failures are transient: retry them instead of showing a bogus
+          // "Page Not Found" after a reload.
+          if (res.status === 404) {
+            if (!cancelled) setNotFound(true);
+            return;
+          }
+          if (!res.ok) throw new Error(`Product request failed (${res.status})`);
+
+          const data = await res.json();
+          if (!data?.product) throw new Error("Product response was empty");
+          if (cancelled) return;
+
+          const p: ApiProduct = data.product;
+          setProduct(p);
+          setReviews(p.reviews || []);
+          if (p.variants.length > 0) {
+            // Open on the first colour that actually has stock.
+            const firstAvailableIdx = p.variants.findIndex((v) =>
+              v.sizes.some((s) => (s.inventory?.quantity ?? 0) > 0)
+            );
+            const startIdx = firstAvailableIdx >= 0 ? firstAvailableIdx : 0;
+            setSelectedColor(startIdx);
+            const firstAvailable = p.variants[startIdx]?.sizes.find(
+              (s) => (s.inventory?.quantity ?? 0) > 0
+            );
+            if (firstAvailable) setSelectedSize(firstAvailable.id);
+          }
+          addView({
+            slug: p.slug,
+            name: p.name,
+            image: p.images[0]?.url || "/images/placeholder.png",
+            price: p.basePrice,
+            salePrice: p.salePrice,
+            category: p.category.name,
+            gender: p.category.gender,
+          });
+          setError(null);
+          return;
+        } catch (err) {
+          if (attempt === MAX_ATTEMPTS) {
+            if (!cancelled) {
+              setError(err instanceof Error ? err.message : "Failed to load product");
+            }
+            return;
+          }
+          // Backing off covers short database/API hiccups without a reload.
+          await new Promise((resolve) => setTimeout(resolve, 300 * attempt));
         }
-        addView({
-          slug: p.slug,
-          name: p.name,
-          image: p.images[0]?.url || "/images/placeholder.png",
-          price: p.basePrice,
-          salePrice: p.salePrice,
-          category: p.category.name,
-          gender: p.category.gender,
-        });
-      } catch (err) {
-        setError(err instanceof Error ? err.message : "Failed to load product");
-      } finally {
-        setLoading(false);
       }
     }
-    fetchProduct();
-  }, [slug]);
+
+    fetchProduct().finally(() => {
+      if (!cancelled) setLoading(false);
+    });
+
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [slug, loadAttempt]);
 
   const isInWishlist = useWishlistStore((s) => product ? s.isInWishlist(product.id) : false);
 
@@ -145,13 +187,30 @@ export default function ProductDetailPage({ params }: { params: Promise<{ catego
     );
   }
 
-  if (error || !product) {
+  if (notFound) {
     return (
       <div className="flex min-h-[60vh] items-center justify-center">
         <div className="text-center">
           <h1 className="text-2xl font-semibold text-zinc-900">Product Not Found</h1>
-          <p className="mt-2 text-zinc-500">{error || "The product you're looking for doesn't exist."}</p>
+          <p className="mt-2 text-zinc-500">The product you're looking for doesn't exist or is no longer available.</p>
           <Button asChild className="mt-6"><Link href="/boys">Back to Boys</Link></Button>
+        </div>
+      </div>
+    );
+  }
+
+  if (error || !product) {
+    // The product could not be loaded right now — that is a temporary problem,
+    // not a missing page, so offer a retry instead of a 404.
+    return (
+      <div className="flex min-h-[60vh] items-center justify-center">
+        <div className="text-center">
+          <h1 className="text-2xl font-semibold text-zinc-900">Couldn't load this product</h1>
+          <p className="mt-2 text-zinc-500">Something went wrong while loading. Please try again.</p>
+          <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
+            <Button onClick={() => setLoadAttempt((n) => n + 1)}>Try Again</Button>
+            <Button asChild variant="outline"><Link href="/boys">Back to Boys</Link></Button>
+          </div>
         </div>
       </div>
     );
