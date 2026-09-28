@@ -5,15 +5,18 @@ import CategoryGroup from "./CategoryGroup";
 
 export default function CategorySection() {
   return (
-    <section className="bg-white dark:bg-[#0a0a0a] py-16 sm:py-20">
+    <section className="bg-[#ffffff] py-16 dark:bg-[#0a0a0a] sm:py-20">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        <div className="flex items-end justify-between">
-          <h2 className="text-2xl font-bold uppercase tracking-wider text-zinc-900 dark:text-zinc-100 sm:text-3xl">
-            Shop by Category
-          </h2>
+        <div className="flex items-end justify-between gap-4">
+          <div>
+            <h2 className="text-2xl font-bold uppercase tracking-wider text-black dark:text-white sm:text-3xl">
+              Shop by Category
+            </h2>
+            <div className="mt-3 h-px w-10 bg-[#000000] dark:bg-[#ffffff]" />
+          </div>
           <Link
             href="/men"
-            className="hidden items-center gap-1.5 text-sm font-medium text-zinc-500 dark:text-zinc-400 transition-colors hover:text-zinc-900 dark:hover:text-zinc-100 sm:flex"
+            className="hidden items-center gap-1.5 text-sm font-medium text-black/55 transition-colors hover:text-black dark:text-white/65 dark:hover:text-white sm:flex"
           >
             View All Categories
             <ArrowRight className="h-4 w-4" />
@@ -28,22 +31,22 @@ export default function CategorySection() {
         </div>
 
         {/* Mobile: compact button grid */}
-        <div className="mt-6 space-y-4 sm:hidden">
+        <div className="mt-7 space-y-5 sm:hidden">
           {categoryGroups.map((group) => (
             <div key={group.gender}>
-              <div className="mb-3 flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <span className="text-xs font-bold uppercase tracking-widest text-zinc-400 dark:text-zinc-500">
+              <div className="mb-3 flex items-center justify-between gap-3">
+                <div className="flex min-w-0 items-center gap-2">
+                  <span className="text-[11px] font-bold uppercase tracking-widest text-black dark:text-white">
                     {group.label}
                   </span>
-                  <span className="text-[10px] text-zinc-300 dark:text-zinc-600">|</span>
-                  <span className="text-[11px] text-zinc-400 dark:text-zinc-500 leading-tight">
+                  <span className="h-3 w-px shrink-0 bg-black/25 dark:bg-white/30" />
+                  <span className="truncate text-[11px] leading-tight text-black/50 dark:text-white/60">
                     {group.description.replace("\n", " ")}
                   </span>
                 </div>
                 <Link
                   href={group.href}
-                  className="text-[11px] font-medium text-zinc-400 dark:text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100"
+                  className="shrink-0 text-[11px] font-semibold text-black/60 transition-colors hover:text-black dark:text-white/70 dark:hover:text-white"
                 >
                   View All
                 </Link>
@@ -53,9 +56,9 @@ export default function CategorySection() {
                   <Link
                     key={`${group.gender}-${cat.slug}`}
                     href={cat.href}
-                    className="group flex flex-col items-center gap-2 rounded-2xl border border-zinc-100 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900 p-3 transition-all active:scale-95"
+                    className="group flex flex-col items-center gap-2.5 rounded-2xl border border-black/10 bg-white p-3.5 transition-all hover:border-black/35 active:scale-95 dark:border-white/10 dark:hover:border-white/35"
                   >
-                    <div className="flex h-12 w-12 items-center justify-center rounded-full bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 transition-transform group-hover:scale-110">
+                    <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[#0a0a0a] text-[#ffffff] transition-transform group-hover:scale-110 dark:bg-[#fafafa] dark:text-[#0a0a0a]">
                       {cat.icon === "shirt" ? (
                         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5">
                           <path d="M5 4l-1 3h16l-1-3" />
@@ -70,7 +73,7 @@ export default function CategorySection() {
                         </svg>
                       )}
                     </div>
-                    <span className="text-[11px] font-semibold uppercase tracking-wide text-zinc-700 dark:text-zinc-300">
+                    <span className="text-[11px] font-semibold uppercase tracking-wide text-black dark:text-white">
                       {cat.title}
                     </span>
                   </Link>
@@ -82,7 +85,7 @@ export default function CategorySection() {
 
         <Link
           href="/men"
-          className="mt-8 flex items-center justify-center gap-1.5 text-sm font-medium text-zinc-500 dark:text-zinc-400 transition-colors hover:text-zinc-900 dark:hover:text-zinc-100 sm:hidden"
+          className="mt-8 flex items-center justify-center gap-1.5 text-sm font-medium text-black/55 transition-colors hover:text-black dark:text-white/65 sm:hidden"
         >
           View All Categories
           <ArrowRight className="h-4 w-4" />

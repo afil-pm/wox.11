@@ -915,11 +915,11 @@ export default function CheckoutPage() {
                     <div
                       className={cn(
                         "flex h-10 w-10 items-center justify-center rounded-full text-sm font-semibold transition-all",
-                        isCompleted
-                          ? "bg-zinc-900 text-white"
-                          : isCurrent
-                            ? "bg-zinc-900 text-white ring-4 ring-zinc-100"
-                            : "bg-zinc-200 text-zinc-500"
+                        isCompleted || isCurrent
+                          ? isCurrent
+                            ? "bg-[#000000] text-[#ffffff] shadow-[0_0_0_4px_rgba(0,0,0,0.12)] dark:bg-[#ffffff] dark:text-[#000000] dark:shadow-[0_0_0_4px_rgba(255,255,255,0.18)]"
+                            : "bg-[#000000] text-[#ffffff] dark:bg-[#ffffff] dark:text-[#000000]"
+                          : "bg-black/10 text-black/45 dark:bg-white/15 dark:text-white/60"
                       )}
                     >
                       {isCompleted ? (
@@ -931,7 +931,7 @@ export default function CheckoutPage() {
                     <span
                       className={cn(
                         "mt-2 text-xs font-medium",
-                        isCurrent ? "text-zinc-900" : "text-zinc-400"
+                        isCurrent ? "text-black dark:text-white" : "text-black/45 dark:text-white/50"
                       )}
                     >
                       {step}
@@ -941,7 +941,9 @@ export default function CheckoutPage() {
                     <div
                       className={cn(
                         "mx-2 h-0.5 flex-1",
-                        stepNum < currentStep ? "bg-zinc-900" : "bg-zinc-200"
+                        stepNum < currentStep
+                          ? "bg-[#000000] dark:bg-[#ffffff]"
+                          : "bg-black/15 dark:bg-white/15"
                       )}
                     />
                   )}
@@ -953,14 +955,14 @@ export default function CheckoutPage() {
           {/* Mobile progress */}
           <div className="sm:hidden">
             <div className="flex items-center justify-between text-sm">
-              <span className="font-medium text-zinc-900">
+              <span className="font-medium text-black dark:text-white">
                 Step {currentStep} of {steps.length}
               </span>
-              <span className="text-zinc-500">{steps[currentStep - 1]}</span>
+              <span className="text-black/55 dark:text-white/60">{steps[currentStep - 1]}</span>
             </div>
-            <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-zinc-100">
+            <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-black/15 dark:bg-white/15">
               <div
-                className="h-full bg-zinc-900 transition-all"
+                className="h-full bg-[#000000] transition-all duration-300 dark:bg-[#ffffff]"
                 style={{ width: `${(currentStep / steps.length) * 100}%` }}
               />
             </div>
