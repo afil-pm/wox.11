@@ -1,11 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { connectMongoDB } from "@/lib/mongodb";
 import Notification from "@/lib/models/notification";
+import { scopedNotificationUserId } from "@/lib/auth/notification-scope";
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { userId, notificationId, markAll } = body;
+    const { notificationId, markAll } = body;
+    const userId = scopedNotificationUserId(request, body.userId || "");
 
     if (!userId) {
       return NextResponse.json({ error: "userId required" }, { status: 400 });

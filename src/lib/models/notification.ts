@@ -6,6 +6,7 @@ export type NotificationType =
   | "new_product"
   | "coupon"
   | "supplier_verification"
+  | "supplier_alert"
   | "general";
 
 export interface INotification extends Document {
@@ -34,7 +35,15 @@ const NotificationSchema = new Schema<INotification>(
     body: { type: String, required: true },
     type: {
       type: String,
-      enum: ["order_update", "message_reply", "new_product", "coupon", "supplier_verification", "general"],
+      enum: [
+        "order_update",
+        "message_reply",
+        "new_product",
+        "coupon",
+        "supplier_verification",
+        "supplier_alert",
+        "general",
+      ],
       default: "general",
     },
     orderId: { type: String, default: null },

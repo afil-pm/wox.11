@@ -7,6 +7,7 @@ import {
   getOrderById,
 } from "@/lib/payments/razorpay";
 import { confirmOrderPayment, expirePendingPayments } from "@/lib/payments/confirm";
+import { notifyOrderSuppliers } from "@/lib/supplier/notify-suppliers";
 
 const PAYMENT_SESSION_MINUTES = 30;
 
@@ -105,6 +106,7 @@ export async function POST(request: NextRequest) {
     };
 
     let order = checkoutSessionId ? await Order.findOne({ checkoutSessionId }) : null;
+    let createdOrder = false;
 
     if (order && isPaidStatus(order.paymentStatus)) {
       return alreadyPaidResponse(order.orderNumber, String(order._id));
@@ -137,6 +139,7 @@ export async function POST(request: NextRequest) {
     } else {
       try {
         order = await Order.create(orderData);
+        createdOrder = true;
       } catch (error) {
         if (checkoutSessionId && isDuplicateKey(error)) {
           order = await Order.findOne({ checkoutSessionId });
@@ -147,6 +150,20 @@ export async function POST(request: NextRequest) {
 
     if (!order) {
       return NextResponse.json({ error: "Could not create the checkout order" }, { status: 500 });
+    }
+
+    // A brand new checkout order is a new order for the suppliers whose
+    // products are in it. A retry of the same checkout reuses the record and
+    // must not notify again (the dedupe key would catch it either way).
+    if (createdOrder) {
+      const fromPart = order.customerName ? ` from ${order.customerName}` : "";
+      await notifyOrderSuppliers({
+        order,
+        event: "new",
+        title: "New order received",
+        body: `New order ${order.orderNumber} received${fromPart}.`,
+        url: "/wox/supplier/orders",
+      });
     }
 
     // Reuse the gateway session when the amount and payment window are intact.

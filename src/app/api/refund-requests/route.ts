@@ -171,6 +171,18 @@ export async function POST(request: NextRequest) {
         tag: `order-cancel-${orderId}`,
       }).catch(() => {});
 
+      // The customer cancelled: the suppliers whose products were in the order
+      // need to stop fulfilling it.
+      const { notifyOrderSuppliers } = await import("@/lib/supplier/notify-suppliers");
+      await notifyOrderSuppliers({
+        order,
+        event: "status:CANCELLED",
+        title: "Order cancelled",
+        body: `Order ${order.orderNumber} was cancelled by the customer.`,
+        type: "supplier_alert",
+        url: "/wox/supplier/orders",
+      });
+
       return NextResponse.json({
         message: "Order cancelled successfully",
         refundRequest: { _id: "", status: "completed", amount: 0 },

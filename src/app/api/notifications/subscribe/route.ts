@@ -1,11 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { connectMongoDB } from "@/lib/mongodb";
 import PushSubscription from "@/lib/models/push-subscription";
+import { scopedNotificationUserId } from "@/lib/auth/notification-scope";
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { userId, endpoint, p256dh, auth } = body;
+    const { endpoint, p256dh, auth } = body;
+    const userId = scopedNotificationUserId(request, body.userId || "");
 
     if (!userId || !endpoint || !p256dh || !auth) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 });

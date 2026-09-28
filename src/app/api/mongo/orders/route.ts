@@ -10,6 +10,7 @@ import { prepareOrderPayload } from "@/lib/orders/prepare";
 import { getPaymentById } from "@/lib/payments/razorpay";
 import { recordPaymentReconciliation } from "@/lib/payments/reconciliation";
 import { isAdmin } from "@/lib/auth/guards";
+import { notifyOrderSuppliers } from "@/lib/supplier/notify-suppliers";
 
 
 export async function GET(request: NextRequest) {
@@ -206,6 +207,26 @@ export async function POST(request: NextRequest) {
       url: `/wox/admin/orders`,
       tag: `admin-order-${order._id}`,
     }).catch(() => {});
+
+    // The suppliers whose products are in this order are told about it — each
+    // of them, and none of the others.
+    await notifyOrderSuppliers({
+      order: { _id: order._id, orderNumber, supplierIds, items: serverItems },
+      event: "new",
+      title: "New order received",
+      body: `New order ${orderNumber} received from ${customerName || address.name}.`,
+      url: "/wox/supplier/orders",
+    });
+
+    if (paymentStatus === "PAID") {
+      await notifyOrderSuppliers({
+        order: { _id: order._id, orderNumber, supplierIds, items: serverItems },
+        event: "payment",
+        title: "Payment confirmed",
+        body: `Payment received for order ${orderNumber}.`,
+        url: "/wox/supplier/orders",
+      });
+    }
 
     if (paymentStatus !== "REVIEW") {
       sendNewOrderEmail({

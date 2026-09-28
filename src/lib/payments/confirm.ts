@@ -16,6 +16,7 @@ import {
   recordPaymentReconciliation,
   updateReconciliation,
 } from "@/lib/payments/reconciliation";
+import { notifyOrderSuppliers } from "@/lib/supplier/notify-suppliers";
 
 export type ConfirmStatus =
   | "confirmed"
@@ -222,6 +223,17 @@ async function runPostPaymentSideEffects(
     orderId,
     `admin-order-${orderId}`
   );
+
+  // The money is in: tell every supplier with a line in this order, and only
+  // them. Deduped per supplier/order, so webhook + client + sweep converging
+  // on the same payment still notifies once.
+  await notifyOrderSuppliers({
+    order,
+    event: "payment",
+    title: "Payment confirmed",
+    body: `Payment received for order ${order.orderNumber}.`,
+    url: "/wox/supplier/orders",
+  });
 
   sendNewOrderEmail({
     orderNumber: order.orderNumber,

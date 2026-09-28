@@ -2,6 +2,7 @@ import Order from "@/lib/models/order";
 import Notification from "@/lib/models/notification";
 import { adjustStock } from "@/lib/orders/stock";
 import { sendPushToUser } from "@/lib/push";
+import { notifyOrderSuppliers } from "@/lib/supplier/notify-suppliers";
 
 export const ORDER_STATUS_MESSAGES: Record<string, string> = {
   PENDING: "Your order has been placed and is pending confirmation.",
@@ -122,6 +123,25 @@ export async function applyOrderStatusChange(
       tag: `order-${orderId}-${status}`,
     }).catch(() => {});
   }
+
+  // Every supplier that has a line in this order learns about the change —
+  // and only them. Deduped per supplier/order/status, so admin + supplier
+  // panels updating the same order never produce duplicates.
+  await notifyOrderSuppliers({
+    order: existingOrder,
+    event: `status:${status}`,
+    title:
+      status === "CANCELLED"
+        ? "Order cancelled"
+        : status === "DELIVERED"
+          ? "Order delivered"
+          : status === "SHIPPED" || status === "OUT_FOR_DELIVERY"
+            ? "Order shipping update"
+            : `Order ${status.replace(/_/g, " ")}`,
+    body: `Order ${existingOrder.orderNumber} is now ${status.replace(/_/g, " ").toLowerCase()}.`,
+    type: status === "CANCELLED" ? "supplier_alert" : "order_update",
+    url: "/wox/supplier/orders",
+  });
 
   return { ok: true, order };
 }

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
-import { Bell, Package, MessageSquare, Info, UserCheck } from "lucide-react";
+import { Bell, Package, MessageSquare, Info, UserCheck, AlertTriangle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { subscribeToPush } from "@/lib/push-client";
 
@@ -144,6 +144,8 @@ export default function NotificationBell() {
         return <Package className="h-4 w-4 text-purple-500" />;
       case "supplier_verification":
         return <UserCheck className="h-4 w-4 text-amber-500" />;
+      case "supplier_alert":
+        return <AlertTriangle className="h-4 w-4 text-red-500" />;
       default:
         return <Info className="h-4 w-4 text-zinc-400" />;
     }

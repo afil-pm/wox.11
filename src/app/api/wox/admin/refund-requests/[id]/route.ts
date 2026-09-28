@@ -6,6 +6,7 @@ import Notification from "@/lib/models/notification";
 import { sendPushToUser } from "@/lib/push";
 import { getDefaultPaymentProvider } from "@/lib/payments";
 import { isAdmin } from "@/lib/auth/guards";
+import { notifyOrderSuppliers } from "@/lib/supplier/notify-suppliers";
 
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -116,6 +117,21 @@ export async function PATCH(
         status: "REFUNDED",
         paymentStatus: "REFUNDED",
       });
+
+      // Suppliers with a line in this order are told the refund happened.
+      const refundedOrder = await Order.findById(refundRequest.orderId)
+        .lean()
+        .catch(() => null);
+      if (refundedOrder) {
+        await notifyOrderSuppliers({
+          order: refundedOrder,
+          event: "status:REFUNDED",
+          title: "Order refunded",
+          body: `Order ${refundedOrder.orderNumber} has been refunded.`,
+          type: "supplier_alert",
+          url: "/wox/supplier/orders",
+        });
+      }
 
       Notification.create({
         userId: refundRequest.userId,

@@ -5,6 +5,7 @@ import Notification from "@/lib/models/notification";
 import { adjustStock } from "@/lib/orders/stock";
 import { sendPushToUser } from "@/lib/push";
 import { isAdmin } from "@/lib/auth/guards";
+import { notifyOrderSuppliers } from "@/lib/supplier/notify-suppliers";
 
 
 export async function GET(
@@ -162,6 +163,26 @@ export async function PATCH(
         url: `/account/orders/${id}`,
         tag: `order-${id}-${status}`,
       }).catch(() => {});
+    }
+
+    // Suppliers owning lines in this order are told about the change, and only
+    // them; the dedupe key keeps admin + supplier edits from doubling up.
+    if (status) {
+      await notifyOrderSuppliers({
+        order,
+        event: `status:${status}`,
+        title:
+          status === "CANCELLED"
+            ? "Order cancelled"
+            : status === "DELIVERED"
+              ? "Order delivered"
+              : status === "SHIPPED" || status === "OUT_FOR_DELIVERY"
+                ? "Order shipping update"
+                : `Order ${status.replace(/_/g, " ")}`,
+        body: `Order ${order.orderNumber} is now ${status.replace(/_/g, " ").toLowerCase()}.`,
+        type: status === "CANCELLED" ? "supplier_alert" : "order_update",
+        url: "/wox/supplier/orders",
+      });
     }
 
     return NextResponse.json({ order: updatedOrder });

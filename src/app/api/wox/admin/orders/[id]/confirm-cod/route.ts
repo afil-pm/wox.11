@@ -4,6 +4,7 @@ import Order from "@/lib/models/order";
 import Notification from "@/lib/models/notification";
 import { sendPushToUser } from "@/lib/push";
 import { getAdminEmail, isAdmin } from "@/lib/auth/guards";
+import { notifyOrderSuppliers } from "@/lib/supplier/notify-suppliers";
 
 export async function POST(
   request: NextRequest,
@@ -60,6 +61,14 @@ export async function POST(
         tag: `payment-${id}-confirmed`,
       }).catch(() => {});
     }
+
+    await notifyOrderSuppliers({
+      order,
+      event: "payment",
+      title: "Payment confirmed",
+      body: `COD payment for order ${order.orderNumber} has been confirmed.`,
+      url: "/wox/supplier/orders",
+    });
 
     return NextResponse.json({
       message: "COD payment confirmed",

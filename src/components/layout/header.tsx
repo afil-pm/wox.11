@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import Link from "next/link";
 import dynamic from "next/dynamic";
 import { usePathname } from "next/navigation";
-import { Search, User, Heart, ShoppingBag, Menu, X, LogOut, Package, Settings, ChevronRight } from "lucide-react";
+import { Search, User, Heart, ShoppingBag, Menu, X, LogOut, Package, Settings, ChevronRight, Truck } from "lucide-react";
 import { cn } from "@/lib/utils";
 import SearchModal from "@/components/search/search-modal";
 import NotificationBell from "@/components/notifications/notification-bell";
@@ -61,6 +61,7 @@ export default function Header() {
   const userMenuRef = useRef<HTMLDivElement>(null);
   const openSignOut = useSignOutStore((s) => s.open);
   const isAdmin = user?.role === "ADMIN";
+  const isSupplier = user?.role === "SUPPLIER";
   const { counts } = useUnreadCounts(isAdmin);
   const pathname = usePathname();
 
@@ -263,6 +264,16 @@ export default function Header() {
                         Admin Panel
                       </Link>
                     )}
+                    {isSupplier && (
+                      <Link
+                        href="/wox/supplier"
+                        className="flex items-center gap-3 px-4 py-2.5 text-sm text-zinc-700 transition-colors hover:bg-zinc-50"
+                        onClick={() => setUserMenuOpen(false)}
+                      >
+                        <Truck className="h-4 w-4 text-zinc-400" />
+                        Supplier Dashboard
+                      </Link>
+                    )}
                     <Link
                       href="/wishlist"
                       className="flex items-center gap-3 px-4 py-2.5 text-sm text-zinc-700 transition-colors hover:bg-zinc-50"
@@ -453,11 +464,24 @@ export default function Header() {
                         </Link>
                       </li>
                     )}
+                    {isSupplier && (
+                      <li>
+                        <Link
+                          href="/wox/supplier"
+                          className="drawer-item-hover nav-press-effect flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium transition-all duration-200 active:scale-[0.97] tap-highlight-none animate-drawer-in"
+                          style={{ animationDelay: `${(navLinks.length + 4) * 40}ms` }}
+                          onClick={() => setMobileOpen(false)}
+                        >
+                          <Truck className="h-4 w-4" strokeWidth={1.5} />
+                          Supplier Dashboard
+                        </Link>
+                      </li>
+                    )}
                     <button
                       type="button"
                       onClick={() => { handleLogoutClick(); setMobileOpen(false); }}
                       className="nav-press-effect flex w-full items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium text-red-600 transition-all duration-200 hover:bg-red-50 active:scale-[0.97] tap-highlight-none animate-drawer-in"
-                      style={{ animationDelay: `${(navLinks.length + 4) * 40}ms` }}
+                      style={{ animationDelay: `${(navLinks.length + 5) * 40}ms` }}
                     >
                       <LogOut className="h-4 w-4" strokeWidth={1.5} />
                       Sign Out

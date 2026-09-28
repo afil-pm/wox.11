@@ -13,6 +13,8 @@ import {
   LogOut,
   Clock,
   Ban,
+  BarChart3,
+  Bell,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import WoxLoader from "@/components/ui/wox-loader";
@@ -21,11 +23,16 @@ import ThemeProvider from "@/lib/theme-context";
 import { useSignOutStore } from "@/lib/stores/sign-out";
 import { supplierFetch } from "@/lib/supplier-api";
 import { subscribeToPush } from "@/lib/push-client";
+import SupplierNotificationBell from "@/components/supplier/notification-bell";
+import { useSupplierNotifications } from "@/lib/stores/supplier-notifications";
 
+// Supplier only: no admin sections are ever reachable from this navigation.
 const navItems = [
   { label: "Dashboard", icon: LayoutDashboard, href: "/wox/supplier" },
+  { label: "Analytics", icon: BarChart3, href: "/wox/supplier/analytics" },
   { label: "Products", icon: Package, href: "/wox/supplier/products" },
   { label: "Orders", icon: ShoppingCart, href: "/wox/supplier/orders" },
+  { label: "Notifications", icon: Bell, href: "/wox/supplier/notifications" },
 ];
 
 interface SupplierProfile {
@@ -53,6 +60,7 @@ export default function SupplierLayout({ children }: { children: React.ReactNode
   const [profile, setProfile] = useState<SupplierProfile | null>(null);
   const checked = useRef(false);
   const openSignOut = useSignOutStore((s) => s.open);
+  const unreadNotifications = useSupplierNotifications((s) => s.unreadCount);
 
   const isLoginPage = pathname === "/wox/supplier/login";
 
@@ -108,6 +116,24 @@ export default function SupplierLayout({ children }: { children: React.ReactNode
     } else if (Notification.permission === "default") {
       subscribeToPush(userId).catch(() => {});
     }
+  }, [isLoginPage, authorized]);
+
+  // One shared feed for the header bell, the sidebar badge and the
+  // notifications page: polled here so every supplier view stays in sync, and
+  // refreshed immediately when the tab comes back to the front.
+  useEffect(() => {
+    if (isLoginPage || authorized !== true) return;
+    const refresh = useSupplierNotifications.getState().refresh;
+    refresh();
+    const interval = setInterval(refresh, 20000);
+    const onVisibility = () => {
+      if (document.visibilityState === "visible") refresh();
+    };
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => {
+      clearInterval(interval);
+      document.removeEventListener("visibilitychange", onVisibility);
+    };
   }, [isLoginPage, authorized]);
 
   // Server side check of the signed-in supplier. The verification state lives
@@ -284,6 +310,7 @@ export default function SupplierLayout({ children }: { children: React.ReactNode
                 item.href === "/wox/supplier"
                   ? pathname === "/wox/supplier"
                   : pathname.startsWith(item.href);
+              const showNotificationBadge = item.href === "/wox/supplier/notifications";
               return (
                 <Link
                   key={item.label}
@@ -298,6 +325,11 @@ export default function SupplierLayout({ children }: { children: React.ReactNode
                 >
                   <item.icon className="h-5 w-5" />
                   {item.label}
+                  {showNotificationBadge && unreadNotifications > 0 && (
+                    <span className="ml-auto flex h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1.5 text-[10px] font-bold text-white">
+                      {unreadNotifications > 99 ? "99+" : unreadNotifications}
+                    </span>
+                  )}
                 </Link>
               );
             })}
@@ -319,7 +351,8 @@ export default function SupplierLayout({ children }: { children: React.ReactNode
               <Menu className="h-5 w-5" />
             </button>
             <div className="ml-4 flex-1 lg:ml-0" />
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2">
+              <SupplierNotificationBell />
               <div className="flex items-center gap-2 rounded-lg p-1.5">
                 <div className="flex h-8 w-8 items-center justify-center rounded-full bg-zinc-900 text-xs font-medium text-white">
                   {(profile?.supplierName || "S").charAt(0).toUpperCase()}

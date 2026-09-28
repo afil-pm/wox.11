@@ -17,6 +17,8 @@ export interface NotifyInput {
    * double clicks and repeated admin actions can never create duplicates.
    */
   dedupeKey?: string;
+  /** Order this notification is about, so the row can be linked to it. */
+  orderId?: string;
 }
 
 export interface NotifyResult {
@@ -50,6 +52,7 @@ export async function notifyUser(input: NotifyInput): Promise<NotifyResult> {
             url,
             dedupeKey: input.dedupeKey,
             read: false,
+            ...(input.orderId ? { orderId: input.orderId } : {}),
           },
         },
         { upsert: true }
@@ -63,6 +66,7 @@ export async function notifyUser(input: NotifyInput): Promise<NotifyResult> {
         type,
         url,
         read: false,
+        ...(input.orderId ? { orderId: input.orderId } : {}),
       });
     }
 

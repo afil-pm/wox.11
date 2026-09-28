@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { connectMongoDB } from "@/lib/mongodb";
 import Notification from "@/lib/models/notification";
+import { scopedNotificationUserId } from "@/lib/auth/notification-scope";
 
 export async function GET(request: NextRequest) {
   try {
-    const userId = request.headers.get("x-user-id") || "";
+    const userId = scopedNotificationUserId(request, request.headers.get("x-user-id") || "");
     if (!userId) {
       return NextResponse.json({ notifications: [], unreadCount: 0 });
     }
@@ -26,7 +27,8 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { userId, title, notificationBody, type, orderId } = body;
+    const { title, notificationBody, type, orderId } = body;
+    const userId = scopedNotificationUserId(request, body.userId || "");
 
     if (!userId || !title || !notificationBody) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
