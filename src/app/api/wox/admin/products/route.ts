@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { generateProductSlug } from "@/lib/seo";
 import { validateProductImageUrl } from "@/lib/images";
 import { isAdmin } from "@/lib/auth/guards";
+import { normalizeVariant, type RawVariantInput } from "@/lib/products/variants";
 
 function validateImages(
   images: { url: string; alt?: string; position?: number }[]
@@ -72,7 +73,7 @@ export async function GET(request: NextRequest) {
         category: cat ?? { name: "Uncategorized", slug: "uncategorized", gender: "men", type: "shirts" },
         categoryId: obj.categoryId ? String(obj.categoryId) : null,
         images: (obj.images ?? []) as { url: string; alt: string; position: number }[],
-        variants: (obj.variants ?? []) as { name: string; color: string; colorCode: string; sizes: { name: string; quantity: number }[] }[],
+        variants: (obj.variants ?? []) as { name: string; color: string; colorCode: string; title: string; description: string; images: { url: string; alt: string; position: number }[]; specifications: { label: string; value: string }[]; sizes: { name: string; quantity: number }[] }[],
         isFeatured: obj.isFeatured ?? false,
         isActive: obj.isActive ?? true,
         averageRating: obj.averageRating ?? 0,
@@ -146,15 +147,8 @@ export async function POST(request: NextRequest) {
     }
 
     const productVariants = Array.isArray(variants)
-      ? variants.map((v: { name: string; color?: string; colorCode?: string; images?: { url: string; alt?: string; position?: number }[]; sizes?: { name: string; quantity: number }[] }) => ({
-          name: v.name || "Default",
-          color: v.color || "",
-          colorCode: v.colorCode || "",
-          images: Array.isArray(v.images)
-            ? v.images
-                .filter((img) => img && typeof img.url === "string" && img.url.trim())
-                .map((img, i) => ({ url: img.url, alt: img.alt || "", position: i }))
-            : [],
+      ? variants.map((v: RawVariantInput & { sizes?: { name: string; quantity: number }[] }) => ({
+          ...normalizeVariant(v, name),
           sizes: Array.isArray(v.sizes) ? v.sizes.map((s) => ({ name: s.name, quantity: s.quantity || 0 })) : [],
         }))
       : [];
@@ -249,11 +243,17 @@ export async function PUT(request: NextRequest) {
       }
     }
 
-    if (data.sku && data.sku !== existingProduct.sku) {
-      const existingSku = await Product.findOne({ sku: data.sku });
-      if (existingSku) {
-        return NextResponse.json({ error: "SKU already exists" }, { status: 400 });
+    if (data.sku) {
+      // Stored SKUs are upper case; compare and store in that form so a
+      // re-saved product never collides with itself.
+      const nextSku = String(data.sku).toUpperCase();
+      if (nextSku !== existingProduct.sku) {
+        const existingSku = await Product.findOne({ sku: nextSku });
+        if (existingSku) {
+          return NextResponse.json({ error: "SKU already exists" }, { status: 400 });
+        }
       }
+      data.sku = nextSku;
     }
 
     if (data.images && Array.isArray(data.images)) {
@@ -270,15 +270,8 @@ export async function PUT(request: NextRequest) {
     }
 
     if (data.variants && Array.isArray(data.variants)) {
-      data.variants = data.variants.map((v: { name: string; color?: string; colorCode?: string; images?: { url: string; alt?: string; position?: number }[]; sizes?: { name: string; quantity: number }[] }) => ({
-        name: v.name || "Default",
-        color: v.color || "",
-        colorCode: v.colorCode || "",
-        images: Array.isArray(v.images)
-          ? v.images
-              .filter((img) => img && typeof img.url === "string" && img.url.trim())
-              .map((img, i) => ({ url: img.url, alt: img.alt || "", position: i }))
-          : [],
+      data.variants = data.variants.map((v: RawVariantInput & { sizes?: { name: string; quantity: number }[] }) => ({
+        ...normalizeVariant(v, data.name || existingProduct.name || ""),
         sizes: Array.isArray(v.sizes) ? v.sizes.map((s) => ({ name: s.name, quantity: s.quantity || 0 })) : [],
       }));
 

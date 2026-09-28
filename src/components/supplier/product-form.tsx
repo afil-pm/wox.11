@@ -6,6 +6,9 @@ import { Save, ArrowLeft, Plus, Trash2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import ImageUrlField from "@/components/admin/image-url-field";
+import VariantCopyFields, {
+  type VariantCopy,
+} from "@/components/admin/variant-copy-fields";
 import { supplierFetch } from "@/lib/supplier-api";
 
 type Category = { _id: string; name: string; slug: string; gender: string; type: string };
@@ -21,6 +24,10 @@ interface VariantInput {
   colorCode?: string;
   /** Photos specific to this colour; empty means "use the main gallery". */
   images: ProductImage[];
+  /** Colour specific copy; empty means "use the product level value". */
+  title: string;
+  description: string;
+  specifications: { label: string; value: string }[];
   sizes: SizeInput[];
 }
 
@@ -46,7 +53,7 @@ export default function ProductForm({ productId }: { productId?: string }) {
   const [error, setError] = useState<string | null>(null);
   const [images, setImages] = useState<ProductImage[]>([]);
   const [variants, setVariants] = useState<VariantInput[]>([
-    { name: "Default", color: "", images: [], sizes: [...defaultSizes] },
+    { name: "Default", color: "", images: [], title: "", description: "", specifications: [], sizes: [...defaultSizes] },
   ]);
   const [formData, setFormData] = useState({
     name: "",
@@ -102,18 +109,24 @@ export default function ProductForm({ productId }: { productId?: string }) {
                   color?: string;
                   colorCode?: string;
                   images?: ProductImage[];
+                  title?: string;
+                  description?: string;
+                  specifications?: { label: string; value: string }[];
                   sizes?: SizeInput[];
                 }) => ({
                   name: v.name || "Default",
                   color: v.color || "",
                   colorCode: v.colorCode || "",
+                  title: v.title || "",
+                  description: v.description || "",
+                  specifications: Array.isArray(v.specifications) ? v.specifications : [],
                   images: Array.isArray(v.images)
                     ? v.images.map((img) => ({ url: img.url, alt: img.alt, position: img.position }))
                     : [],
                   sizes: Array.isArray(v.sizes) ? v.sizes : [...defaultSizes],
                 })
               )
-            : [{ name: "Default", color: "", images: [], sizes: [...defaultSizes] }]
+            : [{ name: "Default", color: "", images: [], title: "", description: "", specifications: [], sizes: [...defaultSizes] }]
         );
         setInitializing(false);
       })
@@ -173,8 +186,20 @@ export default function ProductForm({ productId }: { productId?: string }) {
   function addVariant() {
     setVariants((prev) => [
       ...prev,
-      { name: `Variant ${prev.length + 1}`, color: "", images: [], sizes: [...defaultSizes] },
+      {
+        name: `Variant ${prev.length + 1}`,
+        color: "",
+        images: [],
+        title: "",
+        description: "",
+        specifications: [],
+        sizes: [...defaultSizes],
+      },
     ]);
+  }
+
+  function updateVariantCopy(variantIdx: number, copy: VariantCopy) {
+    setVariants((prev) => prev.map((v, i) => (i === variantIdx ? { ...v, ...copy } : v)));
   }
 
   function removeVariant(index: number) {
@@ -202,6 +227,9 @@ export default function ProductForm({ productId }: { productId?: string }) {
             name: v.name,
             color: v.color,
             colorCode: v.colorCode || "",
+            title: v.title || "",
+            description: v.description || "",
+            specifications: v.specifications.filter((s) => s.label.trim() && s.value.trim()),
             images: v.images
               .filter((img) => img.url)
               .map((img, i) => ({ url: img.url, alt: img.alt || "", position: i })),
@@ -457,6 +485,17 @@ export default function ProductForm({ productId }: { productId?: string }) {
                     />
                   </div>
                 </div>
+
+                {/* Colour specific copy */}
+                <VariantCopyFields
+                  value={{
+                    title: variant.title || "",
+                    description: variant.description || "",
+                    specifications: variant.specifications || [],
+                  }}
+                  onChange={(copy) => updateVariantCopy(vi, copy)}
+                  productName={formData.name}
+                />
               </div>
             ))}
           </div>

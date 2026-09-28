@@ -5,6 +5,7 @@ import { connectMongoDB } from "@/lib/mongodb";
 import Product from "@/lib/models/product";
 import Category from "@/lib/models/category";
 import { getSupplier } from "@/lib/auth/guards";
+import { normalizeVariant, type RawVariantInput } from "@/lib/products/variants";
 
 export const dynamic = "force-dynamic";
 
@@ -115,12 +116,17 @@ export async function PUT(
       return NextResponse.json({ error: "Category not found" }, { status: 404 });
     }
 
-    if (body.sku !== undefined && body.sku && body.sku !== existing.sku) {
-      const duplicate = await Product.findOne({ sku: String(body.sku).toUpperCase() });
-      if (duplicate) {
-        return NextResponse.json({ error: "SKU already exists" }, { status: 400 });
+    if (body.sku !== undefined && body.sku) {
+      // Compare in the stored (upper case) form: sending the product's own SKU
+      // back in a different case must not look like a different product.
+      const nextSku = String(body.sku).toUpperCase();
+      if (nextSku !== existing.sku) {
+        const duplicate = await Product.findOne({ sku: nextSku });
+        if (duplicate) {
+          return NextResponse.json({ error: "SKU already exists" }, { status: 400 });
+        }
+        data.sku = nextSku;
       }
-      data.sku = String(body.sku).toUpperCase();
     }
 
     if (data.name !== existing.name) {
@@ -149,15 +155,8 @@ export async function PUT(
 
     if (Array.isArray(body.variants)) {
       const normalizedVariants = body.variants.map(
-        (v: { name: string; color?: string; colorCode?: string; images?: { url: string; alt?: string; position?: number }[]; sizes?: { name: string; quantity: number }[] }) => ({
-          name: v.name || "Default",
-          color: v.color || "",
-          colorCode: v.colorCode || "",
-          images: Array.isArray(v.images)
-            ? v.images
-                .filter((img) => img && typeof img.url === "string" && img.url.trim())
-                .map((img, i) => ({ url: img.url, alt: img.alt || "", position: i }))
-            : [],
+        (v: RawVariantInput & { sizes?: { name: string; quantity: number }[] }) => ({
+          ...normalizeVariant(v, data.name !== undefined ? String(data.name) : existing.name || ""),
           sizes: Array.isArray(v.sizes)
             ? v.sizes.map((s) => ({ name: s.name, quantity: s.quantity || 0 }))
             : [],

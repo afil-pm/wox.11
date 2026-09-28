@@ -17,6 +17,14 @@ export interface IProductVariant {
   colorCode: string;
   /** Optional per-colour images; when empty the product-level images apply. */
   images: IProductImage[];
+  /**
+   * Optional per-colour copy. When empty the product-level name/description
+   * apply, so products created before these fields existed keep working.
+   */
+  title: string;
+  description: string;
+  /** Optional per-colour specifications; empty means use the product specs. */
+  specifications: IProductSpec[];
   sizes: IProductSize[];
 }
 
@@ -86,12 +94,23 @@ const ProductSizeSchema = new Schema<IProductSize>(
   { _id: false }
 );
 
+const ProductSpecSchema = new Schema<IProductSpec>(
+  {
+    label: { type: String, required: true },
+    value: { type: String, required: true },
+  },
+  { _id: false }
+);
+
 const ProductVariantSchema = new Schema<IProductVariant>(
   {
     name: { type: String, required: true },
     color: { type: String, default: "" },
     colorCode: { type: String, default: "" },
     images: { type: [ProductImageSchema], default: [] },
+    title: { type: String, default: "" },
+    description: { type: String, default: "" },
+    specifications: { type: [ProductSpecSchema], default: [] },
     sizes: { type: [ProductSizeSchema], default: [] },
   },
   { _id: false }
@@ -118,14 +137,6 @@ const ProductTaxSchema = new Schema<IProductTax>(
     gstRate: { type: Number, default: 5, min: 0, max: 100 },
     taxCategory: { type: String, default: "apparel" },
     taxInclusive: { type: Boolean, default: true },
-  },
-  { _id: false }
-);
-
-const ProductSpecSchema = new Schema<IProductSpec>(
-  {
-    label: { type: String, required: true },
-    value: { type: String, required: true },
   },
   { _id: false }
 );

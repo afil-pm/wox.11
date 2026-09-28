@@ -9,6 +9,9 @@ import { Input } from "@/components/ui/input";
 import { adminFetch } from "@/lib/admin-api";
 import PremiumSelect from "@/components/ui/premium-select";
 import ImageUrlField from "@/components/admin/image-url-field";
+import VariantCopyFields, {
+  type VariantCopy,
+} from "@/components/admin/variant-copy-fields";
 
 type Category = { _id: string; id: string; name: string; slug: string; gender: string; type: string };
 type ProductData = {
@@ -24,12 +27,22 @@ type ProductData = {
   isActive: boolean;
   source: "static" | "mongo";
   images: { url: string; alt: string | null }[];
-  variants: { name: string; color: string; colorCode: string; images?: { url: string; alt?: string | null }[]; sizes: { name: string; quantity: number }[] }[];
+  variants: { name: string; color: string; colorCode: string; title?: string | null; description?: string | null; specifications?: { label: string; value: string }[] | null; images?: { url: string; alt?: string | null }[]; sizes: { name: string; quantity: number }[] }[];
 };
 
 interface SizeInput { name: string; quantity: number; }
 interface VariantImage { url: string; alt?: string; position?: number; }
-interface VariantInput { name: string; color: string; colorCode?: string; images: VariantImage[]; sizes: SizeInput[]; }
+interface VariantInput {
+  name: string;
+  color: string;
+  colorCode?: string;
+  images: VariantImage[];
+  /** Colour specific copy; empty strings mean "use the product level value". */
+  title: string;
+  description: string;
+  specifications: { label: string; value: string }[];
+  sizes: SizeInput[];
+}
 
 const defaultSizes: SizeInput[] = [
   { name: "S", quantity: 0 },
@@ -38,6 +51,18 @@ const defaultSizes: SizeInput[] = [
   { name: "XL", quantity: 0 },
   { name: "XXL", quantity: 0 },
 ];
+
+/** Variant shape as returned by the admin products API. */
+type LoadedVariant = {
+  name: string;
+  color?: string;
+  colorCode?: string;
+  title?: string | null;
+  description?: string | null;
+  specifications?: { label: string; value: string }[] | null;
+  images?: { url: string; alt?: string | null }[];
+  sizes?: { name: string; quantity: number }[];
+};
 
 export default function EditProductPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
@@ -50,7 +75,7 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
   const [imagePreviews, setImagePreviews] = useState<string[]>([]);
   const [existingImages, setExistingImages] = useState<{ url: string; alt: string | null }[]>([]);
   const [variants, setVariants] = useState<VariantInput[]>([
-    { name: "Default", color: "", images: [], sizes: [...defaultSizes] },
+    { name: "Default", color: "", images: [], title: "", description: "", specifications: [], sizes: [...defaultSizes] },
   ]);
   const [formData, setFormData] = useState({
     name: "",
@@ -119,14 +144,17 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
           });
         }
         if (product.variants && product.variants.length > 0) {
-          setVariants(product.variants.map((v: { name: string; color: string; colorCode?: string; images?: { url: string; alt?: string | null }[]; sizes: { name: string; quantity: number }[] }) => ({
+          setVariants(product.variants.map((v: LoadedVariant) => ({
             name: v.name,
-            color: v.color,
+            color: v.color || "",
             colorCode: v.colorCode || "",
+            title: v.title || "",
+            description: v.description || "",
+            specifications: Array.isArray(v.specifications) ? v.specifications : [],
             images: Array.isArray(v.images)
-              ? v.images.map((img) => ({ url: img.url, alt: img.alt || undefined }))
+              ? v.images.map((img: { url: string; alt?: string | null }) => ({ url: img.url, alt: img.alt || undefined }))
               : [],
-            sizes: v.sizes.length > 0 ? v.sizes : [...defaultSizes],
+            sizes: v.sizes && v.sizes.length > 0 ? v.sizes : [...defaultSizes],
           })));
         }
         const rawProduct = product as unknown as Record<string, unknown>;
@@ -202,7 +230,24 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
   }
 
   function addVariant() {
-    setVariants((prev) => [...prev, { name: `Variant ${prev.length + 1}`, color: "", images: [], sizes: [...defaultSizes] }]);
+    setVariants((prev) => [
+      ...prev,
+      {
+        name: `Variant ${prev.length + 1}`,
+        color: "",
+        images: [],
+        title: "",
+        description: "",
+        specifications: [],
+        sizes: [...defaultSizes],
+      },
+    ]);
+  }
+
+  function updateVariantCopy(variantIdx: number, copy: VariantCopy) {
+    setVariants((prev) =>
+      prev.map((v, i) => (i === variantIdx ? { ...v, ...copy } : v))
+    );
   }
 
   function removeVariant(index: number) {
@@ -236,6 +281,9 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
           name: v.name,
           color: v.color,
           colorCode: v.colorCode || "",
+          title: v.title || "",
+          description: v.description || "",
+          specifications: v.specifications.filter((s) => s.label.trim() && s.value.trim()),
           images: v.images
             .filter((img) => img.url)
             .map((img, i) => ({ url: img.url, alt: img.alt || formData.name, position: i })),
@@ -397,6 +445,17 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
                         existingUrls={variant.images.map((img) => img.url)}
                       />
                     </div>
+
+                    {/* Colour specific copy */}
+                    <VariantCopyFields
+                      value={{
+                        title: variant.title || "",
+                        description: variant.description || "",
+                        specifications: variant.specifications || [],
+                      }}
+                      onChange={(copy) => updateVariantCopy(vi, copy)}
+                      productName={formData.name}
+                    />
                   </div>
                 ))}
               </div>

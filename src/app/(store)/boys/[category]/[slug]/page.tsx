@@ -32,7 +32,17 @@ import ImageZoom from "@/components/product/image-zoom";
 import RelatedProducts from "@/components/product/related-products";
 
 type ProductImage = { url: string; alt: string | null };
-type ColorVariant = { id: string; name: string; color: string | null; colorCode: string | null; images: ProductImage[] };
+type ColorVariant = {
+  id: string;
+  name: string;
+  color: string | null;
+  colorCode: string | null;
+  images: ProductImage[];
+  /** Colour specific copy; empty means the product level value applies. */
+  title?: string | null;
+  description?: string | null;
+  specifications?: { label: string; value: string }[] | null;
+};
 type SizeOption = { id: string; name: string; inventory: { quantity: number } | null };
 type Review = { id: string; rating: number; comment: string | null; createdAt: string; user: { name: string | null } };
 
@@ -86,6 +96,8 @@ export default function ProductDetailPage({ params }: { params: Promise<{ catego
   const [selectedColor, setSelectedColor] = useState(0);
   const [selectedSize, setSelectedSize] = useState<string | null>(null);
   const [selectedImage, setSelectedImage] = useState(0);
+  /** Each colour remembers its own position in its own gallery. */
+  const [imageIndexByColor, setImageIndexByColor] = useState<Record<string, number>>({});
   const [quantity, setQuantity] = useState(1);
   const [zoomOpen, setZoomOpen] = useState(false);
   const [showSizeGuide, setShowSizeGuide] = useState(false);
@@ -220,6 +232,10 @@ export default function ProductDetailPage({ params }: { params: Promise<{ catego
   const variantImages = currentVariant.images.length > 0 ? currentVariant.images : product.images;
   const allImages = variantImages.length > 0 ? variantImages : [{ url: "https://placehold.co/600x800?text=No+Image", alt: null }];
   const selectedSizeData = currentVariant.sizes.find((s) => s.id === selectedSize);
+  // Colour specific copy, falling back to the product level values so products
+  // created before these fields existed render exactly as before.
+  const displayTitle = (currentVariant.title || "").trim() || product.name;
+  const displayDescription = (currentVariant.description || "").trim() || product.description || "";
   const stock = selectedSizeData?.inventory?.quantity ?? 0;
   const inStock = stock > 0;
   const displayPrice = product.salePrice ?? product.basePrice;
@@ -244,8 +260,12 @@ export default function ProductDetailPage({ params }: { params: Promise<{ catego
     if (!variant) return;
 
     setSelectedColor(idx);
-    // The gallery always opens on the new colour's own photos.
-    setSelectedImage(0);
+    // Remember this colour's position and restore the new colour's own one, so
+    // galleries are never mixed and each colour keeps its own index.
+    setImageIndexByColor((prev) => ({ ...prev, [currentVariant.id]: selectedImage }));
+    const nextImages = variant.images.length > 0 ? variant.images : product.images;
+    const remembered = imageIndexByColor[variant.id] ?? 0;
+    setSelectedImage(Math.min(remembered, Math.max(nextImages.length - 1, 0)));
 
     // Keep the size when the new colour offers it (size ids are shared across
     // colours), otherwise move to the first size that is actually in stock.
@@ -267,7 +287,7 @@ export default function ProductDetailPage({ params }: { params: Promise<{ catego
     if (!selectedSize || !selectedSizeData) return;
     addItem({
       productId: product.id,
-      name: product.name,
+      name: displayTitle,
       slug: product.slug,
       price: displayPrice,
       image: allImages[0].url,
@@ -293,7 +313,7 @@ export default function ProductDetailPage({ params }: { params: Promise<{ catego
 
   const handleShare = async () => {
     if (navigator.share) {
-      try { await navigator.share({ title: product.name, url: window.location.href }); } catch {}
+        try { await navigator.share({ title: displayTitle, url: window.location.href }); } catch {}
     } else {
       navigator.clipboard.writeText(window.location.href);
       setShowShareToast(true);
@@ -353,14 +373,17 @@ export default function ProductDetailPage({ params }: { params: Promise<{ catego
     "Easy care — machine washable",
   ];
 
-  const specifications: { label: string; value: string }[] = product.specifications && product.specifications.length > 0
-    ? product.specifications
-    : [
-        { label: "Category", value: product.category.name },
-        { label: "Fit", value: "Regular" },
-        { label: "Material", value: "100% Organic Cotton" },
-        { label: "Pattern", value: "Solid" },
-      ];
+  const specifications: { label: string; value: string }[] =
+    currentVariant.specifications && currentVariant.specifications.length > 0
+      ? currentVariant.specifications
+      : product.specifications && product.specifications.length > 0
+        ? product.specifications
+        : [
+            { label: "Category", value: product.category.name },
+            { label: "Fit", value: "Regular" },
+            { label: "Material", value: "100% Organic Cotton" },
+            { label: "Pattern", value: "Solid" },
+          ];
 
   return (
     <div className="min-h-screen bg-white">
@@ -371,7 +394,7 @@ export default function ProductDetailPage({ params }: { params: Promise<{ catego
           <ChevronRight className="h-3 w-3 flex-shrink-0" />
           <Link href={`/${product.category.gender}`} className="whitespace-nowrap capitalize hover:text-zinc-900">{product.category.gender}</Link>
           <ChevronRight className="h-3 w-3 flex-shrink-0" />
-          <span className="whitespace-nowrap text-zinc-900">{product.name}</span>
+          <span className="whitespace-nowrap text-zinc-900">{displayTitle}</span>
         </nav>
 
         {/* Main Content */}
@@ -429,7 +452,7 @@ export default function ProductDetailPage({ params }: { params: Promise<{ catego
           {/* Right: Product Info */}
           <div className="lg:col-span-7 lg:pl-4">
             <div>
-              <h1 className="text-xl font-semibold tracking-tight text-zinc-900 sm:text-2xl">{product.name}</h1>
+              <h1 className="text-xl font-semibold tracking-tight text-zinc-900 sm:text-2xl">{displayTitle}</h1>
               {storeName && (
                 <p className="mt-1 text-sm text-zinc-500">
                   Sold by <span className="font-medium text-zinc-700">{storeName}</span>
@@ -635,7 +658,7 @@ export default function ProductDetailPage({ params }: { params: Promise<{ catego
           <div className="py-6">
             {activeTab === "description" && (
               <div className="max-w-3xl">
-                <p className="leading-relaxed text-zinc-600">{product.description || "No description available."}</p>
+                <p className="leading-relaxed text-zinc-600">{displayDescription || "No description available."}</p>
               </div>
             )}
             {activeTab === "specifications" && (
@@ -778,9 +801,11 @@ export default function ProductDetailPage({ params }: { params: Promise<{ catego
       {/* Image Zoom */}
       {zoomOpen && (
         <ImageZoom
-          src={allImages[selectedImage].url}
-          alt={allImages[selectedImage].alt ?? product.name}
+          images={allImages}
+          index={selectedImage}
+          onIndexChange={setSelectedImage}
           onClose={() => setZoomOpen(false)}
+          title={displayTitle}
         />
       )}
 
@@ -800,7 +825,7 @@ export default function ProductDetailPage({ params }: { params: Promise<{ catego
           onClose={() => setShowBuyNow(false)}
           product={{
             productId: product.id,
-            name: product.name,
+            name: displayTitle,
             slug: product.slug,
             image: allImages[0]?.url || "/images/placeholder.png",
             price: product.basePrice,

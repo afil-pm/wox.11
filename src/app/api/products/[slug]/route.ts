@@ -98,6 +98,9 @@ export async function GET(
           color?: string;
           colorCode?: string;
           images?: { url: string; alt?: string }[];
+          title?: string;
+          description?: string;
+          specifications?: { label: string; value: string }[];
           sizes?: { name: string; quantity: number }[];
         }[];
         specifications?: { label: string; value: string }[];
@@ -163,6 +166,9 @@ export async function GET(
               color?: string;
               colorCode?: string;
               images?: { url: string; alt?: string }[];
+              title?: string;
+              description?: string;
+              specifications?: { label: string; value: string }[];
               sizes?: { name: string; quantity: number }[];
             },
             vi: number
@@ -171,6 +177,11 @@ export async function GET(
             name: v.name || "Default",
             color: v.color || null,
             colorCode: v.colorCode || null,
+            // Colour specific copy. Empty means the product level name and
+            // description apply (products stored before these fields existed).
+            title: v.title || "",
+            description: v.description || "",
+            specifications: Array.isArray(v.specifications) ? v.specifications : [],
             // Colours with their own photos use them; otherwise the product
             // level gallery applies (keeps older products working unchanged).
             images:
@@ -226,6 +237,9 @@ export async function GET(
             name: "Default",
             color: found.category.name.toLowerCase(),
             colorCode: null,
+            title: "",
+            description: "",
+            specifications: [],
             images: found.images.map((img) => ({ url: img.url, alt: img.alt })),
             sizes: [
               { id: found.id + "-s", name: "S", inventory: { quantity: 10 } },

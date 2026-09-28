@@ -5,6 +5,7 @@ import { connectMongoDB } from "@/lib/mongodb";
 import Product from "@/lib/models/product";
 import Category from "@/lib/models/category";
 import { getSupplier } from "@/lib/auth/guards";
+import { normalizeVariant, type RawVariantInput } from "@/lib/products/variants";
 
 export const dynamic = "force-dynamic";
 
@@ -136,15 +137,8 @@ export async function POST(request: NextRequest) {
 
     const productVariants = Array.isArray(variants)
       ? variants.map(
-          (v: { name: string; color?: string; colorCode?: string; images?: { url: string; alt?: string; position?: number }[]; sizes?: { name: string; quantity: number }[] }) => ({
-            name: v.name || "Default",
-            color: v.color || "",
-            colorCode: v.colorCode || "",
-            images: Array.isArray(v.images)
-              ? v.images
-                  .filter((img) => img && typeof img.url === "string" && img.url.trim())
-                  .map((img, i) => ({ url: img.url, alt: img.alt || "", position: i }))
-              : [],
+          (v: RawVariantInput & { sizes?: { name: string; quantity: number }[] }) => ({
+            ...normalizeVariant(v, name),
             sizes: Array.isArray(v.sizes)
               ? v.sizes.map((s) => ({ name: s.name, quantity: s.quantity || 0 }))
               : [],
