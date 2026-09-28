@@ -193,7 +193,8 @@ export default function SupplierLoginPage() {
           </p>
 
           <p className="mt-4 text-center text-xs text-zinc-400">
-            New accounts are reviewed by the store admin before they go live.
+            New supplier accounts are verified by the store admin before they can access the
+            panel.
           </p>
 
           <p className="mt-6 text-center text-sm text-zinc-500">

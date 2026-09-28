@@ -1,6 +1,6 @@
 import Order from "@/lib/models/order";
-import Product from "@/lib/models/product";
 import Notification from "@/lib/models/notification";
+import { adjustStock } from "@/lib/orders/stock";
 import { sendPushToUser } from "@/lib/push";
 
 export const ORDER_STATUS_MESSAGES: Record<string, string> = {
@@ -83,16 +83,8 @@ export async function applyOrderStatusChange(
   ) {
     for (const item of existingOrder.items) {
       if (!item.slug) continue;
-      await Product.updateOne(
-        { slug: item.slug },
-        { $inc: { "variants.$[v].sizes.$[s].quantity": item.quantity } },
-        {
-          arrayFilters: [
-            { "v.sizes.name": item.size },
-            { "s.name": item.size },
-          ],
-        }
-      ).catch(() => {});
+      // Colour aware restock: only the variant/size that was sold.
+      await adjustStock(item, 1);
     }
     // The stock is back on the shelf: a late payment for this order must
     // deduct it again instead of double counting.

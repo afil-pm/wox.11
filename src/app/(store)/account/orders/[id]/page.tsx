@@ -15,6 +15,7 @@ interface OrderItem {
   price: number;
   quantity: number;
   size: string;
+  color?: string;
   image: string;
   slug: string;
 }
@@ -388,7 +389,10 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
                   <p className="text-sm font-medium text-zinc-900 line-clamp-1">
                     {item.name}
                   </p>
-                  <p className="mt-0.5 text-xs text-zinc-500">Size: {item.size} · Qty: {item.quantity}</p>
+                  <p className="mt-0.5 text-xs text-zinc-500">
+                    Size: {item.size}
+                    {item.color ? ` · ${item.color}` : ""} · Qty: {item.quantity}
+                  </p>
                   <p className="text-xs text-zinc-500">{formatPrice(item.price)} each</p>
                   {canReview && (
                     <button

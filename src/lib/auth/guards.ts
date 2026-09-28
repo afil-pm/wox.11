@@ -1,6 +1,6 @@
 import { getSession, sessionSecret, Session } from "@/lib/auth/session";
 import { connectMongoDB } from "@/lib/mongodb";
-import User, { IUser, SupplierStatus } from "@/lib/models/user";
+import User, { IUser, SupplierStatus, VerificationStatus } from "@/lib/models/user";
 
 export interface AuthedRequest {
   headers: { get(name: string): string | null };
@@ -52,6 +52,7 @@ export interface SupplierContext {
   email: string;
   name: string;
   supplierName: string;
+  verificationStatus: VerificationStatus;
   status: SupplierStatus;
   canUpdateOrderStatus: boolean;
 }
@@ -61,16 +62,28 @@ export type SupplierResult =
   | { ok: false; status: number; code: string; error: string };
 
 /**
+ * Verification state lives in the database, so it survives browser closes,
+ * reloads, new tabs/devices and localStorage tampering. Accounts created
+ * before the field existed keep their old semantics (approved supplierStatus
+ * means verified).
+ */
+export function effectiveVerificationStatus(user: IUser): VerificationStatus {
+  if (user.verificationStatus) return user.verificationStatus;
+  return user.supplierStatus === "ACTIVE" ? "VERIFIED" : "PENDING_VERIFICATION";
+}
+
+/**
  * Resolves the signed-in supplier. Every supplier API route must go through
- * this so ownership can never be taken from the request body.
- * `requireActive: false` is used by the profile route so an unapproved
- * supplier can still see why the panel is locked.
+ * this so ownership can never be taken from the request body, and so a
+ * `PENDING_VERIFICATION`/`REJECTED` account can never reach supplier-only data.
+ * `requireVerified: false` is only used by the profile route, which has to
+ * report the current verification state to the verification pending page.
  */
 export async function getSupplier(
   request: AuthedRequest,
-  options: { requireActive?: boolean } = {}
+  options: { requireVerified?: boolean } = {}
 ): Promise<SupplierResult> {
-  const requireActive = options.requireActive !== false;
+  const requireVerified = options.requireVerified !== false;
   const session = getSession(request);
 
   if (!session) {
@@ -87,15 +100,27 @@ export async function getSupplier(
     return { ok: false, status: 403, code: "supplier_not_found", error: "Supplier account not found." };
   }
 
-  if (requireActive && user.supplierStatus !== "ACTIVE") {
-    if (user.supplierStatus === "PENDING") {
+  const verificationStatus = effectiveVerificationStatus(user);
+
+  if (requireVerified && verificationStatus !== "VERIFIED") {
+    if (verificationStatus === "REJECTED") {
       return {
         ok: false,
         status: 403,
-        code: "pending_approval",
-        error: "Your supplier account is waiting for admin approval.",
+        code: "verification_rejected",
+        error: "Your supplier account verification was rejected. Please contact the store admin.",
       };
     }
+    return {
+      ok: false,
+      status: 403,
+      code: "pending_verification",
+      error:
+        "Your supplier account is currently under verification. You will be able to access supplier features after verification is completed.",
+    };
+  }
+
+  if (requireVerified && user.supplierStatus === "SUSPENDED") {
     return {
       ok: false,
       status: 403,
@@ -112,6 +137,7 @@ export async function getSupplier(
       email: user.email,
       name: user.name,
       supplierName: user.supplierName || user.name,
+      verificationStatus,
       status: user.supplierStatus,
       canUpdateOrderStatus: user.supplierPermissions?.canUpdateOrderStatus === true,
     },

@@ -15,6 +15,8 @@ export interface IProductVariant {
   name: string;
   color: string;
   colorCode: string;
+  /** Optional per-colour images; when empty the product-level images apply. */
+  images: IProductImage[];
   sizes: IProductSize[];
 }
 
@@ -89,6 +91,7 @@ const ProductVariantSchema = new Schema<IProductVariant>(
     name: { type: String, required: true },
     color: { type: String, default: "" },
     colorCode: { type: String, default: "" },
+    images: { type: [ProductImageSchema], default: [] },
     sizes: { type: [ProductSizeSchema], default: [] },
   },
   { _id: false }

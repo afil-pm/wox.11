@@ -16,7 +16,7 @@ export async function sendNewOrderEmail(order: {
   customerName: string;
   customerPhone: string;
   customerEmail: string;
-  items: { name: string; price: number; quantity: number; size: string }[];
+  items: { name: string; price: number; quantity: number; size: string; color?: string }[];
   total: number;
   paymentMethod: string;
   paymentStatus: string;
@@ -28,7 +28,7 @@ export async function sendNewOrderEmail(order: {
         (item) =>
           `<tr>
             <td style="padding:8px;border-bottom:1px solid #eee">${item.name}</td>
-            <td style="padding:8px;border-bottom:1px solid #eee;text-align:center">${item.size}</td>
+            <td style="padding:8px;border-bottom:1px solid #eee;text-align:center">${item.size}${item.color ? " · " + item.color : ""}</td>
             <td style="padding:8px;border-bottom:1px solid #eee;text-align:center">${item.quantity}</td>
             <td style="padding:8px;border-bottom:1px solid #eee;text-align:right">₹${item.price.toLocaleString("en-IN")}</td>
           </tr>`

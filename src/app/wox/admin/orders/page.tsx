@@ -15,6 +15,7 @@ interface OrderItem {
   price: number;
   quantity: number;
   size: string;
+  color?: string;
   image: string;
   slug: string;
 }
@@ -983,7 +984,10 @@ export default function AdminOrdersPage() {
                       )}
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-medium text-gray-900 line-clamp-1">{item.name}</p>
-                        <p className="mt-0.5 text-xs text-gray-500">Size: {item.size} &middot; Qty: {item.quantity}</p>
+                        <p className="mt-0.5 text-xs text-gray-500">
+                          Size: {item.size}
+                          {item.color ? ` · ${item.color}` : ""} &middot; Qty: {item.quantity}
+                        </p>
                         <p className="mt-0.5 text-xs text-gray-500">{formatPrice(item.price)} each</p>
                       </div>
                       <span className="text-sm font-semibold text-gray-900">{formatPrice(item.price * item.quantity)}</span>

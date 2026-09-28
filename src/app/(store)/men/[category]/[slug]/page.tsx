@@ -18,6 +18,7 @@ import {
   Share2,
   MapPin,
   ChevronLeft,
+  ZoomIn,
 } from "lucide-react";
 import { cn, formatPrice, calculateDiscount } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -27,6 +28,7 @@ import useCartStore from "@/lib/stores/cart";
 import { useWishlistStore } from "@/lib/stores/wishlist";
 import { useRecentlyViewed } from "@/lib/hooks/use-recently-viewed";
 import BuyNowModal from "@/components/product/buy-now-modal";
+import ImageZoom from "@/components/product/image-zoom";
 import RelatedProducts from "@/components/product/related-products";
 
 type ProductImage = { url: string; alt: string | null };
@@ -45,6 +47,8 @@ type ApiProduct = {
   reviewCount: number;
   category: { name: string; slug: string; gender: string };
   images: ProductImage[];
+  store?: string;
+  supplierName?: string;
   variants: (ColorVariant & { sizes: SizeOption[] })[];
   reviews: Review[];
   specifications?: { label: string; value: string }[];
@@ -78,6 +82,7 @@ export default function ProductDetailPage({ params }: { params: Promise<{ catego
   const [selectedSize, setSelectedSize] = useState<string | null>(null);
   const [selectedImage, setSelectedImage] = useState(0);
   const [quantity, setQuantity] = useState(1);
+  const [zoomOpen, setZoomOpen] = useState(false);
   const [showSizeGuide, setShowSizeGuide] = useState(false);
   const [showShareToast, setShowShareToast] = useState(false);
   const [showBuyNow, setShowBuyNow] = useState(false);
@@ -101,7 +106,15 @@ export default function ProductDetailPage({ params }: { params: Promise<{ catego
         setProduct(p);
         setReviews(p.reviews || []);
         if (p.variants.length > 0) {
-          const firstAvailable = p.variants[0]?.sizes.find((s) => (s.inventory?.quantity ?? 0) > 0);
+          // Open on the first colour that actually has stock.
+          const firstAvailableIdx = p.variants.findIndex((v) =>
+            v.sizes.some((s) => (s.inventory?.quantity ?? 0) > 0)
+          );
+          const startIdx = firstAvailableIdx >= 0 ? firstAvailableIdx : 0;
+          setSelectedColor(startIdx);
+          const firstAvailable = p.variants[startIdx]?.sizes.find(
+            (s) => (s.inventory?.quantity ?? 0) > 0
+          );
           if (firstAvailable) setSelectedSize(firstAvailable.id);
         }
         addView({
@@ -153,6 +166,28 @@ export default function ProductDetailPage({ params }: { params: Promise<{ catego
   const displayPrice = product.salePrice ?? product.basePrice;
   const isOnSale = product.salePrice !== null;
   const discount = isOnSale ? calculateDiscount(product.basePrice, product.salePrice!) : 0;
+  const soldOutColors = new Set(
+    product.variants
+      .map((v, idx) =>
+        v.sizes.every((s) => (s.inventory?.quantity ?? 0) === 0) ? idx : -1
+      )
+      .filter((idx) => idx >= 0)
+  );
+  const storeName = (product.store || product.supplierName || "").trim();
+
+  const handleSelectColor = (idx: number) => {
+    if (idx === selectedColor) return;
+    setSelectedColor(idx);
+    setSelectedImage(0);
+    setQuantity(1);
+    const variant = product.variants[idx];
+    if (!variant) return;
+    const sizeIds = new Set(variant.sizes.map((s) => s.id));
+    if (!selectedSize || !sizeIds.has(selectedSize)) {
+      const firstAvailable = variant.sizes.find((s) => (s.inventory?.quantity ?? 0) > 0);
+      setSelectedSize(firstAvailable?.id ?? variant.sizes[0]?.id ?? null);
+    }
+  };
 
   const handleAddToCart = () => {
     if (!selectedSize || !selectedSizeData) return;
@@ -164,6 +199,8 @@ export default function ProductDetailPage({ params }: { params: Promise<{ catego
       image: allImages[0].url,
       size: selectedSizeData.name,
       sizeId: selectedSize,
+      color: currentVariant.name,
+      colorCode: currentVariant.colorCode ?? "",
       quantity,
       maxQuantity: stock,
       category: product.category.slug,
@@ -277,8 +314,23 @@ export default function ProductDetailPage({ params }: { params: Promise<{ catego
                 ))}
               </div>
               <div className="relative flex-1 overflow-hidden bg-zinc-50">
-                <div className="aspect-[3/4] relative">
+                <div
+                  className="aspect-[3/4] relative cursor-zoom-in"
+                  onClick={() => setZoomOpen(true)}
+                  role="button"
+                  tabIndex={0}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      setZoomOpen(true);
+                    }
+                  }}
+                  aria-label="Zoom product image"
+                >
                   <img src={allImages[selectedImage].url} alt={allImages[selectedImage].alt ?? product.name} className="h-full w-full object-cover" loading="eager" />
+                  <span className="absolute bottom-3 right-3 flex h-9 w-9 items-center justify-center rounded-full bg-white/90 shadow-md">
+                    <ZoomIn className="h-4 w-4 text-zinc-700" />
+                  </span>
                 </div>
                 {isOnSale && (
                   <Badge className="absolute left-3 top-3 bg-zinc-900 text-xs font-bold text-white">-{discount}%</Badge>
@@ -304,6 +356,11 @@ export default function ProductDetailPage({ params }: { params: Promise<{ catego
           <div className="lg:col-span-7 lg:pl-4">
             <div>
               <h1 className="text-xl font-semibold tracking-tight text-zinc-900 sm:text-2xl">{product.name}</h1>
+              {storeName && (
+                <p className="mt-1 text-sm text-zinc-500">
+                  Sold by <span className="font-medium text-zinc-700">{storeName}</span>
+                </p>
+              )}
               <div className="mt-2 flex items-center gap-3">
                 <RatingStars rating={product.averageRating} count={product.reviewCount} size="md" />
                 <span className="text-xs text-zinc-400">|</span>
@@ -322,19 +379,49 @@ export default function ProductDetailPage({ params }: { params: Promise<{ catego
             </div>
 
             {/* Color Selector */}
-            {product.variants.length > 1 && (
+            {(product.variants.length > 1 ||
+              (currentVariant.name && currentVariant.name !== "Default")) && (
               <div className="mt-4">
                 <p className="mb-2 text-sm font-medium text-zinc-900">
                   COLOR: <span className="font-normal text-zinc-500">{currentVariant.name}</span>
                 </p>
-                <div className="flex gap-2">
-                  {product.variants.map((variant, idx) => (
-                    <button key={variant.id} onClick={() => { setSelectedColor(idx); setSelectedImage(0); }}
-                      className={cn("h-10 w-10 rounded-full border-2 transition-all", selectedColor === idx ? "border-zinc-900 ring-2 ring-zinc-900 ring-offset-2" : "border-zinc-200 hover:border-zinc-400")}>
-                      <span className="block h-full w-full rounded-full" style={{ backgroundColor: variant.colorCode ?? variant.color ?? "#ccc" }} />
-                    </button>
-                  ))}
+                <div className="flex flex-wrap gap-2">
+                  {product.variants.map((variant, idx) => {
+                    const soldOut = soldOutColors.has(idx);
+                    return (
+                      <button
+                        key={variant.id}
+                        onClick={() => handleSelectColor(idx)}
+                        disabled={soldOut}
+                        title={soldOut ? `${variant.name} — Out of stock` : variant.name}
+                        aria-label={`${variant.name}${soldOut ? " (out of stock)" : ""}`}
+                        className={cn(
+                          "relative h-10 w-10 rounded-full border-2 transition-all",
+                          selectedColor === idx
+                            ? "border-zinc-900 ring-2 ring-zinc-900 ring-offset-2"
+                            : soldOut
+                              ? "cursor-not-allowed border-zinc-200 opacity-40"
+                              : "border-zinc-200 hover:border-zinc-400"
+                        )}
+                      >
+                        <span
+                          className="block h-full w-full rounded-full"
+                          style={{
+                            backgroundColor: variant.colorCode ?? variant.color ?? "#ccc",
+                          }}
+                        />
+                        {soldOut && (
+                          <span className="absolute inset-0 flex items-center justify-center text-[9px] font-bold uppercase text-white mix-blend-difference">
+                            Out
+                          </span>
+                        )}
+                      </button>
+                    );
+                  })}
                 </div>
+                {soldOutColors.size > 0 && (
+                  <p className="mt-2 text-xs text-zinc-400">Greyed colours are out of stock</p>
+                )}
               </div>
             )}
 
@@ -597,6 +684,15 @@ export default function ProductDetailPage({ params }: { params: Promise<{ catego
         </div>
       )}
 
+      {/* Image Zoom */}
+      {zoomOpen && (
+        <ImageZoom
+          src={allImages[selectedImage].url}
+          alt={allImages[selectedImage].alt ?? product.name}
+          onClose={() => setZoomOpen(false)}
+        />
+      )}
+
       {/* Related Products */}
       {product && (
         <RelatedProducts
@@ -620,6 +716,7 @@ export default function ProductDetailPage({ params }: { params: Promise<{ catego
             salePrice: product.salePrice,
             category: product.category.name,
             gender: product.category.gender,
+            color: currentVariant.name,
             sizes: currentVariant.sizes.map((s) => ({
               name: s.name,
               quantity: s.inventory?.quantity ?? 0,

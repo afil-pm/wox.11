@@ -6,6 +6,7 @@ import { isAdmin } from "@/lib/auth/guards";
 export const dynamic = "force-dynamic";
 
 const STATUSES = ["PENDING", "ACTIVE", "SUSPENDED"];
+const VERIFICATIONS = ["PENDING_VERIFICATION", "VERIFIED", "REJECTED"];
 
 export async function PATCH(
   request: NextRequest,
@@ -24,6 +25,23 @@ export async function PATCH(
 
     const body = await request.json().catch(() => ({}));
     const update: Record<string, unknown> = {};
+    const currentDate: Record<string, true> = {};
+
+    if (body.verificationStatus !== undefined) {
+      if (!VERIFICATIONS.includes(body.verificationStatus)) {
+        return NextResponse.json({ error: "Invalid verification status" }, { status: 400 });
+      }
+      update.verificationStatus = body.verificationStatus;
+
+      if (body.verificationStatus === "VERIFIED") {
+        currentDate.supplierApprovedAt = true;
+        // Verification completes the account: activate it unless it was
+        // explicitly suspended afterwards.
+        update.supplierStatus = "PENDING";
+      } else if (body.verificationStatus === "REJECTED") {
+        currentDate.supplierRejectedAt = true;
+      }
+    }
 
     if (body.supplierStatus !== undefined) {
       if (!STATUSES.includes(body.supplierStatus)) {
@@ -44,10 +62,12 @@ export async function PATCH(
       { _id: id, role: "SUPPLIER" },
       {
         $set: update,
-        ...(body.supplierStatus === "ACTIVE" ? { $currentDate: { supplierApprovedAt: true } } : {}),
+        ...(Object.keys(currentDate).length > 0 ? { $currentDate: currentDate } : {}),
       },
       { new: true }
-    ).select("name email supplierName supplierStatus supplierPermissions createdAt supplierApprovedAt");
+    ).select(
+      "name email supplierName verificationStatus supplierStatus supplierPermissions createdAt supplierApprovedAt supplierRejectedAt"
+    );
 
     if (!supplier) {
       return NextResponse.json({ error: "Supplier not found" }, { status: 404 });
@@ -59,10 +79,12 @@ export async function PATCH(
         name: supplier.name,
         email: supplier.email,
         supplierName: supplier.supplierName || supplier.name,
+        verificationStatus: supplier.verificationStatus,
         status: supplier.supplierStatus,
         canUpdateOrderStatus: supplier.supplierPermissions?.canUpdateOrderStatus === true,
         createdAt: supplier.createdAt,
         supplierApprovedAt: supplier.supplierApprovedAt || null,
+        supplierRejectedAt: supplier.supplierRejectedAt || null,
       },
     });
   } catch (error) {

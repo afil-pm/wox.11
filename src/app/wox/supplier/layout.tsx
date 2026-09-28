@@ -29,8 +29,20 @@ const navItems = [
 
 interface SupplierProfile {
   status: "PENDING" | "ACTIVE" | "SUSPENDED";
+  verificationStatus?: "PENDING_VERIFICATION" | "VERIFIED" | "REJECTED";
   supplierName: string;
 }
+
+/**
+ * Mirrors the server side fallback in `effectiveVerificationStatus`: accounts
+ * stored before the field existed treat an ACTIVE supplierStatus as verified.
+ */
+function verificationOf(profile: SupplierProfile) {
+  if (profile.verificationStatus) return profile.verificationStatus;
+  return profile.status === "ACTIVE" ? "VERIFIED" : "PENDING_VERIFICATION";
+}
+
+const VERIFICATION_POLL_MS = 8000;
 
 export default function SupplierLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -69,22 +81,44 @@ export default function SupplierLayout({ children }: { children: React.ReactNode
     }
   }, [isLoginPage, router]);
 
-  // Server side check of the signed-in supplier and its approval status.
+  // Server side check of the signed-in supplier. The verification state lives
+  // in the database, so it cannot be skipped by closing the browser, going
+  // back, opening a new tab/device or editing localStorage. While the account
+  // is not verified we keep polling so the panel unlocks automatically as
+  // soon as an admin verifies it.
   useEffect(() => {
     if (isLoginPage || authorized !== true) return;
     let cancelled = false;
+    let timer: ReturnType<typeof setTimeout> | null = null;
 
-    supplierFetch("/api/wox/supplier/me")
-      .then((res) => res.json())
-      .then((data) => {
+    const load = async () => {
+      try {
+        const res = await supplierFetch("/api/wox/supplier/me");
+        const data = await res.json();
         if (cancelled) return;
-        if (!data?.supplier) return;
-        setProfile({ status: data.supplier.status, supplierName: data.supplier.supplierName });
-      })
-      .catch(() => {});
+        if (!data?.supplier) {
+          timer = setTimeout(load, VERIFICATION_POLL_MS);
+          return;
+        }
+        const next: SupplierProfile = {
+          status: data.supplier.status,
+          verificationStatus: data.supplier.verificationStatus,
+          supplierName: data.supplier.supplierName,
+        };
+        setProfile(next);
+        if (verificationOf(next) !== "VERIFIED") {
+          timer = setTimeout(load, VERIFICATION_POLL_MS);
+        }
+      } catch {
+        if (!cancelled) timer = setTimeout(load, VERIFICATION_POLL_MS);
+      }
+    };
+
+    load();
 
     return () => {
       cancelled = true;
+      if (timer) clearTimeout(timer);
     };
   }, [isLoginPage, authorized]);
 
@@ -100,10 +134,19 @@ export default function SupplierLayout({ children }: { children: React.ReactNode
     return <>{children}</>;
   }
 
-  const locked = profile !== null && profile.status !== "ACTIVE";
+  // Never render panel content before the server confirmed the state.
+  if (profile === null) {
+    return (
+      <div className="flex h-screen items-center justify-center bg-gray-50">
+        <WoxLoader />
+      </div>
+    );
+  }
 
-  if (locked) {
-    const pending = profile.status === "PENDING";
+  const verification = verificationOf(profile);
+
+  if (verification !== "VERIFIED") {
+    const pending = verification === "PENDING_VERIFICATION";
     return (
       <ThemeProvider>
         <div className="flex min-h-screen items-center justify-center bg-gray-50 px-4">
@@ -112,12 +155,48 @@ export default function SupplierLayout({ children }: { children: React.ReactNode
               {pending ? <Clock className="h-7 w-7 text-white" /> : <Ban className="h-7 w-7 text-white" />}
             </div>
             <h1 className="text-xl font-bold tracking-tight text-zinc-900">
-              {pending ? "Awaiting approval" : "Account suspended"}
+              {pending ? "Account under verification" : "Verification rejected"}
             </h1>
             <p className="mt-3 text-sm text-zinc-500">
               {pending
-                ? "Your supplier account has been created and is waiting for admin approval. You will be able to manage products once it is approved."
-                : "Your supplier account has been suspended. Please contact the store admin."}
+                ? "Your supplier account is currently under verification. You will be able to access supplier features after verification is completed."
+                : "Your supplier account verification was rejected. Please contact the store admin for more information."}
+            </p>
+            <p className="mt-4 text-xs uppercase tracking-wider text-zinc-400">
+              {pending ? "Status refreshes automatically" : "Contact the store admin"}
+            </p>
+            <div className="mt-6 flex flex-col gap-2">
+              <button
+                onClick={() => openSignOut()}
+                className="w-full rounded-lg border border-zinc-200 px-4 py-2.5 text-sm font-medium text-zinc-700 hover:bg-zinc-50"
+              >
+                Sign Out
+              </button>
+              <Link
+                href="/"
+                className="w-full rounded-lg px-4 py-2.5 text-sm font-medium text-zinc-500 hover:bg-zinc-100"
+              >
+                Back to Store
+              </Link>
+            </div>
+          </div>
+        </div>
+        <SignOutModal />
+      </ThemeProvider>
+    );
+  }
+
+  if (profile.status === "SUSPENDED") {
+    return (
+      <ThemeProvider>
+        <div className="flex min-h-screen items-center justify-center bg-gray-50 px-4">
+          <div className="w-full max-w-md rounded-2xl border bg-white p-8 text-center shadow-sm">
+            <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-zinc-900">
+              <Ban className="h-7 w-7 text-white" />
+            </div>
+            <h1 className="text-xl font-bold tracking-tight text-zinc-900">Account suspended</h1>
+            <p className="mt-3 text-sm text-zinc-500">
+              Your supplier account has been suspended. Please contact the store admin.
             </p>
             <div className="mt-6 flex flex-col gap-2">
               <button

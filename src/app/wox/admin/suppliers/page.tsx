@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { CheckCircle2, Ban, Truck, RefreshCw } from "lucide-react";
+import { CheckCircle2, Ban, Truck, RefreshCw, ShieldCheck, ShieldX } from "lucide-react";
 import WoxLoader from "@/components/ui/wox-loader";
 import { adminFetch } from "@/lib/admin-api";
 
@@ -10,17 +10,31 @@ interface SupplierRow {
   name: string;
   email: string;
   supplierName: string;
+  verificationStatus: "PENDING_VERIFICATION" | "VERIFIED" | "REJECTED";
   status: "PENDING" | "ACTIVE" | "SUSPENDED";
   canUpdateOrderStatus: boolean;
   products: number;
   createdAt: string;
   supplierApprovedAt: string | null;
+  supplierRejectedAt: string | null;
 }
 
 const STATUS_STYLES: Record<string, string> = {
   ACTIVE: "bg-green-100 text-green-700",
   PENDING: "bg-yellow-100 text-yellow-700",
   SUSPENDED: "bg-red-100 text-red-700",
+};
+
+const VERIFICATION_STYLES: Record<string, string> = {
+  VERIFIED: "bg-green-100 text-green-700",
+  PENDING_VERIFICATION: "bg-amber-100 text-amber-700",
+  REJECTED: "bg-red-100 text-red-700",
+};
+
+const VERIFICATION_LABELS: Record<string, string> = {
+  VERIFIED: "Verified",
+  PENDING_VERIFICATION: "Pending verification",
+  REJECTED: "Rejected",
 };
 
 export default function AdminSuppliersPage() {
@@ -48,7 +62,11 @@ export default function AdminSuppliersPage() {
 
   async function update(
     id: string,
-    patch: { supplierStatus?: string; canUpdateOrderStatus?: boolean }
+    patch: {
+      supplierStatus?: string;
+      verificationStatus?: string;
+      canUpdateOrderStatus?: boolean;
+    }
   ) {
     setSavingId(id);
     setError("");
@@ -68,8 +86,10 @@ export default function AdminSuppliersPage() {
             ? {
                 ...s,
                 status: data.supplier.status,
+                verificationStatus: data.supplier.verificationStatus,
                 canUpdateOrderStatus: data.supplier.canUpdateOrderStatus,
                 supplierApprovedAt: data.supplier.supplierApprovedAt,
+                supplierRejectedAt: data.supplier.supplierRejectedAt,
               }
             : s
         )
@@ -85,7 +105,8 @@ export default function AdminSuppliersPage() {
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-zinc-900">Suppliers</h1>
           <p className="mt-1 text-sm text-zinc-500">
-            Approve self-registered suppliers and control what they may do.
+            Verify self-registered suppliers, then control what they may do. A supplier only gets
+            panel access after verification.
           </p>
         </div>
         <button
@@ -111,10 +132,11 @@ export default function AdminSuppliersPage() {
         </div>
       ) : (
         <div className="overflow-x-auto rounded-xl border bg-white shadow-sm">
-          <table className="w-full min-w-[760px] text-left text-sm">
+          <table className="w-full min-w-[860px] text-left text-sm">
             <thead className="border-b bg-zinc-50 text-xs uppercase tracking-wide text-zinc-500">
               <tr>
                 <th className="px-4 py-3 font-medium">Supplier</th>
+                <th className="px-4 py-3 font-medium">Verification</th>
                 <th className="px-4 py-3 font-medium">Status</th>
                 <th className="px-4 py-3 font-medium">Products</th>
                 <th className="px-4 py-3 font-medium">Registered</th>
@@ -130,6 +152,16 @@ export default function AdminSuppliersPage() {
                     <p className="text-xs text-zinc-500">
                       {supplier.name} · {supplier.email}
                     </p>
+                  </td>
+                  <td className="px-4 py-3">
+                    <span
+                      className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${
+                        VERIFICATION_STYLES[supplier.verificationStatus] || "bg-gray-100 text-gray-600"
+                      }`}
+                    >
+                      {VERIFICATION_LABELS[supplier.verificationStatus] ||
+                        supplier.verificationStatus}
+                    </span>
                   </td>
                   <td className="px-4 py-3">
                     <span
@@ -160,25 +192,45 @@ export default function AdminSuppliersPage() {
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex items-center justify-end gap-2">
-                      {supplier.status !== "ACTIVE" && (
+                      {supplier.verificationStatus !== "VERIFIED" && (
                         <button
-                          onClick={() => update(supplier.id, { supplierStatus: "ACTIVE" })}
+                          onClick={() => update(supplier.id, { verificationStatus: "VERIFIED" })}
                           disabled={savingId === supplier.id}
                           className="flex items-center gap-1.5 rounded-lg bg-green-600 px-2.5 py-1.5 text-xs font-medium text-white hover:bg-green-700 disabled:opacity-50"
                         >
-                          <CheckCircle2 className="h-3.5 w-3.5" />
-                          {supplier.status === "PENDING" ? "Approve" : "Reactivate"}
+                          <ShieldCheck className="h-3.5 w-3.5" />
+                          {supplier.verificationStatus === "REJECTED" ? "Approve" : "Verify"}
                         </button>
                       )}
-                      {supplier.status !== "SUSPENDED" && (
+                      {supplier.verificationStatus !== "REJECTED" && (
                         <button
-                          onClick={() => update(supplier.id, { supplierStatus: "SUSPENDED" })}
+                          onClick={() => update(supplier.id, { verificationStatus: "REJECTED" })}
                           disabled={savingId === supplier.id}
                           className="flex items-center gap-1.5 rounded-lg border border-zinc-200 px-2.5 py-1.5 text-xs font-medium text-zinc-600 hover:bg-red-50 hover:text-red-600 disabled:opacity-50"
                         >
-                          <Ban className="h-3.5 w-3.5" /> Suspend
+                          <ShieldX className="h-3.5 w-3.5" /> Reject
                         </button>
                       )}
+                      {supplier.verificationStatus === "VERIFIED" &&
+                        supplier.status !== "ACTIVE" && (
+                          <button
+                            onClick={() => update(supplier.id, { supplierStatus: "ACTIVE" })}
+                            disabled={savingId === supplier.id}
+                            className="flex items-center gap-1.5 rounded-lg border border-zinc-200 px-2.5 py-1.5 text-xs font-medium text-zinc-600 hover:bg-green-50 hover:text-green-700 disabled:opacity-50"
+                          >
+                            <CheckCircle2 className="h-3.5 w-3.5" /> Reactivate
+                          </button>
+                        )}
+                      {supplier.verificationStatus === "VERIFIED" &&
+                        supplier.status !== "SUSPENDED" && (
+                          <button
+                            onClick={() => update(supplier.id, { supplierStatus: "SUSPENDED" })}
+                            disabled={savingId === supplier.id}
+                            className="flex items-center gap-1.5 rounded-lg border border-zinc-200 px-2.5 py-1.5 text-xs font-medium text-zinc-600 hover:bg-red-50 hover:text-red-600 disabled:opacity-50"
+                          >
+                            <Ban className="h-3.5 w-3.5" /> Suspend
+                          </button>
+                        )}
                     </div>
                   </td>
                 </tr>

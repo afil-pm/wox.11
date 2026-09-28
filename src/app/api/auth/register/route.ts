@@ -71,6 +71,10 @@ export async function POST(request: NextRequest) {
       ...(requestedRole === "SUPPLIER"
         ? {
             supplierName: String(supplierName).trim(),
+            // Server-side verification state: stays PENDING_VERIFICATION until
+            // an admin verifies the account. Persisted in the database, so it
+            // survives browser close/reopen, new tabs/devices and re-login.
+            verificationStatus: "PENDING_VERIFICATION",
             supplierStatus: "PENDING",
             supplierPermissions: { canUpdateOrderStatus: false },
           }
@@ -91,6 +95,7 @@ export async function POST(request: NextRequest) {
         email: user.email,
         role: user.role,
         supplierName: user.supplierName || "",
+        verificationStatus: user.verificationStatus,
         supplierStatus: user.supplierStatus,
         token,
       },

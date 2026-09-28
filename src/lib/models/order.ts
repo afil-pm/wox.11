@@ -15,6 +15,8 @@ export interface IOrderItem {
   price: number;
   quantity: number;
   size: string;
+  /** Variant colour chosen on the product page ("" for older orders). */
+  color: string;
   image: string;
   slug: string;
   hsnCode: string;
@@ -109,6 +111,7 @@ const OrderItemSchema = new Schema<IOrderItem>(
     price: { type: Number, required: true },
     quantity: { type: Number, required: true },
     size: { type: String, required: true },
+    color: { type: String, default: "" },
     image: { type: String, default: "" },
     slug: { type: String, default: "" },
     hsnCode: { type: String, default: "6211" },

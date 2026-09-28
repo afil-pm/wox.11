@@ -37,6 +37,8 @@ export interface OrderItemInput {
   price?: number;
   quantity: number;
   size: string;
+  /** Colour/variant chosen on the product page (optional for older clients). */
+  color?: string;
   image?: string;
   slug?: string;
 }
@@ -53,6 +55,7 @@ export interface PreparedOrderPayload {
     price: number;
     quantity: number;
     size: string;
+    color: string;
     image: string;
     slug: string;
     hsnCode: string;
@@ -90,6 +93,31 @@ export interface PreparedOrderPayload {
 export type PrepareResult =
   | { ok: false; error: string; status: number }
   | { ok: true; data: PreparedOrderPayload };
+
+type RawVariant = {
+  name?: string;
+  color?: string;
+  sizes?: { name: string; quantity: number }[];
+};
+
+/**
+ * Finds the variant an order line refers to: colour first, then a size-only
+ * fallback so carts saved before colours existed keep working.
+ */
+function matchVariant(
+  variants: RawVariant[] | undefined,
+  size: string,
+  color?: string
+): RawVariant | null {
+  const list = variants || [];
+  const withSize = list.filter((v) => v.sizes?.some((s) => s.name === size));
+  if (withSize.length === 0) return null;
+  if (color) {
+    const exact = withSize.find((v) => v.name === color || v.color === color);
+    if (exact) return exact;
+  }
+  return withSize[0];
+}
 
 /**
  * Validates a raw order payload and rebuilds every money field from product
@@ -142,6 +170,7 @@ export async function prepareOrderPayload(body: Record<string, unknown>): Promis
   const taxInputs: TaxInput[] = [];
   const serverItems = items.map((item) => {
     const product = item.slug ? productMap.get(item.slug) : null;
+    const variant = product ? matchVariant(product.variants, item.size, item.color) : null;
     const price = product ? (product.salePrice > 0 ? product.salePrice : product.basePrice) : 0;
     const gstRate = product?.tax?.gstRate ?? 5;
     const taxInclusive = product?.tax?.taxInclusive ?? true;
@@ -152,6 +181,8 @@ export async function prepareOrderPayload(body: Record<string, unknown>): Promis
       price,
       quantity: item.quantity,
       size: item.size,
+      // The resolved variant name is what stock adjustments will match on.
+      color: variant?.name || item.color || "",
       image: item.image || "",
       slug: item.slug || "",
       hsnCode: product?.tax?.hsnCode || "6211",
@@ -237,23 +268,29 @@ export async function prepareOrderPayload(body: Record<string, unknown>): Promis
     const product = productMap.get(item.slug);
     if (!product) continue;
 
-    const variant = product.variants?.find(
-      (v: { sizes: { name: string; quantity: number }[] }) =>
-        v.sizes?.some((s: { name: string; quantity: number }) => s.name === item.size)
-    );
+    const variant = matchVariant(product.variants, item.size, item.color);
     if (!variant) {
-      stockErrors.push(`${item.name} (${item.size}) - variant not found`);
+      stockErrors.push(
+        `${item.name} (${item.color ? item.color + ", " : ""}${item.size}) - variant not found`
+      );
       continue;
     }
-    const sizeData = variant.sizes.find(
+    // Name the colour the stock actually sits in: a cart line saved with a
+    // colour the product no longer has resolves to a real variant.
+    const resolvedColor = variant.name || item.color || "";
+    const sizeData = variant.sizes?.find(
       (s: { name: string; quantity: number }) => s.name === item.size
     );
     if (!sizeData) {
-      stockErrors.push(`${item.name} (${item.size}) - size not found`);
+      stockErrors.push(
+        `${item.name} (${resolvedColor ? resolvedColor + ", " : ""}${item.size}) - size not found`
+      );
       continue;
     }
     if (sizeData.quantity < item.quantity) {
-      stockErrors.push(`${item.name} (${item.size}) - only ${sizeData.quantity} left`);
+      stockErrors.push(
+        `${item.name} (${resolvedColor ? resolvedColor + ", " : ""}${item.size}) - only ${sizeData.quantity} left`
+      );
     }
   }
 

@@ -10,6 +10,7 @@ interface OrderItem {
   price: number;
   quantity: number;
   size: string;
+  color?: string;
   image: string;
   slug: string;
 }
@@ -262,7 +263,9 @@ export default function SupplierOrdersPage() {
                                 <div>
                                   <p className="text-sm font-medium text-zinc-900">{item.name}</p>
                                   <p className="text-xs text-zinc-500">
-                                    Size {item.size} · ₹{item.price} × {item.quantity}
+                                    Size {item.size}
+                                    {item.color ? ` · ${item.color}` : ""} · ₹{item.price} ×{" "}
+                                    {item.quantity}
                                   </p>
                                 </div>
                               </div>

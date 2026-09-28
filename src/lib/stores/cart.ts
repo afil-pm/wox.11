@@ -10,6 +10,9 @@ export type CartItem = {
   image: string;
   size: string;
   sizeId: string;
+  /** Variant colour chosen on the product page ("" when not tracked). */
+  color?: string;
+  colorCode?: string;
   quantity: number;
   maxQuantity: number;
   category?: string;
@@ -43,8 +46,12 @@ const useCartStore = create<CartState>()(
 
       addItem: (item) => {
         set((state) => {
+          const color = item.color || "";
           const existingItem = state.items.find(
-            (i) => i.productId === item.productId && i.sizeId === item.sizeId
+            (i) =>
+              i.productId === item.productId &&
+              i.sizeId === item.sizeId &&
+              (i.color || "") === color
           );
 
           if (existingItem) {
@@ -62,7 +69,8 @@ const useCartStore = create<CartState>()(
 
           const newItem: CartItem = {
             ...item,
-            id: `${item.productId}-${item.sizeId}-${Date.now()}`,
+            color,
+            id: `${item.productId}-${item.sizeId}-${encodeURIComponent(color)}-${Date.now()}`,
           };
           const items = [...state.items, newItem];
           return { items, ...computeTotals(items) };

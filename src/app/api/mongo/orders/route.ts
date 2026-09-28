@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { connectMongoDB } from "@/lib/mongodb";
 import Order from "@/lib/models/order";
-import Product from "@/lib/models/product";
 import Coupon from "@/lib/models/coupon";
 import Notification from "@/lib/models/notification";
+import { adjustStock } from "@/lib/orders/stock";
 import { sendPushToUser } from "@/lib/push";
 import { sendNewOrderEmail } from "@/lib/email";
 import { prepareOrderPayload } from "@/lib/orders/prepare";
@@ -117,16 +117,8 @@ export async function POST(request: NextRequest) {
 
     for (const item of serverItems) {
       if (!item.slug) continue;
-      await Product.updateOne(
-        { slug: item.slug },
-        { $inc: { "variants.$[v].sizes.$[s].quantity": -item.quantity } },
-        {
-          arrayFilters: [
-            { "v.sizes.name": item.size },
-            { "s.name": item.size, "s.quantity": { $gte: item.quantity } },
-          ],
-        }
-      );
+      // Colour aware: only the variant/size the customer picked is deducted.
+      await adjustStock(item, -1, { requireAvailable: true });
     }
 
     const order = await Order.create({

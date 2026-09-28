@@ -1,7 +1,7 @@
 import { connectMongoDB } from "@/lib/mongodb";
 import type { HydratedDocument } from "mongoose";
 import Order, { PAID_PAYMENT_STATUSES, IOrder } from "@/lib/models/order";
-import Product from "@/lib/models/product";
+import { adjustStock } from "@/lib/orders/stock";
 import Coupon from "@/lib/models/coupon";
 import Notification from "@/lib/models/notification";
 import { sendPushToUser } from "@/lib/push";
@@ -91,28 +91,15 @@ function isPaid(paymentStatus?: string): boolean {
 }
 
 async function decrementStock(
-  items: { slug?: string; size: string; quantity: number; name: string }[]
+  items: { slug?: string; size: string; color?: string | null; quantity: number; name: string }[]
 ): Promise<string[]> {
   const shortfalls: string[] = [];
 
   for (const item of items) {
     if (!item.slug) continue;
-    try {
-      const res = await Product.updateOne(
-        { slug: item.slug },
-        { $inc: { "variants.$[v].sizes.$[s].quantity": -item.quantity } },
-        {
-          arrayFilters: [
-            { "v.sizes.name": item.size },
-            { "s.name": item.size, "s.quantity": { $gte: item.quantity } },
-          ],
-        }
-      );
-      if (res.modifiedCount === 0) {
-        shortfalls.push(`${item.name} (${item.size})`);
-      }
-    } catch {
-      shortfalls.push(`${item.name} (${item.size})`);
+    const ok = await adjustStock(item, -1, { requireAvailable: true });
+    if (!ok) {
+      shortfalls.push(`${item.name} (${item.color ? item.color + ", " : ""}${item.size})`);
     }
   }
 

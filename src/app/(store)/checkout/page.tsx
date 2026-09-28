@@ -100,11 +100,11 @@ export default function CheckoutPage() {
 
   const [buyNowItem, setBuyNowItem] = useState<{
     productId: string; name: string; slug: string; image: string; price: number;
-    size: string; sizeId: string; quantity: number; category: string; gender: string;
+    size: string; sizeId: string; color?: string; quantity: number; category: string; gender: string;
   } | null>(null);
 
   const items = isBuyNow && buyNowItem
-    ? [{ id: "buy-now", productId: buyNowItem.productId, name: buyNowItem.name, slug: buyNowItem.slug, image: buyNowItem.image, price: buyNowItem.price, size: buyNowItem.size, sizeId: buyNowItem.sizeId, quantity: buyNowItem.quantity, maxQuantity: 10, category: buyNowItem.category, gender: buyNowItem.gender }]
+    ? [{ id: "buy-now", productId: buyNowItem.productId, name: buyNowItem.name, slug: buyNowItem.slug, image: buyNowItem.image, price: buyNowItem.price, size: buyNowItem.size, sizeId: buyNowItem.sizeId, color: buyNowItem.color || "", quantity: buyNowItem.quantity, maxQuantity: 10, category: buyNowItem.category, gender: buyNowItem.gender }]
     : cartItems;
 
   const subtotal = isBuyNow && buyNowItem
@@ -452,6 +452,7 @@ export default function CheckoutPage() {
           price: item.price,
           quantity: item.quantity,
           size: item.size,
+          color: item.color || "",
           image: item.image,
           slug: item.slug,
         })),
@@ -636,6 +637,7 @@ export default function CheckoutPage() {
             price: item.price,
             quantity: item.quantity,
             size: item.size,
+            color: item.color || "",
             image: item.image,
             slug: item.slug,
           })),
@@ -1517,7 +1519,7 @@ export default function CheckoutPage() {
                             {item.name}
                           </p>
                           <p className="text-xs text-zinc-500">
-                            Size: {item.size} | Qty: {item.quantity}
+                            Size: {item.size}{item.color ? ` · ${item.color}` : ""} | Qty: {item.quantity}
                           </p>
                         </div>
                         <span className="text-sm font-semibold text-zinc-900">
@@ -1730,7 +1732,7 @@ export default function CheckoutPage() {
                             {item.name}
                           </p>
                           <p className="text-xs text-zinc-500">
-                            {item.size} &middot; Qty: {item.quantity}
+                            {item.size}{item.color ? ` · ${item.color}` : ""} &middot; Qty: {item.quantity}
                           </p>
                         </div>
                         <span className="text-sm font-semibold text-zinc-900">
@@ -1817,7 +1819,7 @@ export default function CheckoutPage() {
                           {item.name}
                         </p>
                         <p className="text-[11px] text-zinc-500">
-                          {item.size} | Qty: {item.quantity}
+                          {item.size}{item.color ? ` · ${item.color}` : ""} | Qty: {item.quantity}
                         </p>
                       </div>
                       <span className="text-xs font-semibold text-zinc-900">
@@ -1918,7 +1920,7 @@ export default function CheckoutPage() {
                           {item.name}
                         </p>
                         <p className="text-[11px] text-zinc-500">
-                          {item.size} | Qty: {item.quantity}
+                          {item.size}{item.color ? ` · ${item.color}` : ""} | Qty: {item.quantity}
                         </p>
                       </div>
                       <span className="text-xs font-semibold text-zinc-900">

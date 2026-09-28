@@ -15,6 +15,7 @@ interface OrderItem {
   price: number;
   quantity: number;
   size: string;
+  color?: string;
   image: string;
   slug: string;
 }

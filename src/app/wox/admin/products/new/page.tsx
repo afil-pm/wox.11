@@ -17,9 +17,17 @@ interface SizeInput {
   quantity: number;
 }
 
+interface VariantImage {
+  url: string;
+  alt?: string;
+  position?: number;
+}
+
 interface VariantInput {
   name: string;
   color: string;
+  colorCode?: string;
+  images: VariantImage[];
   sizes: SizeInput[];
 }
 
@@ -40,7 +48,7 @@ export default function NewProductPage() {
   const [imageFiles, setImageFiles] = useState<File[]>([]);
   const [imagePreviews, setImagePreviews] = useState<string[]>([]);
   const [variants, setVariants] = useState<VariantInput[]>([
-    { name: "Default", color: "", sizes: [...defaultSizes] },
+    { name: "Default", color: "", images: [], sizes: [...defaultSizes] },
   ]);
   const [formData, setFormData] = useState({
     name: "",
@@ -121,8 +129,24 @@ export default function NewProductPage() {
     }));
   }
 
+  function addVariantImage(variantIdx: number, url: string) {
+    setVariants((prev) =>
+      prev.map((v, i) =>
+        i === variantIdx ? { ...v, images: [...v.images, { url, position: v.images.length }] } : v
+      )
+    );
+  }
+
+  function removeVariantImage(variantIdx: number, imageIdx: number) {
+    setVariants((prev) =>
+      prev.map((v, i) =>
+        i === variantIdx ? { ...v, images: v.images.filter((_, j) => j !== imageIdx) } : v
+      )
+    );
+  }
+
   function addVariant() {
-    setVariants((prev) => [...prev, { name: `Variant ${prev.length + 1}`, color: "", sizes: [...defaultSizes] }]);
+    setVariants((prev) => [...prev, { name: `Variant ${prev.length + 1}`, color: "", images: [], sizes: [...defaultSizes] }]);
   }
 
   function removeVariant(index: number) {
@@ -151,7 +175,10 @@ export default function NewProductPage() {
         variants: variants.filter((v) => v.name).map((v) => ({
           name: v.name,
           color: v.color,
-          colorCode: "",
+          colorCode: v.colorCode || "",
+          images: v.images
+            .filter((img) => img.url)
+            .map((img, i) => ({ url: img.url, alt: img.alt || formData.name, position: i })),
           sizes: v.sizes.filter((s) => s.quantity > 0 || s.name),
         })),
         seo: {
@@ -273,6 +300,15 @@ export default function NewProductPage() {
                       placeholder="Color"
                       className="w-32"
                     />
+                    <label className="flex items-center gap-1.5 text-xs text-gray-500" title="Colour swatch">
+                      <input
+                        type="color"
+                        value={variant.colorCode || "#000000"}
+                        onChange={(e) => updateVariant(vi, "colorCode", e.target.value)}
+                        className="h-8 w-8 cursor-pointer rounded border border-zinc-200 bg-white p-0.5"
+                      />
+                      Swatch
+                    </label>
                     {variants.length > 1 && (
                       <Button type="button" variant="ghost" size="sm" onClick={() => removeVariant(vi)} className="text-red-500 hover:text-red-600">
                         <Trash2 className="h-4 w-4" />
@@ -294,6 +330,36 @@ export default function NewProductPage() {
                         />
                       </div>
                     ))}
+                  </div>
+
+                  {/* Photos for this colour */}
+                  <div className="mt-3 border-t border-zinc-100 pt-3">
+                    <p className="mb-2 text-xs font-medium text-gray-500">
+                      Photos for this colour
+                      <span className="ml-1 font-normal text-gray-400">
+                        (optional — product gallery is used when empty)
+                      </span>
+                    </p>
+                    {variant.images.length > 0 && (
+                      <div className="mb-2 flex flex-wrap gap-2">
+                        {variant.images.map((img, ii) => (
+                          <div key={`${img.url}-${ii}`} className="group relative h-14 w-14 overflow-hidden rounded border bg-gray-50">
+                            <img src={img.url} alt="" className="h-full w-full object-cover" />
+                            <button
+                              type="button"
+                              onClick={() => removeVariantImage(vi, ii)}
+                              className="absolute right-0.5 top-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-black/60 text-white"
+                            >
+                              <X className="h-3 w-3" />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    <ImageUrlField
+                      onAdd={(url) => addVariantImage(vi, url)}
+                      existingUrls={variant.images.map((img) => img.url)}
+                    />
                   </div>
                 </div>
               ))}

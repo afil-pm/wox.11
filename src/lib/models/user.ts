@@ -2,6 +2,11 @@ import mongoose, { Schema, Document, Model } from "mongoose";
 
 export type UserRole = "CUSTOMER" | "ADMIN" | "SUPPLIER";
 export type SupplierStatus = "PENDING" | "ACTIVE" | "SUSPENDED";
+/**
+ * Server-side supplier verification state. Independent from `role` (the
+ * account stays a SUPPLIER account) and from `supplierStatus` (suspension).
+ */
+export type VerificationStatus = "PENDING_VERIFICATION" | "VERIFIED" | "REJECTED";
 
 export interface IUser extends Document {
   name: string;
@@ -12,11 +17,21 @@ export interface IUser extends Document {
   recoveryCode: string;
   /** Supplier profile — only meaningful when role === "SUPPLIER". */
   supplierName: string;
+  /**
+   * Only set for accounts created after the verification flow shipped (the
+   * register route writes it explicitly). Accounts created before have no
+   * value at all — intentionally no schema default, because mongoose would
+   * fill that default on read and silently lock every existing supplier out
+   * of the panel. Missing value falls back to the supplierStatus based rule
+   * in `effectiveVerificationStatus()`.
+   */
+  verificationStatus?: VerificationStatus;
   supplierStatus: SupplierStatus;
   supplierPermissions: {
     canUpdateOrderStatus: boolean;
   };
   supplierApprovedAt?: Date;
+  supplierRejectedAt?: Date;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -30,6 +45,10 @@ const UserSchema = new Schema<IUser>(
     role: { type: String, enum: ["CUSTOMER", "ADMIN", "SUPPLIER"], default: "CUSTOMER" },
     recoveryCode: { type: String, default: "" },
     supplierName: { type: String, default: "" },
+    verificationStatus: {
+      type: String,
+      enum: ["PENDING_VERIFICATION", "VERIFIED", "REJECTED"],
+    },
     supplierStatus: {
       type: String,
       enum: ["PENDING", "ACTIVE", "SUSPENDED"],
@@ -39,12 +58,13 @@ const UserSchema = new Schema<IUser>(
       canUpdateOrderStatus: { type: Boolean, default: false },
     },
     supplierApprovedAt: { type: Date },
+    supplierRejectedAt: { type: Date },
   },
   { timestamps: true }
 );
 
 UserSchema.index({ email: 1 }, { unique: true });
-UserSchema.index({ role: 1, supplierStatus: 1 });
+UserSchema.index({ role: 1, verificationStatus: 1, supplierStatus: 1 });
 
 let User: Model<IUser>;
 

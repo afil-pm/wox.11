@@ -78,6 +78,7 @@ export async function POST(request: NextRequest) {
         email: user.email,
         role: user.role,
         supplierName: user.role === "SUPPLIER" ? user.supplierName || "" : undefined,
+        verificationStatus: user.role === "SUPPLIER" ? user.verificationStatus : undefined,
         supplierStatus: user.role === "SUPPLIER" ? user.supplierStatus : undefined,
         token: createSessionToken({
           sub: String(user._id),

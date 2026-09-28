@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { PWAInstallBanner } from "@/components/ui/pwa-install-banner";
+import EnterKeyNavigation from "@/components/ui/enter-key-navigation";
 import PwaSplash from "@/components/ui/pwa-splash";
 
 const geistSans = Geist({
@@ -122,6 +123,7 @@ export default function RootLayout({
           }}
         />
         <PwaSplash />
+        <EnterKeyNavigation />
         {children}
         <PWAInstallBanner />
       </body>

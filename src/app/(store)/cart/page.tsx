@@ -157,6 +157,7 @@ export default function CartPage() {
                       </Link>
                       <p className="mt-0.5 text-xs text-zinc-500">
                         Size: {item.size}
+                        {item.color ? ` · ${item.color}` : ""}
                       </p>
                     </div>
                     <button

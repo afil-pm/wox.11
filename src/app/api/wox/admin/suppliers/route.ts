@@ -30,11 +30,13 @@ export async function GET(request: NextRequest) {
         name: s.name,
         email: s.email,
         supplierName: s.supplierName || s.name,
+        verificationStatus: s.verificationStatus || (s.supplierStatus === "ACTIVE" ? "VERIFIED" : "PENDING_VERIFICATION"),
         status: s.supplierStatus,
         canUpdateOrderStatus: s.supplierPermissions?.canUpdateOrderStatus === true,
         products: countMap.get(String(s._id)) || 0,
         createdAt: s.createdAt,
         supplierApprovedAt: s.supplierApprovedAt || null,
+        supplierRejectedAt: s.supplierRejectedAt || null,
       })),
       total: suppliers.length,
     });

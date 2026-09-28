@@ -15,6 +15,8 @@ type BuyNowProduct = {
   salePrice: number | null;
   category: string;
   gender: string;
+  /** Variant colour chosen on the product page. */
+  color?: string;
   sizes: { name: string; quantity: number }[];
 };
 
@@ -70,6 +72,7 @@ export default function BuyNowModal({ product, open, onClose }: Props) {
       price: displayPrice,
       size: selectedSize,
       sizeId: selectedSize,
+      color: product.color || "",
       quantity,
       category: product.category,
       gender: product.gender,
@@ -107,7 +110,10 @@ export default function BuyNowModal({ product, open, onClose }: Props) {
               )}
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-xs text-zinc-400">{product.category}</p>
+              <p className="text-xs text-zinc-400">
+                {product.category}
+                {product.color ? ` · ${product.color}` : ""}
+              </p>
               <p className="mt-0.5 text-sm font-medium text-zinc-900 line-clamp-2">{product.name}</p>
               <div className="mt-2 flex items-baseline gap-2">
                 <span className="text-lg font-bold text-zinc-900">{formatPrice(displayPrice)}</span>

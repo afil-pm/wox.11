@@ -9,7 +9,7 @@ export const dynamic = "force-dynamic";
 
 export async function GET(request: NextRequest) {
   try {
-    const auth = await getSupplier(request, { requireActive: false });
+    const auth = await getSupplier(request, { requireVerified: false });
     if (!auth.ok) {
       return NextResponse.json(
         { error: auth.error, code: auth.code },
@@ -19,6 +19,24 @@ export async function GET(request: NextRequest) {
 
     await connectMongoDB();
     const { supplier } = auth;
+
+    const profile = {
+      id: supplier.supplierId,
+      name: supplier.name,
+      email: supplier.email,
+      supplierName: supplier.supplierName,
+      verificationStatus: supplier.verificationStatus,
+      status: supplier.status,
+      canUpdateOrderStatus: supplier.canUpdateOrderStatus,
+    };
+
+    // A supplier that is not verified yet must not see any panel data.
+    if (supplier.verificationStatus !== "VERIFIED") {
+      return NextResponse.json({
+        supplier: profile,
+        stats: { totalProducts: 0, activeProducts: 0, orderCount: 0, pendingOrders: 0 },
+      });
+    }
 
     const slugs = await getSupplierSlugs(supplier.supplierId);
     const orderQuery = { $or: supplierOrderFilter(supplier.supplierId, slugs) };
@@ -33,14 +51,7 @@ export async function GET(request: NextRequest) {
     ]);
 
     return NextResponse.json({
-      supplier: {
-        id: supplier.supplierId,
-        name: supplier.name,
-        email: supplier.email,
-        supplierName: supplier.supplierName,
-        status: supplier.status,
-        canUpdateOrderStatus: supplier.canUpdateOrderStatus,
-      },
+      supplier: profile,
       stats: { totalProducts, activeProducts, orderCount, pendingOrders },
     });
   } catch (error) {

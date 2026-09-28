@@ -50,15 +50,22 @@ export async function GET(
           url: img.url,
           alt: img.alt || "",
         })),
-        variants: p.variants.map((v: { name: string; color?: string; colorCode?: string; sizes: { name: string; quantity: number }[] }, vi: number) => ({
+        store: p.store || "",
+        supplierName: p.supplierName || "",
+        variants: p.variants.map((v: { name: string; color?: string; colorCode?: string; images?: { url: string; alt?: string }[]; sizes: { name: string; quantity: number }[] }, vi: number) => ({
           id: String(p._id) + "-v" + vi,
           name: v.name || "Default",
           color: v.color || null,
           colorCode: v.colorCode || null,
-          images: p.images.map((img: { url: string; alt?: string }) => ({
-            url: img.url,
-            alt: img.alt || "",
-          })),
+          // Colours with their own photos use them; otherwise the product
+          // level gallery applies (keeps older products working unchanged).
+          images:
+            Array.isArray(v.images) && v.images.length > 0
+              ? v.images.map((img) => ({ url: img.url, alt: img.alt || "" }))
+              : p.images.map((img: { url: string; alt?: string }) => ({
+                  url: img.url,
+                  alt: img.alt || "",
+                })),
           sizes: v.sizes.map((s) => ({
             id: String(p._id) + "-s" + s.name,
             name: s.name,
@@ -91,6 +98,8 @@ export async function GET(
           gender: found.category.gender,
         },
         images: found.images.map((img) => ({ url: img.url, alt: img.alt })),
+        store: "",
+        supplierName: "",
         variants: [
           {
             id: found.id + "-default",

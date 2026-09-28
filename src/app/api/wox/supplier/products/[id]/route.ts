@@ -148,16 +148,32 @@ export async function PUT(
     }
 
     if (Array.isArray(body.variants)) {
-      data.variants = body.variants.map(
-        (v: { name: string; color?: string; colorCode?: string; sizes?: { name: string; quantity: number }[] }) => ({
+      const normalizedVariants = body.variants.map(
+        (v: { name: string; color?: string; colorCode?: string; images?: { url: string; alt?: string; position?: number }[]; sizes?: { name: string; quantity: number }[] }) => ({
           name: v.name || "Default",
           color: v.color || "",
           colorCode: v.colorCode || "",
+          images: Array.isArray(v.images)
+            ? v.images
+                .filter((img) => img && typeof img.url === "string" && img.url.trim())
+                .map((img, i) => ({ url: img.url, alt: img.alt || "", position: i }))
+            : [],
           sizes: Array.isArray(v.sizes)
             ? v.sizes.map((s) => ({ name: s.name, quantity: s.quantity || 0 }))
             : [],
         })
       );
+
+      const variantImageError = validateImages(
+        normalizedVariants.flatMap(
+          (v: { images: { url: string; alt?: string; position?: number }[] }) => v.images
+        )
+      );
+      if (variantImageError) {
+        return NextResponse.json({ error: variantImageError }, { status: 400 });
+      }
+
+      data.variants = normalizedVariants;
     }
 
     const product = await Product.findByIdAndUpdate(id, data, { new: true });

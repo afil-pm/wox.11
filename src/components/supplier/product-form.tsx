@@ -18,6 +18,9 @@ interface SizeInput {
 interface VariantInput {
   name: string;
   color: string;
+  colorCode?: string;
+  /** Photos specific to this colour; empty means "use the main gallery". */
+  images: ProductImage[];
   sizes: SizeInput[];
 }
 
@@ -43,7 +46,7 @@ export default function ProductForm({ productId }: { productId?: string }) {
   const [error, setError] = useState<string | null>(null);
   const [images, setImages] = useState<ProductImage[]>([]);
   const [variants, setVariants] = useState<VariantInput[]>([
-    { name: "Default", color: "", sizes: [...defaultSizes] },
+    { name: "Default", color: "", images: [], sizes: [...defaultSizes] },
   ]);
   const [formData, setFormData] = useState({
     name: "",
@@ -94,13 +97,23 @@ export default function ProductForm({ productId }: { productId?: string }) {
         setVariants(
           Array.isArray(p.variants) && p.variants.length > 0
             ? p.variants.map(
-                (v: { name: string; color?: string; sizes?: SizeInput[] }) => ({
+                (v: {
+                  name: string;
+                  color?: string;
+                  colorCode?: string;
+                  images?: ProductImage[];
+                  sizes?: SizeInput[];
+                }) => ({
                   name: v.name || "Default",
                   color: v.color || "",
+                  colorCode: v.colorCode || "",
+                  images: Array.isArray(v.images)
+                    ? v.images.map((img) => ({ url: img.url, alt: img.alt, position: img.position }))
+                    : [],
                   sizes: Array.isArray(v.sizes) ? v.sizes : [...defaultSizes],
                 })
               )
-            : [{ name: "Default", color: "", sizes: [...defaultSizes] }]
+            : [{ name: "Default", color: "", images: [], sizes: [...defaultSizes] }]
         );
         setInitializing(false);
       })
@@ -141,10 +154,26 @@ export default function ProductForm({ productId }: { productId?: string }) {
     );
   }
 
+  function addVariantImage(variantIdx: number, url: string) {
+    setVariants((prev) =>
+      prev.map((v, i) =>
+        i === variantIdx ? { ...v, images: [...v.images, { url, position: v.images.length }] } : v
+      )
+    );
+  }
+
+  function removeVariantImage(variantIdx: number, imageIdx: number) {
+    setVariants((prev) =>
+      prev.map((v, i) =>
+        i === variantIdx ? { ...v, images: v.images.filter((_, j) => j !== imageIdx) } : v
+      )
+    );
+  }
+
   function addVariant() {
     setVariants((prev) => [
       ...prev,
-      { name: `Variant ${prev.length + 1}`, color: "", sizes: [...defaultSizes] },
+      { name: `Variant ${prev.length + 1}`, color: "", images: [], sizes: [...defaultSizes] },
     ]);
   }
 
@@ -172,7 +201,10 @@ export default function ProductForm({ productId }: { productId?: string }) {
           .map((v) => ({
             name: v.name,
             color: v.color,
-            colorCode: "",
+            colorCode: v.colorCode || "",
+            images: v.images
+              .filter((img) => img.url)
+              .map((img, i) => ({ url: img.url, alt: img.alt || "", position: i })),
             sizes: v.sizes.filter((s) => s.name).map((s) => ({ name: s.name, quantity: s.quantity || 0 })),
           })),
       };
@@ -355,6 +387,18 @@ export default function ProductForm({ productId }: { productId?: string }) {
                     placeholder="Color"
                     className="w-36 rounded-lg border border-zinc-200 px-3 py-2 text-sm outline-none focus:border-zinc-900"
                   />
+                  <label
+                    className="flex items-center gap-2 text-xs text-zinc-500"
+                    title="Colour swatch"
+                  >
+                    <input
+                      type="color"
+                      value={variant.colorCode || "#000000"}
+                      onChange={(e) => updateVariant(vi, "colorCode", e.target.value)}
+                      className="h-8 w-8 cursor-pointer rounded border border-zinc-200 bg-white p-0.5"
+                    />
+                    Swatch
+                  </label>
                   {variants.length > 1 && (
                     <button
                       type="button"
@@ -380,6 +424,38 @@ export default function ProductForm({ productId }: { productId?: string }) {
                       />
                     </div>
                   ))}
+                </div>
+
+                {/* Photos for this colour (falls back to the main gallery) */}
+                <div className="mt-4 border-t border-zinc-100 pt-3">
+                  <p className="mb-2 text-xs font-medium text-zinc-500">
+                    Photos for this colour
+                    <span className="ml-1 font-normal text-zinc-400">
+                      (optional — product gallery is used when empty)
+                    </span>
+                  </p>
+                  <div className="space-y-2">
+                    {variant.images.map((img, ii) => (
+                      <div key={`${img.url}-${ii}`} className="flex items-center gap-3">
+                        <div className="h-10 w-10 shrink-0 overflow-hidden rounded border bg-zinc-50">
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img src={img.url} alt="" className="h-full w-full object-cover" />
+                        </div>
+                        <p className="flex-1 truncate text-xs text-zinc-500">{img.url}</p>
+                        <button
+                          type="button"
+                          onClick={() => removeVariantImage(vi, ii)}
+                          className="rounded-lg border border-zinc-200 p-1.5 text-zinc-500 hover:bg-red-50 hover:text-red-600"
+                        >
+                          <X className="h-4 w-4" />
+                        </button>
+                      </div>
+                    ))}
+                    <ImageUrlField
+                      onAdd={(url) => addVariantImage(vi, url)}
+                      existingUrls={variant.images.map((img) => img.url)}
+                    />
+                  </div>
                 </div>
               </div>
             ))}
