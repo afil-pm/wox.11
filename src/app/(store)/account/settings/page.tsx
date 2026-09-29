@@ -2,9 +2,10 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { ArrowLeft, Save, Sun, Moon, HelpCircle, MessageSquare, Bug, Send, Loader2, CheckCircle, CreditCard, Trash2 } from "lucide-react";
+import { Save, Sun, Moon, HelpCircle, MessageSquare, Bug, Send, Loader2, CheckCircle, CreditCard, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import BackButton from "@/components/ui/back-button";
 import { useSignOutStore } from "@/lib/stores/sign-out";
 import { useTheme } from "@/lib/theme-context";
 import { cn } from "@/lib/utils";
@@ -243,9 +244,7 @@ export default function AccountSettingsPage() {
   return (
     <div className="mx-auto max-w-4xl px-4 py-8 sm:px-6 lg:px-8">
       <div className="mb-6 flex items-center gap-3">
-        <Link href="/account" className="text-zinc-500 hover:text-zinc-900">
-          <ArrowLeft className="h-5 w-5" />
-        </Link>
+        <BackButton href="/account" />
         <h1 className="text-2xl font-bold tracking-tight text-zinc-900">Account Settings</h1>
       </div>
 

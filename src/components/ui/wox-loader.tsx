@@ -45,7 +45,7 @@ export default function WoxLoader({ className }: { className?: string }) {
 
       {/* Subtle progress line */}
       <div className="h-[2px] w-24 overflow-hidden rounded-full bg-zinc-100">
-        <div className="h-full rounded-full bg-zinc-900 wox-progress" />
+        <div className="h-full rounded-full bg-[#18181b] dark:bg-[#fafafa] wox-progress" />
       </div>
 
       <style jsx>{`

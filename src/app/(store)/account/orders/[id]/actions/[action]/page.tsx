@@ -4,9 +4,10 @@ import { useEffect, useState, use } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ProductImage } from "@/components/ui/product-image";
-import { ArrowLeft, XCircle, RotateCcw, RefreshCw, Banknote, CheckCircle, Loader2 } from "lucide-react";
+import { XCircle, RotateCcw, RefreshCw, Banknote, CheckCircle, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import BackButton from "@/components/ui/back-button";
 import { cn, formatPrice } from "@/lib/utils";
 import WoxLoader from "@/components/ui/wox-loader";
 
@@ -436,9 +437,7 @@ export default function OrderActionPage({
     return (
       <div className="mx-auto max-w-2xl px-4 py-8 sm:px-6 lg:px-8">
         <div className="mb-6 flex items-center gap-3">
-          <Link href={`/account/orders/${id}`} className="text-zinc-500 hover:text-zinc-900">
-            <ArrowLeft className="h-5 w-5" />
-          </Link>
+          <BackButton href={`/account/orders/${id}`} />
           <h1 className="text-2xl font-bold tracking-tight text-zinc-900">{actionConfig[validAction].title}</h1>
         </div>
         <div className="rounded-2xl border border-zinc-200 bg-white p-10 text-center shadow-sm">
@@ -489,9 +488,7 @@ export default function OrderActionPage({
     <div className="mx-auto max-w-2xl px-4 py-8 pb-24 sm:px-6 sm:pb-8 lg:px-8">
       {/* Header */}
       <div className="mb-6 flex items-center gap-3">
-        <Link href={`/account/orders/${id}`} className="text-zinc-500 hover:text-zinc-900">
-          <ArrowLeft className="h-5 w-5" />
-        </Link>
+        <BackButton href={`/account/orders/${id}`} />
         <div>
           <h1 className={cn("text-2xl font-bold tracking-tight", config.color)}>
             {displayTitle}

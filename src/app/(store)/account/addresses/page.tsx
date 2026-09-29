@@ -2,9 +2,10 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { ArrowLeft, MapPin, Trash2, Plus, Pencil, Check } from "lucide-react";
+import { MapPin, Trash2, Plus, Pencil, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import BackButton from "@/components/ui/back-button";
 import { cn } from "@/lib/utils";
 
 export type SavedAddress = {
@@ -148,9 +149,7 @@ export default function AccountAddressesPage() {
   return (
     <div className="mx-auto max-w-4xl px-4 py-8 pb-24 sm:px-6 sm:pb-8 lg:px-8">
       <div className="mb-6 flex items-center gap-3">
-        <Link href="/account" className="text-zinc-500 hover:text-zinc-900">
-          <ArrowLeft className="h-5 w-5" />
-        </Link>
+        <BackButton href="/account" />
         <h1 className="text-2xl font-bold tracking-tight text-zinc-900">My Addresses</h1>
       </div>
 

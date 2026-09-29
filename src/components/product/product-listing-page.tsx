@@ -14,6 +14,7 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { ProductCard, type Product } from "@/components/product/product-card";
 import WoxLoader from "@/components/ui/wox-loader";
+import BackButton from "@/components/ui/back-button";
 import PremiumSelect from "@/components/ui/premium-select";
 
 interface Breadcrumb {
@@ -197,14 +198,21 @@ export default function ProductListingPage({
   return (
     <div className="min-h-screen bg-white">
       <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
-        <nav className="mb-6 flex items-center gap-2 text-sm text-zinc-500">
-          {breadcrumb.map((item, i) => (
-            <span key={i} className="flex items-center gap-2">
-              {i > 0 && <ChevronRight className="h-3 w-3" />}
-              {item.href ? <Link href={item.href} className="hover:text-zinc-900">{item.label}</Link> : <span className="text-zinc-900">{item.label}</span>}
-            </span>
-          ))}
-        </nav>
+        <div className="mb-6 flex items-center gap-2">
+          {/* Falls back to the parent section when this tab has no history. */}
+          <BackButton
+            href={breadcrumb[breadcrumb.length - 2]?.href ?? "/"}
+            className="flex-shrink-0"
+          />
+          <nav className="flex min-w-0 items-center gap-2 text-sm text-zinc-500">
+            {breadcrumb.map((item, i) => (
+              <span key={i} className="flex items-center gap-2">
+                {i > 0 && <ChevronRight className="h-3 w-3" />}
+                {item.href ? <Link href={item.href} className="hover:text-zinc-900">{item.label}</Link> : <span className="text-zinc-900">{item.label}</span>}
+              </span>
+            ))}
+          </nav>
+        </div>
 
         <div className="mb-8">
           <h1 className="text-3xl font-bold tracking-tight text-zinc-900 sm:text-4xl">{title}</h1>

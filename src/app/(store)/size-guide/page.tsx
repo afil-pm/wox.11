@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import BackButton from "@/components/ui/back-button";
 
 export const metadata: Metadata = {
   title: "SIZE GUIDE",
@@ -24,6 +25,7 @@ const boysSizes = [
 export default function SizeGuidePage() {
   return (
     <div className="mx-auto max-w-4xl px-4 py-12">
+      <BackButton href="/" className="mb-4" />
       <h1 className="mb-8 text-3xl font-bold tracking-tight text-zinc-900">
         SIZE GUIDE
       </h1>

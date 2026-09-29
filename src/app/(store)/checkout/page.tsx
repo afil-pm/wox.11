@@ -20,6 +20,7 @@ import {
 import { cn, formatPrice } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import BackButton from "@/components/ui/back-button";
 import OrderSuccess from "@/components/ui/order-success";
 import QrPayment from "@/components/checkout/qr-payment";
 import useCartStore from "@/lib/stores/cart";
@@ -897,6 +898,7 @@ export default function CheckoutPage() {
   return (
     <div ref={checkoutRef} className="min-h-screen bg-white pb-24 lg:pb-0" style={{ WebkitOverflowScrolling: "touch" } as React.CSSProperties}>
       <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+        <BackButton href="/cart" className="mb-4" />
         <h1 className="text-2xl font-semibold tracking-tight text-zinc-900">
           Checkout
         </h1>

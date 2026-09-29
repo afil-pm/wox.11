@@ -8,6 +8,7 @@ import useCartStore from "@/lib/stores/cart";
 import { cn, formatPrice } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import BackButton from "@/components/ui/back-button";
 import { getApparelGstRate } from "@/lib/tax";
 import { getSavedAddresses } from "@/app/(store)/account/addresses/page";
 
@@ -122,6 +123,7 @@ export default function CartPage() {
   return (
     <div className="min-h-screen bg-white">
       <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+        <BackButton href="/" className="mb-4" />
         <h1 className="mb-8 text-2xl font-bold uppercase tracking-wider text-zinc-900 sm:text-3xl">
           Shopping Bag ({totalItems} {totalItems === 1 ? "item" : "items"})
         </h1>

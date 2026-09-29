@@ -3,9 +3,10 @@
 import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
 import { ProductImage } from "@/components/ui/product-image";
-import { Package, ArrowLeft, Eye, XCircle, RotateCcw, Truck, CheckCircle2, Clock, Box } from "lucide-react";
+import { Package, Eye, XCircle, RotateCcw, Truck, CheckCircle2, Clock, Box } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import BackButton from "@/components/ui/back-button";
 import { cn, formatPrice } from "@/lib/utils";
 import { paymentLabels, paymentStyles, isPaidPaymentStatus } from "@/lib/order-payment";
 import WoxLoader from "@/components/ui/wox-loader";
@@ -132,9 +133,7 @@ export default function AccountOrdersPage() {
   return (
     <div className="mx-auto max-w-4xl px-4 py-8 pb-24 sm:px-6 sm:pb-8 lg:px-8">
       <div className="mb-6 flex items-center gap-3">
-        <Link href="/account" className="text-zinc-500 hover:text-zinc-900">
-          <ArrowLeft className="h-5 w-5" />
-        </Link>
+        <BackButton href="/account" />
         <h1 className="text-2xl font-bold tracking-tight text-zinc-900">My Orders</h1>
       </div>
 

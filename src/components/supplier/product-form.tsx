@@ -2,9 +2,11 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Save, ArrowLeft, Plus, Trash2, X } from "lucide-react";
+import { Save, Plus, Trash2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import BackButton from "@/components/ui/back-button";
+import { goBackOr } from "@/lib/back-navigation";
 import ImageUrlField from "@/components/admin/image-url-field";
 import VariantCopyFields, {
   type VariantCopy,
@@ -269,13 +271,7 @@ export default function ProductForm({ productId }: { productId?: string }) {
   return (
     <div className="mx-auto max-w-3xl space-y-6">
       <div className="flex items-center gap-3">
-        <button
-          onClick={() => router.back()}
-          className="rounded-lg border border-zinc-200 p-2 text-zinc-500 hover:bg-zinc-50"
-          title="Back"
-        >
-          <ArrowLeft className="h-4 w-4" />
-        </button>
+        <BackButton href="/wox/supplier/products" variant="outline" />
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-zinc-900">
             {productId ? "Edit Product" : "Add Product"}
@@ -514,7 +510,11 @@ export default function ProductForm({ productId }: { productId?: string }) {
               </span>
             )}
           </Button>
-          <Button type="button" variant="outline" onClick={() => router.back()}>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => goBackOr(() => router.push("/wox/supplier/products"))}
+          >
             Cancel
           </Button>
         </div>

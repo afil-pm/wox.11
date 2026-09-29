@@ -6,6 +6,7 @@ import { useWishlistStore } from "@/lib/stores/wishlist";
 import useCartStore from "@/lib/stores/cart";
 import { formatPrice } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import BackButton from "@/components/ui/back-button";
 
 export default function WishlistPage() {
   const { items, removeItem, clearWishlist } = useWishlistStore();
@@ -65,6 +66,7 @@ export default function WishlistPage() {
   return (
     <div className="min-h-screen bg-white">
       <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+        <BackButton href="/" className="mb-4" />
         <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <h1 className="text-2xl font-bold uppercase tracking-wider text-zinc-900 sm:text-3xl">
             My Wishlist ({items.length}{" "}

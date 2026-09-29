@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { Save, X, ImagePlus, Plus, Trash2, Star, ListPlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import BackButton from "@/components/ui/back-button";
 import { adminFetch } from "@/lib/admin-api";
 import PremiumSelect from "@/components/ui/premium-select";
 import ImageUrlField from "@/components/admin/image-url-field";
@@ -240,9 +241,12 @@ export default function NewProductPage() {
 
   return (
     <>
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">Add New Product</h1>
-        <p className="text-sm text-gray-500">Create a new product listing</p>
+      <div className="mb-6 flex items-center gap-3">
+        <BackButton href="/wox/admin/products" variant="outline" />
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Add New Product</h1>
+          <p className="text-sm text-gray-500">Create a new product listing</p>
+        </div>
       </div>
 
       {error && (

@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useEffect, useState, useCallback } from "react";
+import { createContext, useContext, useEffect, useLayoutEffect, useState, useCallback } from "react";
 
 type Theme = "light" | "dark";
 
@@ -27,13 +27,25 @@ function applyTheme(theme: Theme) {
   } else {
     root.classList.remove("dark");
   }
+  // Keep the mobile browser chrome in step with the theme.
+  const meta = document.querySelector('meta[name="theme-color"]');
+  if (meta) {
+    meta.setAttribute("content", theme === "dark" ? "#18181b" : "#ffffff");
+  }
 }
+
+/**
+ * Runs before the browser paints so the `.dark` class is correct even if
+ * hydration touched the root element; no-ops during SSR.
+ */
+const useIsomorphicLayoutEffect =
+  typeof window !== "undefined" ? useLayoutEffect : useEffect;
 
 export default function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [theme, setThemeState] = useState<Theme>("light");
   const [mounted, setMounted] = useState(false);
 
-  useEffect(() => {
+  useIsomorphicLayoutEffect(() => {
     const stored = localStorage.getItem("wox-theme") as Theme | null;
     const initial = stored || getSystemTheme();
     setThemeState(initial);

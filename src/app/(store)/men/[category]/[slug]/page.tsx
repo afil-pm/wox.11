@@ -24,6 +24,7 @@ import { cn, formatPrice, calculateDiscount } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import WoxLoader from "@/components/ui/wox-loader";
+import BackButton from "@/components/ui/back-button";
 import useCartStore from "@/lib/stores/cart";
 import { useWishlistStore } from "@/lib/stores/wishlist";
 import { useRecentlyViewed } from "@/lib/hooks/use-recently-viewed";
@@ -389,13 +390,19 @@ export default function ProductDetailPage({ params }: { params: Promise<{ catego
     <div className="min-h-screen bg-white">
       <div className="mx-auto max-w-7xl px-4 py-4 sm:px-6 lg:px-8">
         {/* Breadcrumb */}
-        <nav className="mb-4 flex items-center gap-1.5 overflow-x-auto text-xs text-zinc-500">
-          <Link href="/" className="whitespace-nowrap hover:text-zinc-900">Home</Link>
-          <ChevronRight className="h-3 w-3 flex-shrink-0" />
-          <Link href={`/${product.category.gender}`} className="whitespace-nowrap capitalize hover:text-zinc-900">{product.category.gender}</Link>
-          <ChevronRight className="h-3 w-3 flex-shrink-0" />
-          <span className="whitespace-nowrap text-zinc-900">{displayTitle}</span>
-        </nav>
+        <div className="mb-4 flex items-center gap-2">
+          <BackButton
+            href={`/${product.category.gender}`}
+            className="flex-shrink-0"
+          />
+          <nav className="flex min-w-0 flex-1 items-center gap-1.5 overflow-x-auto text-xs text-zinc-500">
+            <Link href="/" className="whitespace-nowrap hover:text-zinc-900">Home</Link>
+            <ChevronRight className="h-3 w-3 flex-shrink-0" />
+            <Link href={`/${product.category.gender}`} className="whitespace-nowrap capitalize hover:text-zinc-900">{product.category.gender}</Link>
+            <ChevronRight className="h-3 w-3 flex-shrink-0" />
+            <span className="whitespace-nowrap text-zinc-900">{displayTitle}</span>
+          </nav>
+        </div>
 
         {/* Main Content */}
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-12 lg:gap-10">
