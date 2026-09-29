@@ -451,6 +451,9 @@ export default function NewProductPage() {
               customRows={specifications}
               onCustomRowsChange={setSpecifications}
               loading={!templatesLoaded}
+              productName={formData.name}
+              productCategory={categories.find((c) => c._id === formData.categoryId) ?? null}
+              imageUrls={imagePreviews}
               emptyHint={
                 formData.categoryId
                   ? "No specification fields are configured for this category yet. Add them under Specifications in the admin panel."

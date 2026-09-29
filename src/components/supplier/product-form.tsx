@@ -636,6 +636,9 @@ export default function ProductForm({ productId }: { productId?: string }) {
               onCustomRowsChange={setSpecifications}
               canAddCustom={activeTemplate ? activeTemplate.allowSupplierCustom : true}
               loading={!templatesLoaded}
+              productName={formData.name}
+              productCategory={categories.find((c) => c._id === formData.categoryId) ?? null}
+              imageUrls={[...existingImages.map((img) => img.url), ...imagePreviews]}
               emptyHint={
                 formData.categoryId
                   ? "No specification fields are configured for this category yet."
