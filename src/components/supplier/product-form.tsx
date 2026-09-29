@@ -11,6 +11,8 @@ import ImageUrlField from "@/components/admin/image-url-field";
 import VariantCopyFields, {
   type VariantCopy,
 } from "@/components/admin/variant-copy-fields";
+import SpecEditor, { specValuesToRecord } from "@/components/product/spec-editor";
+import type { SpecField, SpecTemplate } from "@/lib/specs/types";
 import { supplierFetch } from "@/lib/supplier-api";
 
 type Category = { _id: string; name: string; slug: string; gender: string; type: string };
@@ -66,13 +68,37 @@ export default function ProductForm({ productId }: { productId?: string }) {
     categoryId: "",
     isActive: true,
   });
+  const [specifications, setSpecifications] = useState<{ label: string; value: string }[]>([]);
+  const [specTemplates, setSpecTemplates] = useState<SpecTemplate[]>([]);
+  const [specFields, setSpecFields] = useState<SpecField[]>([]);
+  const [specValues, setSpecValues] = useState<Record<string, string>>({});
+  const [activeTemplate, setActiveTemplate] = useState<SpecTemplate | null>(null);
+  const [templatesLoaded, setTemplatesLoaded] = useState(false);
 
   useEffect(() => {
     supplierFetch("/api/mongo/categories")
       .then((r) => r.json())
       .then((data) => setCategories(data.categories ?? []))
       .catch(() => {});
+    supplierFetch("/api/spec-templates")
+      .then((r) => r.json())
+      .then((data) => setSpecTemplates(Array.isArray(data.templates) ? data.templates : []))
+      .catch(() => {})
+      .finally(() => setTemplatesLoaded(true));
   }, []);
+
+  // Show only the fields the admin configured for the selected category type.
+  useEffect(() => {
+    const category = categories.find((c) => c._id === formData.categoryId);
+    if (!category) {
+      setSpecFields([]);
+      setActiveTemplate(null);
+      return;
+    }
+    const template = specTemplates.find((t) => t.categoryType === category.type) ?? null;
+    setActiveTemplate(template);
+    setSpecFields(template?.fields ?? []);
+  }, [formData.categoryId, categories, specTemplates]);
 
   useEffect(() => {
     if (!productId) return;
@@ -103,6 +129,14 @@ export default function ProductForm({ productId }: { productId?: string }) {
               }))
             : []
         );
+        if (Array.isArray(p.specifications)) {
+          setSpecifications(
+            p.specifications.filter(
+              (s: { label?: string; value?: string }) => s.label?.trim() && s.value?.trim()
+            )
+          );
+        }
+        setSpecValues(specValuesToRecord(p.specValues));
         setVariants(
           Array.isArray(p.variants) && p.variants.length > 0
             ? p.variants.map(
@@ -211,6 +245,15 @@ export default function ProductForm({ productId }: { productId?: string }) {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
+
+    const missingSpecs = specFields.filter(
+      (field) => field.required && !String(specValues[field.key] ?? "").trim()
+    );
+    if (missingSpecs.length > 0) {
+      setError(`Required specifications missing: ${missingSpecs.map((f) => f.label).join(", ")}`);
+      return;
+    }
+
     setLoading(true);
 
     try {
@@ -222,6 +265,8 @@ export default function ProductForm({ productId }: { productId?: string }) {
         sku: formData.sku,
         categoryId: formData.categoryId,
         isActive: formData.isActive,
+        specifications: specifications.filter((s) => s.label.trim() && s.value.trim()),
+        specValues,
         images: images.map((img, i) => ({ url: img.url, alt: img.alt || formData.name, position: i })),
         variants: variants
           .filter((v) => v.name)
@@ -495,6 +540,23 @@ export default function ProductForm({ productId }: { productId?: string }) {
               </div>
             ))}
           </div>
+        </div>
+
+        <div className="rounded-xl border bg-white p-5 shadow-sm">
+          <SpecEditor
+            fields={specFields}
+            values={specValues}
+            onChange={setSpecValues}
+            customRows={specifications}
+            onCustomRowsChange={setSpecifications}
+            canAddCustom={activeTemplate ? activeTemplate.allowSupplierCustom : true}
+            loading={!templatesLoaded}
+            emptyHint={
+              formData.categoryId
+                ? "No specification fields are configured for this category yet."
+                : "Select a category to fill in its specification fields."
+            }
+          />
         </div>
 
         <div className="flex gap-3">

@@ -5,7 +5,9 @@ import { connectMongoDB } from "@/lib/mongodb";
 import Product from "@/lib/models/product";
 import Category from "@/lib/models/category";
 import { getSupplier } from "@/lib/auth/guards";
-import { normalizeVariant, type RawVariantInput } from "@/lib/products/variants";
+import { normalizeVariant, normalizeSpecifications, type RawVariantInput } from "@/lib/products/variants";
+import { normalizeSpecValues } from "@/lib/specs/normalize";
+import { loadSpecTemplate } from "@/lib/specs/service";
 
 export const dynamic = "force-dynamic";
 
@@ -98,7 +100,7 @@ export async function POST(request: NextRequest) {
 
     await connectMongoDB();
     const body = await request.json();
-    const { name, description, basePrice, salePrice, sku, categoryId, images, variants, isActive } =
+    const { name, description, basePrice, salePrice, sku, categoryId, images, variants, isActive, specifications, specValues } =
       body;
 
     if (!name || !basePrice || !sku || !categoryId) {
@@ -109,6 +111,15 @@ export async function POST(request: NextRequest) {
     if (!existingCategory) {
       return NextResponse.json({ error: `Category not found for ID: ${categoryId}` }, { status: 404 });
     }
+
+    // Suppliers only ever write the fields the admin marked as editable for
+    // them; required fields they may edit must be filled in.
+    const template = await loadSpecTemplate(existingCategory.type);
+    const normalizedSpecs = normalizeSpecValues(specValues, template?.fields ?? [], { role: "supplier" });
+    if (normalizedSpecs.errors.length > 0) {
+      return NextResponse.json({ error: normalizedSpecs.errors.join("; ") }, { status: 400 });
+    }
+    const customSpecs = template?.allowSupplierCustom ? normalizeSpecifications(specifications) : [];
 
     const existingSku = await Product.findOne({ sku: String(sku).toUpperCase() });
     if (existingSku) {
@@ -182,7 +193,8 @@ export async function POST(request: NextRequest) {
       variants: productVariants,
       seo,
       tax: { hsnCode: "6211", gstRate: 5, taxCategory: "apparel", taxInclusive: true },
-      specifications: [],
+      specifications: customSpecs,
+      specValues: normalizedSpecs.specValues,
     });
 
     return NextResponse.json({ product }, { status: 201 });

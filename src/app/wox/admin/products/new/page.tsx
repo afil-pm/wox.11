@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Save, X, ImagePlus, Plus, Trash2, Star, ListPlus } from "lucide-react";
+import { Save, X, ImagePlus, Plus, Trash2, Star } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import BackButton from "@/components/ui/back-button";
@@ -13,6 +13,8 @@ import ImageUrlField from "@/components/admin/image-url-field";
 import VariantCopyFields, {
   type VariantCopy,
 } from "@/components/admin/variant-copy-fields";
+import SpecEditor from "@/components/product/spec-editor";
+import type { SpecField, SpecTemplate } from "@/lib/specs/types";
 
 type Category = { _id: string; name: string; slug: string; gender: string; type: string };
 
@@ -87,6 +89,10 @@ export default function NewProductPage() {
     taxInclusive: true,
   });
   const [specifications, setSpecifications] = useState<{ label: string; value: string }[]>([]);
+  const [specTemplates, setSpecTemplates] = useState<SpecTemplate[]>([]);
+  const [specFields, setSpecFields] = useState<SpecField[]>([]);
+  const [specValues, setSpecValues] = useState<Record<string, string>>({});
+  const [templatesLoaded, setTemplatesLoaded] = useState(false);
   const [keywordInput, setKeywordInput] = useState("");
 
   useEffect(() => {
@@ -94,7 +100,23 @@ export default function NewProductPage() {
       .then((r) => r.json())
       .then((data) => setCategories(data.categories ?? []))
       .catch(() => {});
+    adminFetch("/api/wox/admin/spec-templates")
+      .then((r) => r.json())
+      .then((data) => setSpecTemplates(Array.isArray(data.templates) ? data.templates : []))
+      .catch(() => {})
+      .finally(() => setTemplatesLoaded(true));
   }, []);
+
+  // The visible fields follow the selected category's type (Pants vs Shirts…).
+  useEffect(() => {
+    const category = categories.find((c) => c._id === formData.categoryId);
+    if (!category) {
+      setSpecFields([]);
+      return;
+    }
+    const template = specTemplates.find((t) => t.categoryType === category.type);
+    setSpecFields(template?.fields ?? []);
+  }, [formData.categoryId, categories, specTemplates]);
 
   function handleChange(e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) {
     const { name, value, type } = e.target;
@@ -180,8 +202,17 @@ export default function NewProductPage() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    setLoading(true);
     setError(null);
+
+    const missingSpecs = specFields.filter(
+      (field) => field.required && !String(specValues[field.key] ?? "").trim()
+    );
+    if (missingSpecs.length > 0) {
+      setError(`Required specifications missing: ${missingSpecs.map((f) => f.label).join(", ")}`);
+      return;
+    }
+
+    setLoading(true);
     try {
       const imageUrls = imagePreviews.map((url, i) => ({ url, alt: formData.name, position: i }));
       const body = {
@@ -220,6 +251,7 @@ export default function NewProductPage() {
         },
         tax: taxData,
         specifications: specifications.filter((s) => s.label.trim() && s.value.trim()),
+        specValues,
       };
       const res = await adminFetch("/api/wox/admin/products", {
         method: "POST",
@@ -411,40 +443,20 @@ export default function NewProductPage() {
           </div>
 
           {/* Specifications */}
-          <div>
-            <div className="mb-3 flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <ListPlus className="h-4 w-4 text-gray-500" />
-                <label className="text-sm font-medium text-gray-700">Specifications</label>
-              </div>
-              <Button type="button" variant="outline" size="sm" onClick={() => setSpecifications((prev) => [...prev, { label: "", value: "" }])}>
-                <Plus className="mr-1 h-3 w-3" /> Add Spec
-              </Button>
-            </div>
-            {specifications.length > 0 && (
-              <div className="space-y-2">
-                {specifications.map((spec, i) => (
-                  <div key={i} className="flex items-center gap-2">
-                    <Input
-                      value={spec.label}
-                      onChange={(e) => setSpecifications((prev) => prev.map((s, j) => j === i ? { ...s, label: e.target.value } : s))}
-                      placeholder="Label (e.g. Material)"
-                      className="w-1/3"
-                    />
-                    <Input
-                      value={spec.value}
-                      onChange={(e) => setSpecifications((prev) => prev.map((s, j) => j === i ? { ...s, value: e.target.value } : s))}
-                      placeholder="Value (e.g. 100% Cotton)"
-                      className="flex-1"
-                    />
-                    <Button type="button" variant="ghost" size="sm" onClick={() => setSpecifications((prev) => prev.filter((_, j) => j !== i))} className="text-red-500 hover:text-red-600">
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
-                ))}
-              </div>
-            )}
-            <p className="mt-1 text-xs text-gray-400">Product specifications shown on the product page</p>
+          <div className="rounded-lg border border-zinc-200 p-4">
+            <SpecEditor
+              fields={specFields}
+              values={specValues}
+              onChange={setSpecValues}
+              customRows={specifications}
+              onCustomRowsChange={setSpecifications}
+              loading={!templatesLoaded}
+              emptyHint={
+                formData.categoryId
+                  ? "No specification fields are configured for this category yet. Add them under Specifications in the admin panel."
+                  : "Select a category to fill in its specification fields."
+              }
+            />
           </div>
 
           {/* Images */}

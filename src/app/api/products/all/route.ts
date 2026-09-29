@@ -26,9 +26,18 @@ export async function GET(request: Request) {
 
     const filter: Record<string, unknown> = { isActive: true };
     if (search) {
+      // Escape user input so a query like "c++" is a literal search, not a
+      // broken (or hostile) regular expression.
+      const safeSearch = search.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
       filter.$or = [
-        { name: { $regex: search, $options: "i" } },
-        { sku: { $regex: search, $options: "i" } },
+        { name: { $regex: safeSearch, $options: "i" } },
+        { sku: { $regex: safeSearch, $options: "i" } },
+        // Structured specifications participate in search: field values,
+        // their keys and the free-form rows are all matchable.
+        { "specValues.value": { $regex: safeSearch, $options: "i" } },
+        { "specValues.key": { $regex: safeSearch, $options: "i" } },
+        { "specifications.label": { $regex: safeSearch, $options: "i" } },
+        { "specifications.value": { $regex: safeSearch, $options: "i" } },
       ];
     }
 

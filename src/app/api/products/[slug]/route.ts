@@ -3,6 +3,9 @@ import type { Types } from "mongoose";
 import { connectMongoDB } from "@/lib/mongodb";
 import Product from "@/lib/models/product";
 import Review from "@/lib/models/review";
+import { resolveSpecRows } from "@/lib/specs/normalize";
+import type { SpecRow } from "@/lib/specs/types";
+import { loadSpecTemplate } from "@/lib/specs/service";
 
 export const dynamic = "force-dynamic";
 
@@ -89,7 +92,9 @@ export async function GET(
         salePrice?: number;
         averageRating?: number;
         reviewCount?: number;
-        categoryId?: { name: string; slug: string; gender: string } | null;
+        categoryId?:
+          | { name: string; slug: string; gender: string; type?: string }
+          | null;
         images?: { url: string; alt?: string }[];
         store?: string;
         supplierName?: string;
@@ -104,6 +109,7 @@ export async function GET(
           sizes?: { name: string; quantity: number }[];
         }[];
         specifications?: { label: string; value: string }[];
+        specValues?: { key: string; value: string }[];
         isActive?: boolean;
       };
 
@@ -137,6 +143,18 @@ export async function GET(
         createdAt: String(r.createdAt),
         user: { name: r.userName },
       }));
+
+      // Structured rows for the details page: labels and ordering come from
+      // the category's specification template, values from the product, so a
+      // rename in the admin panel updates every product page at once.
+      let specTable: SpecRow[] = [];
+      try {
+        const template = cat?.type ? await loadSpecTemplate(cat.type) : null;
+        specTable = resolveSpecRows(template?.fields ?? [], p.specValues ?? [], p.specifications ?? []);
+      } catch (err) {
+        console.error("[PRODUCT_GET] specification resolution failed:", err);
+        specTable = (p.specifications ?? []).map((s) => ({ label: s.label, value: s.value }));
+      }
 
       const product = {
         id: String(p._id),
@@ -199,6 +217,7 @@ export async function GET(
           })
         ),
         reviews: formattedReviews,
+        specTable,
         specifications: (p.specifications ?? []) as {
           label: string;
           value: string;
@@ -251,6 +270,8 @@ export async function GET(
           },
         ],
         reviews: [],
+        specTable: [],
+        specifications: [],
       };
 
       return NextResponse.json({ product }, { status: 200 });

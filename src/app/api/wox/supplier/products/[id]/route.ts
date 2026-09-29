@@ -5,7 +5,9 @@ import { connectMongoDB } from "@/lib/mongodb";
 import Product from "@/lib/models/product";
 import Category from "@/lib/models/category";
 import { getSupplier } from "@/lib/auth/guards";
-import { normalizeVariant, type RawVariantInput } from "@/lib/products/variants";
+import { normalizeVariant, normalizeSpecifications, type RawVariantInput } from "@/lib/products/variants";
+import { normalizeSpecValues } from "@/lib/specs/normalize";
+import { loadSpecTemplate } from "@/lib/specs/service";
 
 export const dynamic = "force-dynamic";
 
@@ -59,6 +61,8 @@ export async function GET(
         categoryId: product.categoryId ? String(product.categoryId) : null,
         images: product.images ?? [],
         variants: product.variants ?? [],
+        specifications: product.specifications ?? [],
+        specValues: product.specValues ?? [],
         isActive: product.isActive ?? true,
         supplierId: product.supplierId ?? "",
         supplierName: product.supplierName ?? "",
@@ -173,6 +177,27 @@ export async function PUT(
       }
 
       data.variants = normalizedVariants;
+    }
+
+    // Specifications: only the fields the admin allowed suppliers to edit are
+    // written; everything else keeps its stored value untouched.
+    if (body.specValues !== undefined || body.specifications !== undefined) {
+      const template = await loadSpecTemplate(category.type);
+
+      if (body.specValues !== undefined) {
+        const normalizedSpecs = normalizeSpecValues(body.specValues, template?.fields ?? [], {
+          role: "supplier",
+          previous: existing.specValues ?? [],
+        });
+        if (normalizedSpecs.errors.length > 0) {
+          return NextResponse.json({ error: normalizedSpecs.errors.join("; ") }, { status: 400 });
+        }
+        data.specValues = normalizedSpecs.specValues;
+      }
+
+      if (body.specifications !== undefined && template?.allowSupplierCustom) {
+        data.specifications = normalizeSpecifications(body.specifications);
+      }
     }
 
     const product = await Product.findByIdAndUpdate(id, data, { new: true });

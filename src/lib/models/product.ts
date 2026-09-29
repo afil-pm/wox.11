@@ -52,6 +52,16 @@ export interface IProductSpec {
   value: string;
 }
 
+/**
+ * One structured specification value. `key` matches a field key of the
+ * category's specification template, so labels/orders stay editable in one
+ * place while stored products keep a filterable `{key, value}` list.
+ */
+export interface IProductSpecValue {
+  key: string;
+  value: string;
+}
+
 export interface IProduct extends Document {
   name: string;
   slug: string;
@@ -68,6 +78,8 @@ export interface IProduct extends Document {
   variants: IProductVariant[];
   tax: IProductTax;
   specifications: IProductSpec[];
+  /** Category specific values keyed by specification template field key. */
+  specValues: IProductSpecValue[];
   averageRating: number;
   reviewCount: number;
   isFeatured: boolean;
@@ -98,6 +110,14 @@ const ProductSpecSchema = new Schema<IProductSpec>(
   {
     label: { type: String, required: true },
     value: { type: String, required: true },
+  },
+  { _id: false }
+);
+
+const ProductSpecValueSchema = new Schema<IProductSpecValue>(
+  {
+    key: { type: String, required: true },
+    value: { type: String, default: "" },
   },
   { _id: false }
 );
@@ -161,6 +181,7 @@ const ProductSchema = new Schema<IProduct>(
     isActive: { type: Boolean, default: true },
     tax: { type: ProductTaxSchema, default: () => ({ hsnCode: "6211", gstRate: 5, taxCategory: "apparel", taxInclusive: true }) },
     specifications: { type: [ProductSpecSchema], default: [] },
+    specValues: { type: [ProductSpecValueSchema], default: [] },
     seo: { type: ProductSeoSchema, default: () => ({}) },
   },
   { timestamps: true }
@@ -171,6 +192,8 @@ ProductSchema.index({ sku: 1 }, { unique: true });
 ProductSchema.index({ categoryId: 1 });
 ProductSchema.index({ supplierId: 1, createdAt: -1 });
 ProductSchema.index({ createdAt: -1 });
+// Structured specs stay filterable/searchable without touching the templates.
+ProductSchema.index({ "specValues.key": 1 });
 
 let Product: Model<IProduct>;
 

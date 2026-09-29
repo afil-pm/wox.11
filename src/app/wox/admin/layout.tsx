@@ -15,6 +15,7 @@ import {
   Search,
   Tag,
   Truck,
+  ListChecks,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import WoxLoader from "@/components/ui/wox-loader";
@@ -27,6 +28,7 @@ import { subscribeToPush } from "@/lib/push-client";
 const navItems = [
   { label: "Dashboard", icon: LayoutDashboard, href: "/wox/admin", section: "" },
   { label: "Products", icon: Package, href: "/wox/admin/products", section: "" },
+  { label: "Specifications", icon: ListChecks, href: "/wox/admin/specifications", section: "" },
   { label: "Orders", icon: ShoppingCart, href: "/wox/admin/orders", section: "orders" },
   { label: "Suppliers", icon: Truck, href: "/wox/admin/suppliers", section: "" },
   { label: "Messages", icon: MessageSquare, href: "/wox/admin/messages", section: "messages" },

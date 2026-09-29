@@ -2,7 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { generateProductSlug } from "@/lib/seo";
 import { validateProductImageUrl } from "@/lib/images";
 import { isAdmin } from "@/lib/auth/guards";
-import { normalizeVariant, type RawVariantInput } from "@/lib/products/variants";
+import { normalizeVariant, normalizeSpecifications, type RawVariantInput } from "@/lib/products/variants";
+import { normalizeSpecValues } from "@/lib/specs/normalize";
+import { loadSpecTemplate } from "@/lib/specs/service";
 
 function validateImages(
   images: { url: string; alt?: string; position?: number }[]
@@ -59,7 +61,7 @@ export async function GET(request: NextRequest) {
     }
 
     const formatted = products.map((p) => {
-      const obj = p as unknown as { _id: string; name: string; slug: string; description: string; basePrice: number; salePrice: number; sku: string; categoryId: unknown; store: string; images: unknown; variants: unknown; isFeatured: boolean; isActive: boolean; averageRating: number; reviewCount: number; seo: unknown; specifications: unknown; createdAt: unknown };
+      const obj = p as unknown as { _id: string; name: string; slug: string; description: string; basePrice: number; salePrice: number; sku: string; categoryId: unknown; store: string; images: unknown; variants: unknown; isFeatured: boolean; isActive: boolean; averageRating: number; reviewCount: number; seo: unknown; specifications: unknown; specValues: unknown; createdAt: unknown };
       const cat = obj.categoryId ? catMap[String(obj.categoryId)] : null;
       return {
         id: String(obj._id),
@@ -80,6 +82,7 @@ export async function GET(request: NextRequest) {
         reviewCount: obj.reviewCount ?? 0,
         seo: obj.seo || {},
         specifications: (obj.specifications ?? []) as { label: string; value: string }[],
+        specValues: (obj.specValues ?? []) as { key: string; value: string }[],
         source: "mongo" as const,
         createdAt: String(obj.createdAt ?? new Date().toISOString()),
       };
@@ -107,7 +110,7 @@ export async function POST(request: NextRequest) {
     await connectMongoDB();
     const body = await request.json();
 
-    const { name, description, basePrice, salePrice, sku, categoryId, store, isFeatured, isActive, images, variants, seo: adminSeo, tax, specifications } = body;
+    const { name, description, basePrice, salePrice, sku, categoryId, store, isFeatured, isActive, images, variants, seo: adminSeo, tax, specifications, specValues } = body;
 
     if (!name || !basePrice || !sku || !categoryId) {
       return NextResponse.json(
@@ -120,6 +123,15 @@ export async function POST(request: NextRequest) {
     if (!existingCategory) {
       return NextResponse.json({ error: `Category not found for ID: ${categoryId}` }, { status: 404 });
     }
+
+    // Structured specs are validated against the category's template so only
+    // known fields (correctly typed, required ones filled) reach the database.
+    const template = await loadSpecTemplate(existingCategory.type);
+    const normalizedSpecs = normalizeSpecValues(specValues, template?.fields ?? [], { role: "admin" });
+    if (normalizedSpecs.errors.length > 0) {
+      return NextResponse.json({ error: normalizedSpecs.errors.join("; ") }, { status: 400 });
+    }
+    const customSpecs = normalizeSpecifications(specifications);
 
     let slug = generateProductSlug(name);
 
@@ -186,7 +198,8 @@ export async function POST(request: NextRequest) {
       variants: productVariants,
       seo: autoSeo,
       tax: tax || { hsnCode: "6211", gstRate: 5, taxCategory: "apparel", taxInclusive: true },
-      specifications: Array.isArray(specifications) ? specifications.filter((s: { label: string; value: string }) => s.label && s.value) : [],
+      specifications: customSpecs,
+      specValues: normalizedSpecs.specValues,
     });
 
     const { default: Notification } = await import("@/lib/models/notification");
@@ -294,6 +307,27 @@ export async function PUT(request: NextRequest) {
         noindex: data.seo.noindex !== undefined ? data.seo.noindex : existingSeo.noindex || false,
         slugHistory: data.seo.slugHistory || existingSeo.slugHistory || [],
       };
+    }
+
+    if (data.specValues !== undefined) {
+      // Validate against the (possibly changed) category's template. Stored
+      // values the payload does not mention (including keys whose field was
+      // removed from the template) are carried over instead of lost.
+      const { default: Category } = await import("@/lib/models/category");
+      const targetCategory = await Category.findById(data.categoryId ?? existingProduct.categoryId);
+      const template = targetCategory ? await loadSpecTemplate(targetCategory.type) : null;
+      const normalizedSpecs = normalizeSpecValues(data.specValues, template?.fields ?? [], {
+        role: "admin",
+        previous: existingProduct.specValues ?? [],
+      });
+      if (normalizedSpecs.errors.length > 0) {
+        return NextResponse.json({ error: normalizedSpecs.errors.join("; ") }, { status: 400 });
+      }
+      data.specValues = normalizedSpecs.specValues;
+    }
+
+    if (data.specifications !== undefined) {
+      data.specifications = normalizeSpecifications(data.specifications);
     }
 
     const product = await Product.findByIdAndUpdate(id, {

@@ -63,6 +63,8 @@ type ApiProduct = {
   variants: (ColorVariant & { sizes: SizeOption[] })[];
   reviews: Review[];
   specifications?: { label: string; value: string }[];
+  /** Structured spec rows resolved server side from the category template. */
+  specTable?: { label: string; value: string }[];
 };
 
 function RatingStars({ rating, count, size = "sm" }: { rating: number; count: number; size?: "sm" | "md" | "lg" }) {
@@ -377,14 +379,16 @@ export default function ProductDetailPage({ params }: { params: Promise<{ catego
   const specifications: { label: string; value: string }[] =
     currentVariant.specifications && currentVariant.specifications.length > 0
       ? currentVariant.specifications
-      : product.specifications && product.specifications.length > 0
-        ? product.specifications
-        : [
-            { label: "Category", value: product.category.name },
-            { label: "Fit", value: "Regular" },
-            { label: "Material", value: "100% Organic Cotton" },
-            { label: "Pattern", value: "Solid" },
-          ];
+      : product.specTable && product.specTable.length > 0
+        ? product.specTable
+        : product.specifications && product.specifications.length > 0
+          ? product.specifications
+          : [
+              { label: "Category", value: product.category.name },
+              { label: "Fit", value: "Regular" },
+              { label: "Material", value: "100% Organic Cotton" },
+              { label: "Pattern", value: "Solid" },
+            ];
 
   return (
     <div className="min-h-screen bg-white">
@@ -671,9 +675,9 @@ export default function ProductDetailPage({ params }: { params: Promise<{ catego
             {activeTab === "specifications" && (
               <div className="max-w-3xl overflow-hidden rounded-lg border border-zinc-100">
                 {specifications.map((spec, idx) => (
-                  <div key={spec.label} className={cn("flex justify-between px-4 py-3 text-sm", idx % 2 === 0 ? "bg-zinc-50" : "")}>
+                  <div key={`${spec.label}-${idx}`} className={cn("flex justify-between gap-6 px-4 py-3 text-sm", idx % 2 === 0 ? "bg-zinc-50" : "")}>
                     <span className="font-medium text-zinc-700">{spec.label}</span>
-                    <span className="text-zinc-500">{spec.value}</span>
+                    <span className="text-right text-zinc-500">{spec.value}</span>
                   </div>
                 ))}
               </div>
