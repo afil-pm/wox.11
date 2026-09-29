@@ -8,6 +8,12 @@ import { getSupplier } from "@/lib/auth/guards";
 import { normalizeVariant, normalizeSpecifications, type RawVariantInput } from "@/lib/products/variants";
 import { normalizeSpecValues } from "@/lib/specs/normalize";
 import { loadSpecTemplate } from "@/lib/specs/service";
+import { ensureSupplierStore, loadStoreNames } from "@/lib/stores";
+import {
+  sanitizeProductTax,
+  sanitizeRating,
+  sanitizeReviewCount,
+} from "@/lib/products/tax";
 
 export const dynamic = "force-dynamic";
 
@@ -49,6 +55,10 @@ export async function GET(
       return NextResponse.json({ error: "Product not found" }, { status: 404 });
     }
 
+    const storeNames = await loadStoreNames([String(product.storeId ?? "")]);
+    const storeName =
+      storeNames.get(String(product.storeId ?? "")) || product.store || "";
+
     return NextResponse.json({
       product: {
         id: String(product._id),
@@ -63,7 +73,14 @@ export async function GET(
         variants: product.variants ?? [],
         specifications: product.specifications ?? [],
         specValues: product.specValues ?? [],
+        seo: product.seo ?? {},
+        tax: product.tax ?? null,
+        averageRating: product.averageRating ?? 0,
+        reviewCount: product.reviewCount ?? 0,
         isActive: product.isActive ?? true,
+        isFeatured: product.isFeatured ?? false,
+        store: storeName,
+        storeId: product.storeId ?? "",
         supplierId: product.supplierId ?? "",
         supplierName: product.supplierName ?? "",
       },
@@ -93,6 +110,18 @@ export async function PUT(
 
     const body = await request.json();
     const data: Record<string, unknown> = {};
+
+    // Re-assert the store link from the session on every edit. `store`,
+    // `storeId`, `supplierId` and `supplierName` in the payload are ignored, so
+    // a supplier can never move a product onto another supplier's store.
+    const store = await ensureSupplierStore(
+      auth.supplier.supplierId,
+      auth.supplier.supplierName
+    );
+    if (store) {
+      data.store = store.name;
+      data.storeId = store.id;
+    }
 
     if (body.name !== undefined) data.name = body.name;
     if (body.description !== undefined) data.description = body.description;
@@ -199,6 +228,36 @@ export async function PUT(
         data.specifications = normalizeSpecifications(body.specifications);
       }
     }
+
+    // SEO and tax keep the admin form's behaviour: values the payload does not
+    // send fall back to what is already stored.
+    if (body.seo && typeof body.seo === "object") {
+      const existingSeo = existing.seo || ({} as typeof existing.seo);
+      data.seo = {
+        metaTitle: body.seo.metaTitle !== undefined ? body.seo.metaTitle : existingSeo.metaTitle || "",
+        metaDescription: body.seo.metaDescription !== undefined ? body.seo.metaDescription : existingSeo.metaDescription || "",
+        keywords: body.seo.keywords !== undefined ? body.seo.keywords : existingSeo.keywords || [],
+        ogTitle: body.seo.ogTitle !== undefined ? body.seo.ogTitle : existingSeo.ogTitle || "",
+        ogDescription: body.seo.ogDescription !== undefined ? body.seo.ogDescription : existingSeo.ogDescription || "",
+        ogImage: body.seo.ogImage !== undefined ? body.seo.ogImage : existingSeo.ogImage || "",
+        canonicalUrl: body.seo.canonicalUrl !== undefined ? body.seo.canonicalUrl : existingSeo.canonicalUrl || "",
+        noindex: body.seo.noindex !== undefined ? body.seo.noindex : existingSeo.noindex || false,
+        slugHistory: body.seo.slugHistory || existingSeo.slugHistory || [],
+      };
+    }
+
+    if (body.tax !== undefined) {
+      const prev = existing.tax || ({} as Partial<typeof existing.tax>);
+      data.tax = sanitizeProductTax(body.tax, {
+        hsnCode: prev.hsnCode || "6211",
+        gstRate: typeof prev.gstRate === "number" ? prev.gstRate : 5,
+        taxCategory: prev.taxCategory || "apparel",
+        taxInclusive: typeof prev.taxInclusive === "boolean" ? prev.taxInclusive : true,
+      });
+    }
+
+    if (body.averageRating !== undefined) data.averageRating = sanitizeRating(body.averageRating);
+    if (body.reviewCount !== undefined) data.reviewCount = sanitizeReviewCount(body.reviewCount);
 
     const product = await Product.findByIdAndUpdate(id, data, { new: true });
 

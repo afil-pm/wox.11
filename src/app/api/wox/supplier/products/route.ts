@@ -8,6 +8,12 @@ import { getSupplier } from "@/lib/auth/guards";
 import { normalizeVariant, normalizeSpecifications, type RawVariantInput } from "@/lib/products/variants";
 import { normalizeSpecValues } from "@/lib/specs/normalize";
 import { loadSpecTemplate } from "@/lib/specs/service";
+import { ensureSupplierStore, loadStoreNames } from "@/lib/stores";
+import {
+  sanitizeProductTax,
+  sanitizeRating,
+  sanitizeReviewCount,
+} from "@/lib/products/tax";
 
 export const dynamic = "force-dynamic";
 
@@ -60,6 +66,8 @@ export async function GET(request: NextRequest) {
     const cats = catIds.length > 0 ? await Category.find({ _id: { $in: catIds } }).lean() : [];
     const catMap = new Map(cats.map((c) => [String(c._id), { name: c.name, slug: c.slug }]));
 
+    const storeMap = await loadStoreNames(products.map((p) => String(p.storeId ?? "")));
+
     const formatted = products.map((p) => ({
       id: String(p._id),
       name: p.name,
@@ -70,6 +78,11 @@ export async function GET(request: NextRequest) {
       sku: p.sku,
       category: catMap.get(String(p.categoryId)) || null,
       categoryId: p.categoryId ? String(p.categoryId) : null,
+      // The store name is read from the store record so a rename shows up here
+      // without touching the product documents.
+      store: storeMap.get(String(p.storeId ?? "")) || p.store || "",
+      storeId: p.storeId ?? "",
+      supplierId: p.supplierId ?? "",
       images: (p.images ?? []) as { url: string; alt: string; position: number }[],
       variants: (p.variants ?? []) as {
         name: string;
@@ -100,8 +113,31 @@ export async function POST(request: NextRequest) {
 
     await connectMongoDB();
     const body = await request.json();
-    const { name, description, basePrice, salePrice, sku, categoryId, images, variants, isActive, specifications, specValues } =
-      body;
+    const {
+      name,
+      description,
+      basePrice,
+      salePrice,
+      sku,
+      categoryId,
+      images,
+      variants,
+      isActive,
+      specifications,
+      specValues,
+      seo: supplierSeo,
+      tax,
+      averageRating,
+      reviewCount,
+    } = body;
+
+    // Ownership is never taken from the body: the store always comes from the
+    // authenticated supplier account, so a supplier cannot file a product under
+    // another supplier's store.
+    const store = await ensureSupplierStore(
+      auth.supplier.supplierId,
+      auth.supplier.supplierName
+    );
 
     if (!name || !basePrice || !sku || !categoryId) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
@@ -164,14 +200,20 @@ export async function POST(request: NextRequest) {
 
     const price = salePrice ? Number(salePrice) : Number(basePrice);
     const seo = {
-      metaTitle: `${name} | Buy Online at WOX.11`,
-      metaDescription: `${(description || `Shop ${name} at WOX.11`).replace(/<[^>]*>/g, "").slice(0, 155)}. Starting at ₹${price}.`,
-      keywords: [name.toLowerCase(), existingCategory.name.toLowerCase(), existingCategory.gender, "wox11", "fashion"],
-      ogTitle: `${name} | WOX.11`,
-      ogDescription: `${(description || `Shop ${name} at WOX.11`).replace(/<[^>]*>/g, "").slice(0, 200)}`,
-      ogImage: productImages[0]?.url || "",
-      canonicalUrl: "",
-      noindex: false,
+      metaTitle: supplierSeo?.metaTitle || `${name} | Buy Online at WOX.11`,
+      metaDescription:
+        supplierSeo?.metaDescription ||
+        `${(description || `Shop ${name} at WOX.11`).replace(/<[^>]*>/g, "").slice(0, 155)}. Starting at ₹${price}.`,
+      keywords: supplierSeo?.keywords?.length
+        ? supplierSeo.keywords
+        : [name.toLowerCase(), existingCategory.name.toLowerCase(), existingCategory.gender, "wox11", "fashion"],
+      ogTitle: supplierSeo?.ogTitle || `${name} | WOX.11`,
+      ogDescription:
+        supplierSeo?.ogDescription ||
+        `${(description || `Shop ${name} at WOX.11`).replace(/<[^>]*>/g, "").slice(0, 200)}`,
+      ogImage: supplierSeo?.ogImage || productImages[0]?.url || "",
+      canonicalUrl: supplierSeo?.canonicalUrl || "",
+      noindex: supplierSeo?.noindex || false,
       slugHistory: [] as string[],
     };
 
@@ -183,16 +225,19 @@ export async function POST(request: NextRequest) {
       salePrice: salePrice ? Number(salePrice) : 0,
       sku: String(sku).toUpperCase(),
       categoryId,
-      store: "",
+      store: store?.name ?? "",
+      storeId: store?.id ?? "",
       supplierId: auth.supplier.supplierId,
       supplierName: auth.supplier.supplierName,
       // Suppliers never self-feature; the admin controls the homepage slots.
       isFeatured: false,
       isActive: isActive !== false,
+      averageRating: sanitizeRating(averageRating),
+      reviewCount: sanitizeReviewCount(reviewCount),
       images: productImages,
       variants: productVariants,
       seo,
-      tax: { hsnCode: "6211", gstRate: 5, taxCategory: "apparel", taxInclusive: true },
+      tax: sanitizeProductTax(tax),
       specifications: customSpecs,
       specValues: normalizedSpecs.specValues,
     });

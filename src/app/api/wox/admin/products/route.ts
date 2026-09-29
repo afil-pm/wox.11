@@ -44,6 +44,8 @@ export async function GET(request: NextRequest) {
       filter.$or = [
         { name: { $regex: safeSearch, $options: "i" } },
         { sku: { $regex: safeSearch, $options: "i" } },
+        { store: { $regex: safeSearch, $options: "i" } },
+        { supplierName: { $regex: safeSearch, $options: "i" } },
       ];
     }
 
@@ -60,8 +62,36 @@ export async function GET(request: NextRequest) {
       catMap[String(c._id)] = { name: c.name as string, slug: c.slug as string, gender: c.gender as string, type: c.type as string };
     }
 
-    const formatted = products.map((p) => {
-      const obj = p as unknown as { _id: string; name: string; slug: string; description: string; basePrice: number; salePrice: number; sku: string; categoryId: unknown; store: string; images: unknown; variants: unknown; isFeatured: boolean; isActive: boolean; averageRating: number; reviewCount: number; seo: unknown; specifications: unknown; specValues: unknown; createdAt: unknown };
+    // Resolve the owning store/supplier for every row so the admin list can
+    // show (and filter by) them. The store name always comes from the store
+    // record, never from a copy stored on the product.
+    const rows = products as unknown as Record<string, unknown>[];
+    const supplierIds = [...new Set(rows.map((p) => String(p.supplierId || "")).filter(Boolean))];
+    const [supplierDocs, { loadStoresBySupplier }] = await Promise.all([
+      supplierIds.length > 0
+        ? (await import("@/lib/models/user")).default
+            .find({ _id: { $in: supplierIds } })
+            .select("supplierName name")
+            .lean()
+        : Promise.resolve([]),
+      import("@/lib/stores"),
+    ]);
+    const supplierNameOf = (id: string, fallback: string) => {
+      const doc = (supplierDocs as unknown as Record<string, unknown>[]).find(
+        (u) => String(u._id) === id
+      );
+      return String(doc?.supplierName || doc?.name || fallback || "");
+    };
+    const storesBySupplier = await loadStoresBySupplier(supplierIds);
+
+    const formatted = rows.map((obj) => {
+      const supplierId = String(obj.supplierId || "");
+      const supplierName = supplierId
+        ? supplierNameOf(supplierId, String(obj.supplierName || ""))
+        : String(obj.supplierName || "");
+      const linkedStore = storesBySupplier.get(supplierId);
+      const storeId = linkedStore?.id || String(obj.storeId || "");
+      const storeName = linkedStore?.name || String(obj.store || "") || supplierName;
       const cat = obj.categoryId ? catMap[String(obj.categoryId)] : null;
       return {
         id: String(obj._id),
@@ -72,6 +102,10 @@ export async function GET(request: NextRequest) {
         salePrice: obj.salePrice ?? 0,
         sku: obj.sku,
         store: obj.store ?? "",
+        storeId,
+        storeName,
+        supplierId,
+        supplierName,
         category: cat ?? { name: "Uncategorized", slug: "uncategorized", gender: "men", type: "shirts" },
         categoryId: obj.categoryId ? String(obj.categoryId) : null,
         images: (obj.images ?? []) as { url: string; alt: string; position: number }[],

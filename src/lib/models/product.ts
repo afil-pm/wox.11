@@ -71,6 +71,8 @@ export interface IProduct extends Document {
   sku: string;
   categoryId: mongoose.Types.ObjectId;
   store: string;
+  /** Store record id for supplier products ("" = admin/store owned). */
+  storeId: string;
   /** Owner supplier user id ("" = product owned by the store/admin). */
   supplierId: string;
   supplierName: string;
@@ -171,6 +173,7 @@ const ProductSchema = new Schema<IProduct>(
     sku: { type: String, required: true, unique: true },
     categoryId: { type: Schema.Types.ObjectId, ref: "Category", required: true },
     store: { type: String, default: "" },
+    storeId: { type: String, default: "" },
     supplierId: { type: String, default: "" },
     supplierName: { type: String, default: "" },
     images: { type: [ProductImageSchema], default: [] },
@@ -191,6 +194,7 @@ ProductSchema.index({ slug: 1 }, { unique: true });
 ProductSchema.index({ sku: 1 }, { unique: true });
 ProductSchema.index({ categoryId: 1 });
 ProductSchema.index({ supplierId: 1, createdAt: -1 });
+ProductSchema.index({ storeId: 1 });
 ProductSchema.index({ createdAt: -1 });
 // Structured specs stay filterable/searchable without touching the templates.
 ProductSchema.index({ "specValues.key": 1 });

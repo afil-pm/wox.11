@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { ChevronDown, ChevronUp, RefreshCw } from "lucide-react";
 import WoxLoader from "@/components/ui/wox-loader";
+import PremiumSelect from "@/components/ui/premium-select";
 import { supplierFetch } from "@/lib/supplier-api";
 
 interface OrderItem {
@@ -150,20 +151,19 @@ export default function SupplierOrdersPage() {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <select
+          <PremiumSelect
+            className="w-44"
             value={status}
-            onChange={(e) => {
-              setStatus(e.target.value);
+            onValueChange={(val) => {
+              setStatus(val);
               setPage(1);
             }}
-            className="rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-900 outline-none focus:border-zinc-900"
-          >
-            {STATUSES.map((s) => (
-              <option key={s} value={s}>
-                {s === "ALL" ? "All statuses" : s.replace(/_/g, " ")}
-              </option>
-            ))}
-          </select>
+            options={STATUSES.map((s) => ({
+              label: s === "ALL" ? "All statuses" : s.replace(/_/g, " "),
+              value: s,
+            }))}
+            placeholder="All statuses"
+          />
           <button
             onClick={() => load(page, status)}
             className="rounded-lg border border-zinc-200 p-2 text-zinc-500 hover:bg-zinc-50"
@@ -223,19 +223,14 @@ export default function SupplierOrdersPage() {
                       {order.status.replace(/_/g, " ")}
                     </span>
                     {canUpdate && options.length > 0 && (
-                      <select
+                      <PremiumSelect
+                        className="w-40"
                         value=""
                         disabled={savingId === order.id}
-                        onChange={(e) => updateStatus(order, e.target.value)}
-                        className="rounded-lg border border-zinc-200 bg-white px-2 py-1.5 text-xs text-zinc-700 outline-none focus:border-zinc-900"
-                      >
-                        <option value="">Update status…</option>
-                        {options.map((s) => (
-                          <option key={s} value={s}>
-                            {s.replace(/_/g, " ")}
-                          </option>
-                        ))}
-                      </select>
+                        onValueChange={(val) => val && updateStatus(order, val)}
+                        options={options.map((s) => ({ label: s.replace(/_/g, " "), value: s }))}
+                        placeholder="Update status…"
+                      />
                     )}
                   </div>
                 </div>

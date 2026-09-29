@@ -34,9 +34,15 @@ export async function GET(request: NextRequest) {
     if (supplier.verificationStatus !== "VERIFIED") {
       return NextResponse.json({
         supplier: profile,
+        store: null,
         stats: { totalProducts: 0, activeProducts: 0, orderCount: 0, pendingOrders: 0 },
       });
     }
+
+    // The supplier's store record backs every product they create; it is
+    // created on first use from the verified account details.
+    const { ensureSupplierStore } = await import("@/lib/stores");
+    const store = await ensureSupplierStore(supplier.supplierId, supplier.supplierName);
 
     const slugs = await getSupplierSlugs(supplier.supplierId);
     const orderQuery = { $or: supplierOrderFilter(supplier.supplierId, slugs) };
@@ -52,6 +58,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({
       supplier: profile,
+      store,
       stats: { totalProducts, activeProducts, orderCount, pendingOrders },
     });
   } catch (error) {

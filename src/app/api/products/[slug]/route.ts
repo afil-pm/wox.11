@@ -6,6 +6,7 @@ import Review from "@/lib/models/review";
 import { resolveSpecRows } from "@/lib/specs/normalize";
 import type { SpecRow } from "@/lib/specs/types";
 import { loadSpecTemplate } from "@/lib/specs/service";
+import { loadStoreNames } from "@/lib/stores";
 
 export const dynamic = "force-dynamic";
 
@@ -97,6 +98,7 @@ export async function GET(
           | null;
         images?: { url: string; alt?: string }[];
         store?: string;
+        storeId?: string;
         supplierName?: string;
         variants?: {
           name?: string;
@@ -156,6 +158,18 @@ export async function GET(
         specTable = (p.specifications ?? []).map((s) => ({ label: s.label, value: s.value }));
       }
 
+      // The store name is resolved from the store record on every read, so
+      // renaming a store updates the "Sold by" line without re-saving products.
+      let storeName = "";
+      try {
+        if (p.storeId) {
+          storeName = (await loadStoreNames([p.storeId])).get(p.storeId) || "";
+        }
+      } catch (err) {
+        console.error("[PRODUCT_GET] store lookup failed:", err);
+      }
+      storeName = storeName || p.store || "";
+
       const product = {
         id: String(p._id),
         name: p.name,
@@ -176,6 +190,7 @@ export async function GET(
           alt: img.alt || "",
         })),
         store: p.store || "",
+        storeName,
         supplierName: p.supplierName || "",
         variants: (p.variants || []).map(
           (
@@ -249,6 +264,7 @@ export async function GET(
         },
         images: found.images.map((img) => ({ url: img.url, alt: img.alt })),
         store: "",
+        storeName: "",
         supplierName: "",
         variants: [
           {

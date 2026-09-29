@@ -26,6 +26,10 @@ type ProductData = {
   sku: string;
   categoryId: string;
   store: string;
+  storeId: string;
+  storeName: string;
+  supplierId: string;
+  supplierName: string;
   isFeatured: boolean;
   isActive: boolean;
   source: "static" | "mongo";
@@ -108,6 +112,8 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
   const [specValues, setSpecValues] = useState<Record<string, string>>({});
   const [templatesLoaded, setTemplatesLoaded] = useState(false);
   const [keywordInput, setKeywordInput] = useState("");
+  /** Supplier owned products show a read-only store/supplier summary. */
+  const [owner, setOwner] = useState<{ storeName: string; supplierName: string } | null>(null);
 
   useEffect(() => {
     async function load() {
@@ -145,6 +151,14 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
           isActive: product.isActive,
         });
         setExistingImages(product.images ?? []);
+        setOwner(
+          product.supplierId
+            ? {
+                storeName: product.storeName || product.store || "",
+                supplierName: product.supplierName || "",
+              }
+            : null
+        );
         if (product.seo && typeof product.seo === "object") {
           const s = product.seo as Record<string, unknown>;
           setSeo({
@@ -368,6 +382,25 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
       ) : error ? (
         <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">{error}</div>
       ) : (
+        <>
+          {owner && (
+            <div className="mb-4 flex flex-wrap gap-x-10 gap-y-3 rounded-xl border bg-white px-5 py-4 shadow-sm">
+              <div>
+                <p className="text-xs font-medium uppercase tracking-wide text-gray-400">Store</p>
+                <p className="mt-0.5 text-sm font-semibold text-gray-900">{owner.storeName || "—"}</p>
+              </div>
+              <div>
+                <p className="text-xs font-medium uppercase tracking-wide text-gray-400">Supplier</p>
+                <p className="mt-0.5 text-sm font-semibold text-gray-900">{owner.supplierName || "—"}</p>
+              </div>
+              <div className="flex items-end">
+                <p className="text-xs text-gray-400">
+                  Linked to this supplier&apos;s store record — the store name updates everywhere
+                  automatically.
+                </p>
+              </div>
+            </div>
+          )}
         <form onSubmit={handleSubmit} className="max-w-2xl">
           <div className="space-y-6 rounded-xl border bg-white p-6 shadow-sm">
             <div>
@@ -416,8 +449,25 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
 
             <div>
               <label className="mb-1 block text-sm font-medium text-gray-700">Store</label>
-              <Input name="store" value={formData.store} onChange={handleChange} placeholder="e.g. WOX Main Store, WOX Outlet" />
-              <p className="mt-1 text-xs text-gray-400">Assign this product to a store location</p>
+              {owner ? (
+                <>
+                  <input
+                    type="text"
+                    value={owner.storeName}
+                    readOnly
+                    tabIndex={-1}
+                    className="flex h-10 w-full cursor-not-allowed rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2 text-sm text-zinc-700 outline-none"
+                  />
+                  <p className="mt-1 text-xs text-gray-400">
+                    Supplier products always belong to their supplier&apos;s store record.
+                  </p>
+                </>
+              ) : (
+                <>
+                  <Input name="store" value={formData.store} onChange={handleChange} placeholder="e.g. WOX Main Store, WOX Outlet" />
+                  <p className="mt-1 text-xs text-gray-400">Assign this product to a store location</p>
+                </>
+              )}
             </div>
 
             {/* Variants & Sizes */}
@@ -695,6 +745,7 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
             </div>
           </div>
         </form>
+        </>
       )}
     </>
   );

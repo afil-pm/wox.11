@@ -15,9 +15,10 @@ interface PremiumSelectProps {
   options: SelectOption[];
   placeholder?: string;
   className?: string;
+  disabled?: boolean;
 }
 
-export default function PremiumSelect({ value, onValueChange, options, placeholder = "Select...", className }: PremiumSelectProps) {
+export default function PremiumSelect({ value, onValueChange, options, placeholder = "Select...", className, disabled }: PremiumSelectProps) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
@@ -37,10 +38,12 @@ export default function PremiumSelect({ value, onValueChange, options, placehold
     <div ref={ref} className={cn("relative", className)}>
       <button
         type="button"
+        disabled={disabled}
         onClick={() => setOpen(!open)}
         className={cn(
           "flex h-10 w-full items-center justify-between rounded-lg border bg-white px-3 py-2 text-sm transition-all",
-          open ? "border-zinc-900 ring-1 ring-zinc-900" : "border-zinc-200 hover:border-zinc-300"
+          open ? "border-zinc-900 ring-1 ring-zinc-900" : "border-zinc-200 hover:border-zinc-300",
+          disabled && "cursor-not-allowed bg-zinc-50 text-zinc-500 hover:border-zinc-200"
         )}
       >
         <span className={selected ? "text-zinc-900" : "text-zinc-400"}>
@@ -50,12 +53,13 @@ export default function PremiumSelect({ value, onValueChange, options, placehold
       </button>
 
       {open && (
-        <div className="absolute z-50 mt-1 w-full overflow-hidden rounded-lg border border-zinc-200 bg-white shadow-xl">
+        <div className="animate-select-in absolute z-50 mt-1 w-full overflow-hidden rounded-lg border border-zinc-200 bg-white shadow-xl">
           <div className="max-h-60 overflow-y-auto py-1">
             {options.map((option) => (
               <button
                 key={option.value}
                 type="button"
+                disabled={disabled}
                 onClick={() => { onValueChange(option.value); setOpen(false); }}
                 className={cn(
                   "flex w-full items-center gap-2 px-3 py-2.5 text-sm transition-colors",

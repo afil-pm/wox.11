@@ -1,11 +1,12 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
 import { Search, Plus, Edit2, Trash2, Database, FileCode, Percent, IndianRupee, Check, X, Tag } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+import PremiumSelect from "@/components/ui/premium-select";
 import { cn, formatPrice } from "@/lib/utils";
 import { adminFetch } from "@/lib/admin-api";
 
@@ -31,6 +32,11 @@ type ApiProduct = {
   category: { name: string; slug: string; gender: string; type: string };
   categoryId: string | null;
   store: string;
+  /** Current store name, resolved live from the store record. */
+  storeName: string;
+  storeId: string;
+  supplierId: string;
+  supplierName: string;
   images: { url: string; alt: string | null; position?: number }[];
   variants: ProductVariant[];
   source: "static" | "mongo";
@@ -51,6 +57,8 @@ export default function AdminProductsPage() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<FilterStatus>("all");
+  const [storeFilter, setStoreFilter] = useState("all");
+  const [supplierFilter, setSupplierFilter] = useState("all");
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [apiError, setApiError] = useState<string | null>(null);
 
@@ -102,11 +110,32 @@ export default function AdminProductsPage() {
     );
   }
 
+  const storeOptions = useMemo(
+    () =>
+      [...new Set(products.map((p) => p.storeName).filter(Boolean))].sort((a, b) =>
+        a.localeCompare(b)
+      ).map((name) => ({ label: name, value: name })),
+    [products]
+  );
+
+  const supplierOptions = useMemo(
+    () =>
+      [...new Set(products.map((p) => p.supplierName).filter(Boolean))].sort((a, b) =>
+        a.localeCompare(b)
+      ).map((name) => ({ label: name, value: name })),
+    [products]
+  );
+
   const filtered = products.filter((p) => {
+    const query = search.trim().toLowerCase();
     const matchesSearch =
-      p.name.toLowerCase().includes(search.toLowerCase()) ||
-      p.sku.toLowerCase().includes(search.toLowerCase());
+      !query ||
+      [p.name, p.sku, p.storeName, p.supplierName].some((value) =>
+        (value || "").toLowerCase().includes(query)
+      );
     if (!matchesSearch) return false;
+    if (storeFilter !== "all" && p.storeName !== storeFilter) return false;
+    if (supplierFilter !== "all" && p.supplierName !== supplierFilter) return false;
     if (filter === "active") return p.isActive;
     if (filter === "inactive") return !p.isActive;
     if (filter === "low-stock") return totalStock(p) < 10;
@@ -251,17 +280,31 @@ export default function AdminProductsPage() {
         </div>
       )}
 
-      <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center">
+      <div className="mb-4 flex flex-col gap-3 xl:flex-row xl:items-center">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
           <Input
-            placeholder="Search products..."
+            placeholder="Search by product, SKU, store or supplier..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="pl-9"
           />
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <PremiumSelect
+            value={storeFilter}
+            onValueChange={setStoreFilter}
+            options={[{ label: "All stores", value: "all" }, ...storeOptions]}
+            placeholder="All stores"
+            className="w-full sm:w-44"
+          />
+          <PremiumSelect
+            value={supplierFilter}
+            onValueChange={setSupplierFilter}
+            options={[{ label: "All suppliers", value: "all" }, ...supplierOptions]}
+            placeholder="All suppliers"
+            className="w-full sm:w-44"
+          />
           {(Object.keys(filterLabels) as FilterStatus[]).map((key) => (
             <button
               key={key}
@@ -309,6 +352,7 @@ export default function AdminProductsPage() {
                 <th className="p-4">SKU</th>
                 <th className="p-4">Category</th>
                 <th className="p-4">Store</th>
+                <th className="p-4">Supplier</th>
                 <th className="p-4">Price</th>
                 <th className="p-4">Stock</th>
                 <th className="p-4">Source</th>
@@ -355,7 +399,12 @@ export default function AdminProductsPage() {
                     </td>
                     <td className="p-4 font-mono text-xs text-gray-500">{product.sku}</td>
                     <td className="p-4 text-gray-600">{product.category.name}</td>
-                    <td className="p-4 text-gray-600">{product.store || "—"}</td>
+                    <td className="p-4">
+                      <span className="font-medium text-gray-900">
+                        {product.storeName || "—"}
+                      </span>
+                    </td>
+                    <td className="p-4 text-gray-600">{product.supplierName || "—"}</td>
                     <td className="p-4">
                       {product.salePrice && product.salePrice > 0 ? (
                         <div>
