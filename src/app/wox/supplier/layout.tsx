@@ -80,7 +80,7 @@ export default function SupplierLayout({ children }: { children: React.ReactNode
         return;
       }
       const user = JSON.parse(raw);
-      if (user.role !== "SUPPLIER" || !user.token) {
+      if (user.role !== "SUPPLIER") {
         router.replace("/wox/supplier/login");
         return;
       }

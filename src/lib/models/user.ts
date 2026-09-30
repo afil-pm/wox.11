@@ -32,6 +32,12 @@ export interface IUser extends Document {
   };
   supplierApprovedAt?: Date;
   supplierRejectedAt?: Date;
+  /**
+   * Bumped whenever credentials change (password reset today). Session tokens
+   * carry the value they were issued under, so a bump signs every existing
+   * session out at once — see `lib/auth/session-revocation.ts`.
+   */
+  sessionVersion: number;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -59,6 +65,7 @@ const UserSchema = new Schema<IUser>(
     },
     supplierApprovedAt: { type: Date },
     supplierRejectedAt: { type: Date },
+    sessionVersion: { type: Number, default: 0 },
   },
   { timestamps: true }
 );

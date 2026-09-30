@@ -4,6 +4,7 @@ import crypto from "crypto";
 import { connectMongoDB } from "@/lib/mongodb";
 import User from "@/lib/models/user";
 import { clientIp, rateLimit } from "@/lib/security/rate-limit";
+import { validateNewPassword } from "@/lib/auth/password-policy";
 
 const MAX_RESET_ATTEMPTS = 5;
 const LOCKOUT_DURATION_MS = 60 * 60 * 1000;
@@ -38,11 +39,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (newPassword.length < 8 || newPassword.length > 200) {
-      return NextResponse.json(
-        { error: "Password must be at least 8 characters" },
-        { status: 400 }
-      );
+    const passwordCheck = await validateNewPassword(newPassword);
+    if (!passwordCheck.ok) {
+      return NextResponse.json({ error: passwordCheck.error }, { status: 400 });
     }
 
     await connectMongoDB();
@@ -65,6 +64,10 @@ export async function POST(request: NextRequest) {
 
     user.password = passwordHash;
     user.recoveryCode = newRecoveryCode;
+    // New password, new session epoch: every token minted before this point
+    // (including one that may have been copied off the compromised account)
+    // stops verifying from here on. See lib/auth/session-revocation.ts.
+    user.sessionVersion = (Number(user.sessionVersion) || 0) + 1;
     await user.save();
 
     return NextResponse.json({

@@ -4,7 +4,8 @@ import crypto from "crypto";
 import { cookies } from "next/headers";
 import { connectMongoDB } from "@/lib/mongodb";
 import User from "@/lib/models/user";
-import { createSessionToken, sessionCookieOptions } from "@/lib/auth/session";
+import { createSessionToken, createTwoFactorChallenge, sessionCookieOptions } from "@/lib/auth/session";
+import { loadTwoFactor } from "@/lib/auth/two-factor";
 import { clientIp, rateLimit, resetRateLimit } from "@/lib/security/rate-limit";
 import { audit } from "@/lib/security/audit";
 
@@ -52,6 +53,26 @@ export async function POST(request: NextRequest) {
     const adminPassword = process.env.ADMIN_PASSWORD || "";
     if (adminEmail && adminPassword && normalisedEmail === adminEmail) {
       if (timingSafeEqualStr(password, adminPassword)) {
+        resetRateLimit("login-account", normalisedEmail);
+
+        // The environment-backed admin account has no user row, so its
+        // enrolment lives in the same keyed store as everyone else's.
+        const twoFactor = await loadTwoFactor("admin-env");
+        if (twoFactor?.enabled) {
+          const challenge = createTwoFactorChallenge({
+            sub: "admin-env",
+            role: "ADMIN",
+            email: normalisedEmail,
+            name: "Admin",
+          });
+          if (challenge) {
+            return NextResponse.json(
+              { requiresTwoFactor: true, twoFactorToken: challenge },
+              { status: 200 }
+            );
+          }
+        }
+
         const token = createSessionToken({
           sub: "admin-env",
           role: "ADMIN",
@@ -59,7 +80,6 @@ export async function POST(request: NextRequest) {
           name: "Admin",
         });
         if (token) store.set("wox-session", token, sessionCookieOptions());
-        resetRateLimit("login-account", normalisedEmail);
 
         return NextResponse.json({
           user: {
@@ -92,15 +112,36 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Invalid email or password" }, { status: 401 });
     }
 
+    // Password is right. If this account enrolled a second factor, stop here
+    // with a short-lived challenge instead of handing over a session — the
+    // session only exists once the code matches.
+    const twoFactor = await loadTwoFactor(String(user._id));
+    if (twoFactor?.enabled) {
+      const challenge = createTwoFactorChallenge({
+        sub: String(user._id),
+        role: user.role,
+        email: user.email,
+        name: user.name,
+        version: Number(user.sessionVersion) || 0,
+      });
+      resetRateLimit("login-account", normalisedEmail);
+      if (challenge) {
+        return NextResponse.json(
+          { requiresTwoFactor: true, twoFactorToken: challenge },
+          { status: 200 }
+        );
+      }
+    }
+
     const token = createSessionToken({
       sub: String(user._id),
       role: user.role,
       email: user.email,
       name: user.name,
+      version: Number(user.sessionVersion) || 0,
     });
     if (token) store.set("wox-session", token, sessionCookieOptions());
     resetRateLimit("login-account", normalisedEmail);
-
     return NextResponse.json({
       user: {
         id: user._id,

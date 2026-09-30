@@ -1,6 +1,7 @@
 import crypto from "crypto";
 import { cookies } from "next/headers";
 import { getSession, sessionSecret, Session, SESSION_COOKIE, verifySessionToken } from "@/lib/auth/session";
+import { sessionStillActive } from "@/lib/auth/session-revocation";
 import { connectMongoDB } from "@/lib/mongodb";
 import User from "@/lib/models/user";
 import Order from "@/lib/models/order";
@@ -127,8 +128,15 @@ export async function resolveCustomerIdentity(
 
   // Header/Authorization first (API clients), then the HttpOnly login cookie
   // browsers carry automatically.
-  const session: Session | null =
+  let session: Session | null =
     getSession(request) ?? verifySessionToken(store.get(SESSION_COOKIE)?.value);
+
+  // A token that was minted before the account's sessionVersion moved (for
+  // example because the password was just reset) is treated as if it did not
+  // exist, so a copied session cannot outlive the credential change.
+  if (session && !(await sessionStillActive(session))) {
+    session = null;
+  }
 
   if (session) {
     if (session.role === "ADMIN") {

@@ -80,6 +80,7 @@ export async function POST(
     const { default: Review } = await import("@/lib/models/review");
     const { default: Order } = await import("@/lib/models/order");
     const { customerUserId } = await import("@/lib/auth/identity");
+    const { getSession } = await import("@/lib/auth/session");
     await connectMongoDB();
 
     const product = await Product.findOne({ slug });
@@ -88,24 +89,54 @@ export async function POST(
     }
 
     const identity = await customerUserId(request, request.headers.get("x-user-id"));
-    // Review.userId is an ObjectId: only an account id can be stored there,
-    // a visitor uid would cast-fail.
-    const identityObjectId = identity && /^[a-f0-9]{24}$/i.test(identity) ? identity : null;
+    const session = getSession(request);
 
-    const hasDelivered = await Order.findOne({
-      ...(identityObjectId ? { $or: [{ customerEmail: normalizedEmail }, { userId: identityObjectId }] } : { customerEmail: normalizedEmail }),
-      status: "DELIVERED",
-      "items.slug": slug,
-    });
+    // Purchase proof is bound to *who the caller really is*, not to an email
+    // address they typed. Before, a delivered order belonging to anyone was
+    // enough as long as its email was guessed correctly, so a stranger could
+    // post a review that read as if that customer had written it.
+    const ownership: Array<Record<string, unknown>> = [];
+    if (identity) {
+      // Account order (24 hex) or guest order recorded against the signed
+      // visitor id (32 hex) — both live in Order.userId as strings.
+      ownership.push({ userId: identity });
+    }
+    const sessionEmail = session?.email?.trim().toLowerCase() || "";
+    if (sessionEmail) {
+      // Orders placed before the visitor id existed carry no user id. An
+      // email on its own is not proof (checkout lets anyone type one), so it
+      // only counts when it is also the address this caller signed in with.
+      ownership.push({ userId: { $in: ["", null] }, customerEmail: sessionEmail });
+    }
 
-    if (!hasDelivered) {
+    if (ownership.length === 0) {
       return NextResponse.json(
         { error: "You can only review products you have purchased and received" },
         { status: 403 }
       );
     }
 
-    const existingReview = await Review.findOne({ productId: product._id, userEmail: normalizedEmail });
+    const purchasedOrder = await Order.findOne({
+      $or: ownership,
+      status: "DELIVERED",
+      "items.slug": slug,
+    });
+
+    if (!purchasedOrder) {
+      return NextResponse.json(
+        { error: "You can only review products you have purchased and received" },
+        { status: 403 }
+      );
+    }
+
+    // Attribution follows the verified identity / the order's own email, never
+    // the free-form address in the request body.
+    const attributedEmail =
+      sessionEmail ||
+      String((purchasedOrder as { customerEmail?: string }).customerEmail || "").trim().toLowerCase() ||
+      normalizedEmail;
+
+    const existingReview = await Review.findOne({ productId: product._id, userEmail: attributedEmail });
     if (existingReview) {
       existingReview.rating = rating;
       existingReview.comment = comment || "";
@@ -114,9 +145,10 @@ export async function POST(
       const mongoose = (await import("mongoose")).default;
       await Review.create({
         productId: product._id,
-        userId: identityObjectId || new mongoose.Types.ObjectId(),
+        userId: identity && /^[a-f0-9]{24}$/i.test(identity) ? identity : new mongoose.Types.ObjectId(),
+        orderId: purchasedOrder._id,
         userName: userName.trim(),
-        userEmail: normalizedEmail,
+        userEmail: attributedEmail,
         rating,
         comment: comment || "",
       });

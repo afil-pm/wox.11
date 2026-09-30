@@ -78,14 +78,23 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // The caller claims to be this account: prefer the proven identity (signed
-    // session or bound visitor cookie) and only fall back to the legacy header
-    // so a browser whose session merely expired can still ask for help.
+    // The caller claims to be this account. Only a *proven* identity counts —
+    // a signed session, or the bound visitor cookie. The raw `x-user-id`
+    // header is a claim anybody can make once they know the victim's account
+    // id, so it is never used as evidence: without proof this is a 401 and the
+    // requester has to sign in first (which is what the form already tells
+    // them to do).
     const identity = await customerUserId(request, request.headers.get("x-user-id"));
-    const headerId = (request.headers.get("x-user-id") || "").trim();
-    const senderUserId = identity || headerId;
+    const senderUserId = identity || "";
 
-    if (senderUserId && senderUserId !== registeredUser._id.toString()) {
+    if (!senderUserId) {
+      return NextResponse.json(
+        { error: "Please log in to send a message. This helps us verify your identity and protect your account." },
+        { status: 401 }
+      );
+    }
+
+    if (senderUserId !== registeredUser._id.toString()) {
       return NextResponse.json(
         { error: "The provided identity does not match the account associated with this email. Please log in with the correct account." },
         { status: 403 }
@@ -97,13 +106,6 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         { error: "The name you entered does not match the name on this account. Please enter the name exactly as it appears on your account." },
         { status: 403 }
-      );
-    }
-
-    if (!senderUserId) {
-      return NextResponse.json(
-        { error: "Please log in to send a message. This helps us verify your identity and protect your account." },
-        { status: 401 }
       );
     }
 

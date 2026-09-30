@@ -9,6 +9,8 @@ import BackButton from "@/components/ui/back-button";
 import { useSignOutStore } from "@/lib/stores/sign-out";
 import { useTheme } from "@/lib/theme-context";
 import { cn } from "@/lib/utils";
+import { safeStoredUser } from "@/lib/auth/stored-user";
+import TwoFactorSettings from "@/components/auth/two-factor-settings";
 
 export default function AccountSettingsPage() {
   const [name, setName] = useState("");
@@ -83,7 +85,7 @@ export default function AccountSettingsPage() {
       const user = JSON.parse(stored);
       user.name = name;
       user.phone = phone;
-      localStorage.setItem("wox-user", JSON.stringify(user));
+      localStorage.setItem("wox-user", JSON.stringify(safeStoredUser(user)));
       window.dispatchEvent(new Event("auth-change"));
       setSaved(true);
       setTimeout(() => setSaved(false), 2000);
@@ -392,6 +394,8 @@ export default function AccountSettingsPage() {
           </div>
         )}
       </div>
+
+      <TwoFactorSettings />
 
       {/* Theme */}
       <div className="mt-6 rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm">

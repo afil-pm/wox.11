@@ -7,6 +7,7 @@ import User from "@/lib/models/user";
 import { createSessionToken, sessionCookieOptions } from "@/lib/auth/session";
 import { notifyUser } from "@/lib/notify";
 import { clientIp, rateLimit } from "@/lib/security/rate-limit";
+import { validateNewPassword } from "@/lib/auth/password-policy";
 import { audit } from "@/lib/security/audit";
 
 function generateRecoveryCode(): string {
@@ -47,8 +48,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Name must be 2-100 characters" }, { status: 400 });
     }
 
-    if (password.length < 8 || password.length > 200) {
-      return NextResponse.json({ error: "Password must be at least 8 characters" }, { status: 400 });
+    const passwordCheck = await validateNewPassword(password);
+    if (!passwordCheck.ok) {
+      return NextResponse.json({ error: passwordCheck.error }, { status: 400 });
     }
 
     // Self-registration only ever creates CUSTOMER or pending SUPPLIER accounts.
@@ -92,6 +94,7 @@ export async function POST(request: NextRequest) {
       role: user.role,
       email: user.email,
       name: user.name,
+      version: Number(user.sessionVersion) || 0,
     });
     if (token) (await cookies()).set("wox-session", token, sessionCookieOptions());
 

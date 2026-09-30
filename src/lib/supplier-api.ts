@@ -1,6 +1,5 @@
 export function getSupplierStoredUser(): {
   role?: string;
-  token?: string;
   supplierName?: string;
 } | null {
   try {
@@ -12,21 +11,14 @@ export function getSupplierStoredUser(): {
   return null;
 }
 
-export function getSupplierHeaders(): Record<string, string> {
-  const user = getSupplierStoredUser();
-  if (!user) return {};
-  const headers: Record<string, string> = {};
-  if (user.token) headers["x-session-token"] = user.token;
-  return headers;
-}
-
 export async function supplierFetch(url: string, options: RequestInit = {}) {
   const headers = {
     "Content-Type": "application/json",
-    ...getSupplierHeaders(),
     ...options.headers,
   };
-  const res = await fetch(url, { ...options, headers });
+  // Credential = HttpOnly `wox-session` cookie only. No token is read from or
+  // written to localStorage, so an injected script cannot lift it.
+  const res = await fetch(url, { ...options, headers, credentials: "same-origin" });
 
   if (
     res.status === 401 &&

@@ -1,10 +1,12 @@
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import { headers } from "next/headers";
 import "./globals.css";
 import { PWAInstallBanner } from "@/components/ui/pwa-install-banner";
 import BackNavTracker from "@/components/ui/back-nav-tracker";
 import EnterKeyNavigation from "@/components/ui/enter-key-navigation";
 import PwaSplash from "@/components/ui/pwa-splash";
+import StoredUserSanitizer from "@/components/ui/stored-user-sanitizer";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -81,11 +83,17 @@ export const viewport: Viewport = {
   viewportFit: "cover",
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  // Per-request nonce minted by `src/proxy.ts`. Reading it also opts every
+  // page into dynamic rendering — a requirement of nonce-based CSP, because a
+  // prerendered page has no request and its inline scripts could never carry
+  // a nonce the browser would accept.
+  const nonce = (await headers()).get("x-nonce") || "";
+
   return (
     <html
       lang="en"
@@ -96,6 +104,7 @@ export default function RootLayout({
         {/* Apply the stored theme before first paint so dark styles never flash.
             Also matches the browser chrome (theme-color) to the chosen theme. */}
         <script
+          nonce={nonce}
           dangerouslySetInnerHTML={{
             __html: `(function(){var dark=false;try{var t=localStorage.getItem("wox-theme");dark=t==="dark"||(t!=="light"&&window.matchMedia("(prefers-color-scheme: dark)").matches)}catch(e){try{dark=window.matchMedia("(prefers-color-scheme: dark)").matches}catch(e2){}}if(dark){document.documentElement.classList.add("dark")}try{var m=document.querySelector('meta[name="theme-color"]');if(m){m.setAttribute("content",dark?"#18181b":"#ffffff")}}catch(e3){}})();`,
           }}
@@ -109,6 +118,7 @@ export default function RootLayout({
         <meta name="mobile-web-app-capable" content="yes" />
         <script
           type="application/ld+json"
+          nonce={nonce}
           dangerouslySetInnerHTML={{
             __html: JSON.stringify({
               "@context": "https://schema.org",
@@ -127,11 +137,13 @@ export default function RootLayout({
       </head>
       <body className="min-h-screen flex flex-col">
         <script
+          nonce={nonce}
           dangerouslySetInnerHTML={{
             __html: `(function(){var d=document.body;if(!d)return;var dark=document.documentElement.classList.contains('dark');var bg=dark?'#18181b':'#ffffff';var fg=dark?'#fafafa':'#18181b';var dot=dark?'#52525b':'#71717a';var track=dark?'#27272a':'#f4f4f5';var fill=dark?'#fafafa':'#18181b';var s=document.createElement('div');s.id='wox-inline-splash';s.style.cssText='position:fixed;inset:0;z-index:99999;display:flex;align-items:center;justify-content:center;background:'+bg+';';s.innerHTML='<div style="display:flex;flex-direction:column;align-items:center;gap:16px"><div style="display:flex;align-items:baseline;gap:0">\\x3Cstyle>@keyframes li{0%{opacity:0;transform:translateY(8px) scale(.9);filter:blur(4px)}100%{opacity:1;transform:none;filter:none}}@keyframes di{0%{opacity:0;transform:scale(0)}60%{opacity:1;transform:scale(1.3)}100%{opacity:1;transform:scale(1)}}@keyframes pr{0%{transform:translateX(-100%)}50%{transform:translateX(0)}100%{transform:translateX(100%)}}</style>\\x3C/div><div style="display:flex;align-items:baseline"><span style="font-size:clamp(2rem,5vw,3rem);font-weight:900;letter-spacing:-2px;color:'+fg+';animation:li .5s cubic-bezier(.22,1,.36,1) both">W</span><span style="font-size:clamp(2rem,5vw,3rem);font-weight:900;letter-spacing:-2px;color:'+fg+';animation:li .5s cubic-bezier(.22,1,.36,1) .12s both">O</span><span style="font-size:clamp(2rem,5vw,3rem);font-weight:900;letter-spacing:-2px;color:'+fg+';animation:li .5s cubic-bezier(.22,1,.36,1) .24s both">X</span><span style="font-size:clamp(2rem,5vw,3rem);font-weight:900;letter-spacing:-2px;color:'+dot+';margin-left:2px;animation:di .4s cubic-bezier(.22,1,.36,1) .48s both">.</span><span style="font-size:clamp(2rem,5vw,3rem);font-weight:900;letter-spacing:-2px;color:'+fg+';animation:li .5s cubic-bezier(.22,1,.36,1) .48s both">1</span><span style="font-size:clamp(2rem,5vw,3rem);font-weight:900;letter-spacing:-2px;color:'+fg+';animation:li .5s cubic-bezier(.22,1,.36,1) .6s both">1</span></div><div style="height:2px;width:96px;overflow:hidden;border-radius:999px;background:'+track+'"><div style="height:100%;width:100%;border-radius:999px;background:'+fill+';animation:pr 1.5s ease-in-out infinite"></div></div></div>';d.prepend(s);})();`,
           }}
         />
         <PwaSplash />
+        <StoredUserSanitizer />
         <BackNavTracker />
         <EnterKeyNavigation />
         {children}

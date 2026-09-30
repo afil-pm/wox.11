@@ -1,9 +1,19 @@
+import crypto from "crypto";
+import { connectMongoDB } from "@/lib/mongodb";
+
 /**
- * Small in-memory fixed-window rate limiter.
+ * Fixed-window rate limiter.
  *
- * It is per instance (no Redis) which is fine for a single node deployment and
- * for brute-force damping — it only ever has to make online guessing
- * uneconomic, not be a perfect distributed counter.
+ * The count lives in process memory so the hot path never waits on the
+ * database, but every change is mirrored to a MongoDB collection and the
+ * counters are reloaded when the process boots. That closes the "restart, and
+ * the attacker gets 10 fresh login attempts" gap that a purely in-memory
+ * limiter has, while still working (fail-open, in memory only) if the database
+ * happens to be unreachable.
+ *
+ * It is per instance rather than distributed: several instances each get their
+ * own copy of the window, which is fine for brute-force damping — it only has
+ * to make online guessing uneconomic, not be a perfect global counter.
  */
 
 interface Bucket {
@@ -40,6 +50,72 @@ export interface RateLimitResult {
 }
 
 /**
+ * The key is usually an email address, so it is hashed before it ever reaches
+ * the database (`sha256(bucket:key)` is also a valid Mongo `_id`).
+ */
+function bucketId(bucket: string, key: string): string {
+  return crypto.createHash("sha256").update(`${bucket}:${key}`).digest("hex");
+}
+
+let hydration: Promise<void> | null = null;
+let nextHydrateAttempt = 0;
+
+async function loadPersisted(): Promise<void> {
+  try {
+    const { default: RateLimit } = await import("@/lib/models/rate-limit");
+    await connectMongoDB();
+    const rows = (await RateLimit.find({ expiresAt: { $gt: new Date() } })
+      .limit(MAX_BUCKETS)
+      .lean()) as unknown as { _id: string; count: number; expiresAt: Date }[];
+
+    for (const row of rows) {
+      if (!row || typeof row._id !== "string") continue;
+      // A request that landed while we were loading already owns this window;
+      // keep the live count instead of overwriting it with the stored one.
+      if (buckets.has(row._id)) continue;
+      const resetAt = new Date(row.expiresAt).getTime();
+      if (!Number.isFinite(resetAt) || resetAt <= Date.now()) continue;
+      buckets.set(row._id, { count: Number(row.count) || 0, resetAt });
+    }
+  } catch {
+    // Database unavailable (or still connecting): run purely from memory and
+    // try the reload again the next time a limit is checked — but not on every
+    // single check, so a down database is not hammered with reconnects.
+    hydration = null;
+    nextHydrateAttempt = Date.now() + 30_000;
+  }
+}
+
+/** Reload once per process. Safe to call on every check. */
+function hydrate(): void {
+  if (hydration || Date.now() < nextHydrateAttempt) return;
+  nextHydrateAttempt = Number.MAX_SAFE_INTEGER;
+  hydration = loadPersisted();
+}
+
+async function persist(id: string, count: number, resetAt: number): Promise<void> {
+  try {
+    const { default: RateLimit } = await import("@/lib/models/rate-limit");
+    await connectMongoDB();
+    await RateLimit.updateOne(
+      { _id: id },
+      { $set: { count, expiresAt: new Date(resetAt) } },
+      { upsert: true }
+    );
+  } catch {
+    // Best effort: the in-memory count still protects this process.
+  }
+}
+
+async function forget(id: string): Promise<void> {
+  try {
+    const { default: RateLimit } = await import("@/lib/models/rate-limit");
+    await connectMongoDB();
+    await RateLimit.deleteOne({ _id: id });
+  } catch {}
+}
+
+/**
  * Records one attempt against `key` and reports whether it is still allowed.
  *
  * @param bucket  logical group, e.g. "login" or "recovery-status"
@@ -48,17 +124,21 @@ export interface RateLimitResult {
 export function rateLimit(bucket: string, key: string, limit: number, windowMs: number): RateLimitResult {
   const now = Date.now();
   sweep(now);
+  hydrate();
 
-  const id = `${bucket}:${key}`;
+  const id = bucketId(bucket, key);
   const existing = buckets.get(id);
 
   if (!existing || existing.resetAt <= now) {
-    buckets.set(id, { count: 1, resetAt: now + windowMs });
+    const fresh: Bucket = { count: 1, resetAt: now + windowMs };
+    buckets.set(id, fresh);
+    void persist(id, fresh.count, fresh.resetAt);
     return { ok: true, remaining: limit - 1, retryAfterSeconds: Math.ceil(windowMs / 1000) };
   }
 
   existing.count += 1;
   const retryAfterSeconds = Math.max(1, Math.ceil((existing.resetAt - now) / 1000));
+  void persist(id, existing.count, existing.resetAt);
 
   if (existing.count > limit) {
     return { ok: false, remaining: 0, retryAfterSeconds };
@@ -69,7 +149,9 @@ export function rateLimit(bucket: string, key: string, limit: number, windowMs: 
 
 /** Clears a bucket after a successful action so failures alone consume the budget. */
 export function resetRateLimit(bucket: string, key: string): void {
-  buckets.delete(`${bucket}:${key}`);
+  const id = bucketId(bucket, key);
+  buckets.delete(id);
+  void forget(id);
 }
 
 /**

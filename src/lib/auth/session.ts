@@ -10,6 +10,32 @@ export interface Session {
   email: string;
   name: string;
   exp: number;
+  /**
+   * `User.sessionVersion` at the time the token was minted. Bumping the
+   * column (password reset, "sign out everywhere") invalidates every token
+   * issued before it, which is what makes a stolen session die with the
+   * password it was stolen with.
+   */
+  v?: number;
+  /**
+   * Fingerprint of the admin credentials the token was minted under. The
+   * admin account has no user row to hold a version, so the credential
+   * itself is the revocation lever: rotate `ADMIN_PASSWORD` and every
+   * outstanding admin session stops verifying.
+   */
+  ap?: string;
+  /**
+   * Purpose marker. A signed token with `p: "2fa"` is a short-lived
+   * "password accepted, waiting for the code" challenge — never a session.
+   * Both verifiers compare it, so a challenge can never be replayed as a
+   * login and a session can never be replayed as an answer.
+   */
+  p?: string;
+  /**
+   * Challenge id. Consumed (once) when the code is accepted, so a token that
+   * was copied out of a half-finished login cannot be answered twice.
+   */
+  j?: string;
 }
 
 const SESSION_TTL_MS = 7 * 24 * 60 * 60 * 1000;
@@ -94,11 +120,25 @@ function sign(body: string): string {
   return crypto.createHmac("sha256", sessionSecret()).update(body).digest("base64url");
 }
 
+/**
+ * Stable, non-reversible tag over the admin credential. HMAC'd with the
+ * session secret so the token payload (base64, readable by anyone holding it)
+ * never exposes anything an offline attacker could test password guesses
+ * against.
+ */
+function adminCredentialFingerprint(): string {
+  const secret = sessionSecret();
+  if (!secret) return "";
+  const material = `admin-fp:${process.env.ADMIN_EMAIL || ""}:${process.env.ADMIN_PASSWORD || ""}`;
+  return crypto.createHmac("sha256", secret).update(material).digest("hex").slice(0, 32);
+}
+
 export function createSessionToken(input: {
   sub: string;
   role: SessionRole;
   email: string;
   name?: string;
+  version?: number;
 }): string {
   if (!sessionSecret()) return "";
   const payload: Session = {
@@ -107,12 +147,54 @@ export function createSessionToken(input: {
     email: input.email,
     name: input.name || "",
     exp: Date.now() + SESSION_TTL_MS,
+    ...(typeof input.version === "number" ? { v: input.version } : {}),
+    ...(input.role === "ADMIN" ? { ap: adminCredentialFingerprint() } : {}),
   };
   const body = Buffer.from(JSON.stringify(payload)).toString("base64url");
   return `${body}.${sign(body)}`;
 }
 
 export function verifySessionToken(token?: string | null): Session | null {
+  return verifySignedToken(token, undefined);
+}
+
+/** Five minutes is long enough to read a code off a phone, short enough that a
+ * half-finished login left on screen is not a standing credential. */
+export const TWO_FACTOR_CHALLENGE_TTL_MS = 5 * 60 * 1000;
+
+/**
+ * Issued after the password (or admin credential) checks out but before the
+ * second factor does. Carries everything the real session would, so completing
+ * the challenge does not need to re-read the account.
+ */
+export function createTwoFactorChallenge(input: {
+  sub: string;
+  role: SessionRole;
+  email: string;
+  name?: string;
+  version?: number;
+}): string {
+  if (!sessionSecret()) return "";
+  const payload: Session = {
+    sub: input.sub,
+    role: input.role,
+    email: input.email,
+    name: input.name || "",
+    exp: Date.now() + TWO_FACTOR_CHALLENGE_TTL_MS,
+    p: "2fa",
+    j: crypto.randomBytes(8).toString("hex"),
+    ...(typeof input.version === "number" ? { v: input.version } : {}),
+    ...(input.role === "ADMIN" ? { ap: adminCredentialFingerprint() } : {}),
+  };
+  const body = Buffer.from(JSON.stringify(payload)).toString("base64url");
+  return `${body}.${sign(body)}`;
+}
+
+export function verifyTwoFactorChallenge(token?: string | null): Session | null {
+  return verifySignedToken(token, "2fa");
+}
+
+function verifySignedToken(token: string | null | undefined, purpose: string | undefined): Session | null {
   if (!token || !sessionSecret()) return null;
 
   const separator = token.lastIndexOf(".");
@@ -120,11 +202,11 @@ export function verifySessionToken(token?: string | null): Session | null {
 
   const body = token.slice(0, separator);
   const mac = token.slice(separator + 1);
-  const expected = sign(body);
-  if (mac.length !== expected.length) return null;
+  const expectedMac = sign(body);
+  if (mac.length !== expectedMac.length) return null;
 
   const macBuffer = Buffer.from(mac);
-  const expectedBuffer = Buffer.from(expected);
+  const expectedBuffer = Buffer.from(expectedMac);
   if (!crypto.timingSafeEqual(macBuffer, expectedBuffer)) return null;
 
   try {
@@ -133,6 +215,22 @@ export function verifySessionToken(token?: string | null): Session | null {
     if (payload.exp < Date.now()) return null;
     if (payload.role !== "CUSTOMER" && payload.role !== "ADMIN" && payload.role !== "SUPPLIER") {
       return null;
+    }
+    // Purpose must match exactly: a pending-challenge token is not a session,
+    // and a session is not an answer to a challenge.
+    if ((payload.p || undefined) !== purpose) return null;
+    // Admin sessions are only valid while the credential they were minted
+    // under is still the current one — rotating ADMIN_PASSWORD logs every
+    // outstanding admin session out. Tokens from before this rule existed
+    // carry no fingerprint and are rejected (they simply have to sign in
+    // again).
+    if (payload.role === "ADMIN") {
+      const expectedFingerprint = adminCredentialFingerprint();
+      const actual = payload.ap || "";
+      if (!expectedFingerprint || actual.length !== expectedFingerprint.length) return null;
+      const actualBuffer = Buffer.from(actual);
+      const expectedBufferFingerprint = Buffer.from(expectedFingerprint);
+      if (!crypto.timingSafeEqual(actualBuffer, expectedBufferFingerprint)) return null;
     }
     return payload;
   } catch {

@@ -79,6 +79,17 @@ export async function getSupplier(
     return { ok: false, status: 403, code: "supplier_not_found", error: "Supplier account not found." };
   }
 
+  // Same revocation rule as the storefront: a token issued before the last
+  // credential change is dead, even though its signature still verifies.
+  if ((Number(user.sessionVersion) || 0) !== (Number(session.v) || 0)) {
+    return {
+      ok: false,
+      status: 401,
+      code: "session_revoked",
+      error: "Your session is no longer valid. Please sign in again.",
+    };
+  }
+
   const verificationStatus = effectiveVerificationStatus(user);
 
   if (requireVerified && verificationStatus !== "VERIFIED") {

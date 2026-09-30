@@ -3,25 +3,12 @@ import crypto from "crypto";
 import { connectMongoDB } from "@/lib/mongodb";
 import Order from "@/lib/models/order";
 import { isAdmin } from "@/lib/auth/guards";
+import { clientIp, rateLimit } from "@/lib/security/rate-limit";
 
 const CLEAR_PASSWORD = process.env.ORDER_CLEAR_PASSWORD || "";
 
-
-const clearAttempts = new Map<string, { count: number; resetAt: number }>();
 const MAX_CLEAR_ATTEMPTS = 3;
 const LOCKOUT_DURATION_MS = 60 * 60 * 1000;
-
-function checkRateLimit(ip: string): boolean {
-  const now = Date.now();
-  const record = clearAttempts.get(ip);
-  if (!record || now > record.resetAt) {
-    clearAttempts.set(ip, { count: 1, resetAt: now + LOCKOUT_DURATION_MS });
-    return true;
-  }
-  if (record.count >= MAX_CLEAR_ATTEMPTS) return false;
-  record.count++;
-  return true;
-}
 
 export async function DELETE(request: NextRequest) {
   try {
@@ -29,10 +16,7 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
     }
 
-    const forwarded = request.headers.get("x-forwarded-for");
-    const ip = forwarded?.split(",")[0]?.trim() || "unknown";
-
-    if (!checkRateLimit(ip)) {
+    if (!rateLimit("order-clear", clientIp(request), MAX_CLEAR_ATTEMPTS, LOCKOUT_DURATION_MS).ok) {
       return NextResponse.json({ error: "Too many attempts. Please try again later." }, { status: 429 });
     }
 

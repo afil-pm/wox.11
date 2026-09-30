@@ -5,6 +5,8 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Eye, EyeOff, Shield } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { safeStoredUser } from "@/lib/auth/stored-user";
+import TwoFactorForm from "@/components/auth/two-factor-form";
 
 export default function AdminLoginPage() {
   const router = useRouter();
@@ -13,6 +15,18 @@ export default function AdminLoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [twoFactorToken, setTwoFactorToken] = useState<string | null>(null);
+
+  const finishLogin = (user: Record<string, unknown>) => {
+    if (user.role !== "ADMIN") {
+      setError("Access denied. Admin credentials required.");
+      return;
+    }
+
+    localStorage.setItem("wox-user", JSON.stringify(safeStoredUser(user)));
+    window.dispatchEvent(new Event("auth-change"));
+    router.push("/wox/admin");
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -33,14 +47,12 @@ export default function AdminLoginPage() {
         return;
       }
 
-      if (data.user.role !== "ADMIN") {
-        setError("Access denied. Admin credentials required.");
+      if (data.requiresTwoFactor) {
+        setTwoFactorToken(data.twoFactorToken);
         return;
       }
 
-      localStorage.setItem("wox-user", JSON.stringify(data.user));
-      window.dispatchEvent(new Event("auth-change"));
-      router.push("/wox/admin");
+      finishLogin(data.user);
     } catch {
       setError("Something went wrong. Please try again.");
     } finally {
@@ -57,9 +69,23 @@ export default function AdminLoginPage() {
               <Shield className="h-7 w-7 text-white" />
             </div>
             <h1 className="text-2xl font-bold tracking-tight text-zinc-900">Admin Panel</h1>
-            <p className="mt-2 text-sm text-zinc-500">Sign in to manage your store</p>
+            <p className="mt-2 text-sm text-zinc-500">
+              {twoFactorToken
+                ? "Enter the code from your authenticator app"
+                : "Sign in to manage your store"}
+            </p>
           </div>
 
+          {twoFactorToken ? (
+            <TwoFactorForm
+              twoFactorToken={twoFactorToken}
+              onCancel={() => {
+                setTwoFactorToken(null);
+                setError("");
+              }}
+              onAuthenticated={finishLogin}
+            />
+          ) : (
           <form onSubmit={handleSubmit} className="space-y-5">
             {error && (
               <div className="rounded-lg bg-red-50 p-3 text-sm text-red-600">{error}</div>
@@ -115,6 +141,7 @@ export default function AdminLoginPage() {
               )}
             </Button>
           </form>
+          )}
 
           <p className="mt-6 text-center text-sm text-zinc-500">
             <Link href="/" className="font-medium text-zinc-900 underline-offset-4 hover:underline">

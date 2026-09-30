@@ -5,6 +5,8 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Eye, EyeOff, LogIn } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { safeStoredUser } from "@/lib/auth/stored-user";
+import TwoFactorForm from "@/components/auth/two-factor-form";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -13,6 +15,18 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [twoFactorToken, setTwoFactorToken] = useState<string | null>(null);
+
+  const finishLogin = (user: Record<string, unknown>) => {
+    localStorage.setItem("wox-user", JSON.stringify(safeStoredUser(user)));
+    window.dispatchEvent(new Event("auth-change"));
+
+    if (user.role === "ADMIN") {
+      router.push("/wox/admin");
+    } else {
+      router.push("/account");
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -33,14 +47,12 @@ export default function LoginPage() {
         return;
       }
 
-      localStorage.setItem("wox-user", JSON.stringify(data.user));
-      window.dispatchEvent(new Event("auth-change"));
-
-      if (data.user.role === "ADMIN") {
-        router.push("/wox/admin");
-      } else {
-        router.push("/account");
+      if (data.requiresTwoFactor) {
+        setTwoFactorToken(data.twoFactorToken);
+        return;
       }
+
+      finishLogin(data.user);
     } catch {
       setError("Something went wrong. Please try again.");
     } finally {
@@ -54,9 +66,23 @@ export default function LoginPage() {
         <div className="rounded-2xl border border-zinc-200 bg-white p-8 shadow-sm">
           <div className="mb-8 text-center">
             <h1 className="text-2xl font-bold tracking-tight text-zinc-900">Welcome Back</h1>
-            <p className="mt-2 text-sm text-zinc-500">Sign in to your WOX.11 account</p>
+            <p className="mt-2 text-sm text-zinc-500">
+              {twoFactorToken
+                ? "Enter the code from your authenticator app"
+                : "Sign in to your WOX.11 account"}
+            </p>
           </div>
 
+          {twoFactorToken ? (
+            <TwoFactorForm
+              twoFactorToken={twoFactorToken}
+              onCancel={() => {
+                setTwoFactorToken(null);
+                setError("");
+              }}
+              onAuthenticated={finishLogin}
+            />
+          ) : (
           <form onSubmit={handleSubmit} className="space-y-5">
             {error && (
               <div className="rounded-lg bg-red-50 p-3 text-sm text-red-600">{error}</div>
@@ -112,6 +138,7 @@ export default function LoginPage() {
               )}
             </Button>
           </form>
+          )}
 
           <p className="mt-6 text-center text-sm text-zinc-500">
             Don&apos;t have an account?{" "}

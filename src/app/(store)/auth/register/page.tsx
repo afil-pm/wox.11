@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Eye, EyeOff, UserPlus, KeyRound, Copy, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { safeStoredUser } from "@/lib/auth/stored-user";
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -39,7 +40,7 @@ export default function RegisterPage() {
       }
 
       setRecoveryCode(data.recoveryCode || "");
-      localStorage.setItem("wox-user", JSON.stringify(data.user));
+      localStorage.setItem("wox-user", JSON.stringify(safeStoredUser(data.user)));
       window.dispatchEvent(new Event("auth-change"));
       setRegistered(true);
     } catch {
@@ -162,9 +163,9 @@ export default function RegisterPage() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
-                  minLength={6}
+                  minLength={8}
                   className="w-full rounded-lg border border-zinc-200 bg-white px-4 py-2.5 pr-10 text-sm text-zinc-900 placeholder:text-zinc-400 outline-none transition-colors focus:border-zinc-900 focus:ring-1 focus:ring-zinc-900"
-                  placeholder="Min 6 characters"
+                  placeholder="Min 8 characters"
                 />
                 <button
                   type="button"
