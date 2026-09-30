@@ -1,20 +1,23 @@
-import { getSession, SessionRequest } from "@/lib/auth/session";
+import { resolveCustomerIdentity } from "@/lib/auth/identity";
 
 /**
  * The notification user id a caller is allowed to act on.
  *
- * A signed SUPPLIER session is always pinned to the supplier's own account,
- * no matter what the client claims in `x-user-id` or the request body — that
- * is what stops one supplier from reading, marking or subscribing another
- * supplier's notifications through the shared endpoints. Callers without a
- * supplier session keep the existing header based behaviour the storefront
- * bell (customers, anonymous visitors, the admin pseudo user) relies on.
+ * Resolution order:
+ *  - a signed SUPPLIER session is pinned to that supplier's own account;
+ *  - an ADMIN session keeps the requested id (the admin bell listens on the
+ *    `admin-env` pseudo user);
+ *  - everyone else must prove possession of the visitor identity, so a plain
+ *    `x-user-id` header can no longer be used to read another account's
+ *    notifications or mark them as read.
+ *
+ * Returns `null` when nothing can be authorised — callers treat that as
+ * "no identity" and return an empty result instead of someone else's data.
  */
-export function scopedNotificationUserId(
-  request: SessionRequest,
+export async function scopedNotificationUserId(
+  request: { headers: { get(name: string): string | null } },
   requestedUserId: string
-): string {
-  const session = getSession(request);
-  if (session?.role === "SUPPLIER") return session.sub;
-  return requestedUserId;
+): Promise<string | null> {
+  const identity = await resolveCustomerIdentity(request, requestedUserId);
+  return identity.userId;
 }

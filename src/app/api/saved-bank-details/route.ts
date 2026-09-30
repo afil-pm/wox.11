@@ -1,12 +1,21 @@
 import { NextRequest, NextResponse } from "next/server";
 import { connectMongoDB } from "@/lib/mongodb";
 import SavedBankDetails from "@/lib/models/saved-bank-details";
+import { customerUserId } from "@/lib/auth/identity";
 import { encrypt, decrypt, maskAccountNumber } from "@/lib/encryption";
+import { clientIp, rateLimit } from "@/lib/security/rate-limit";
+
+function tooMany(): NextResponse {
+  return NextResponse.json(
+    { error: "Too many requests. Please try again later." },
+    { status: 429, headers: { "Retry-After": "60" } }
+  );
+}
 
 export async function GET(request: NextRequest) {
   try {
     await connectMongoDB();
-    const userId = request.headers.get("x-user-id") || "";
+    const userId = await customerUserId(request, request.headers.get("x-user-id"));
     if (!userId) {
       return NextResponse.json({ error: "Authentication required" }, { status: 401 });
     }
@@ -34,8 +43,10 @@ export async function GET(request: NextRequest) {
 
 export async function PUT(request: NextRequest) {
   try {
+    if (!rateLimit("bank-details-save", clientIp(request), 10, 60_000).ok) return tooMany();
+
     await connectMongoDB();
-    const userId = request.headers.get("x-user-id") || "";
+    const userId = await customerUserId(request, request.headers.get("x-user-id"));
     if (!userId) {
       return NextResponse.json({ error: "Authentication required" }, { status: 401 });
     }
@@ -82,7 +93,7 @@ export async function PUT(request: NextRequest) {
 export async function DELETE(request: NextRequest) {
   try {
     await connectMongoDB();
-    const userId = request.headers.get("x-user-id") || "";
+    const userId = await customerUserId(request, request.headers.get("x-user-id"));
     if (!userId) {
       return NextResponse.json({ error: "Authentication required" }, { status: 401 });
     }

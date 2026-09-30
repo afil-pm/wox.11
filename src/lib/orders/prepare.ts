@@ -131,13 +131,36 @@ export async function prepareOrderPayload(body: Record<string, unknown>): Promis
   const customerEmail = (body.customerEmail as string | undefined) || "";
   const address = body.address as OrderAddress | undefined;
   const items = (body.items as OrderItemInput[] | undefined) || undefined;
-  const paymentMethod = (body.paymentMethod as "razorpay" | "cod" | undefined) || "cod";
+  const paymentMethodRaw = (body.paymentMethod as string | undefined) || "cod";
   const paymentId = (body.paymentId as string | undefined) || "";
   const notes = (body.notes as string | undefined) || "";
   const couponCode = body.couponCode as string | undefined;
 
   if (!orderNumber || !items?.length || !address) {
     return { ok: false, error: "Missing required fields", status: 400 };
+  }
+
+  // Reject anything that is not the identifier shape the rest of the system
+  // emits before it reaches a query, a receipt or a payment reference.
+  if (typeof orderNumber !== "string" || !/^[A-Za-z0-9_#-]{5,64}$/.test(orderNumber)) {
+    return { ok: false, error: "Invalid order number", status: 400 };
+  }
+
+  if (paymentMethodRaw !== "razorpay" && paymentMethodRaw !== "cod") {
+    return { ok: false, error: "Invalid payment method", status: 400 };
+  }
+  const paymentMethod = paymentMethodRaw as "razorpay" | "cod";
+
+  if (typeof paymentId !== "string" || !/^[A-Za-z0-9_-]{0,64}$/.test(paymentId)) {
+    return { ok: false, error: "Invalid payment reference", status: 400 };
+  }
+
+  if (typeof notes !== "string" || notes.length > 500) {
+    return { ok: false, error: "Invalid order note", status: 400 };
+  }
+
+  if (typeof userId !== "string" || userId.length > 64 || /[\u0000-\u001f]/.test(userId)) {
+    return { ok: false, error: "Invalid customer reference", status: 400 };
   }
 
   const requiredAddressFields = ["name", "phone", "line1", "city", "state", "pincode"];

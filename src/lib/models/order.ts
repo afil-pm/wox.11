@@ -229,6 +229,12 @@ OrderSchema.index({ razorpayOrderId: 1 });
 OrderSchema.index({ checkoutSessionId: 1 }, { unique: true, sparse: true });
 OrderSchema.index({ paymentStatus: 1, paymentExpiresAt: 1 });
 OrderSchema.index({ supplierIds: 1 });
+// One gateway payment may settle exactly one order. The partial filter keeps
+// the empty `paymentId` used by COD orders out of the uniqueness constraint.
+OrderSchema.index(
+  { paymentId: 1 },
+  { unique: true, partialFilterExpression: { paymentId: { $type: "string", $gt: "" } } }
+);
 
 let Order: Model<IOrder>;
 

@@ -1,4 +1,4 @@
-import { getSession, sessionSecret, Session } from "@/lib/auth/session";
+import { getSession, Session } from "@/lib/auth/session";
 import { connectMongoDB } from "@/lib/mongodb";
 import User, { IUser, SupplierStatus, VerificationStatus } from "@/lib/models/user";
 
@@ -8,30 +8,12 @@ export interface AuthedRequest {
 
 /**
  * Admin access. Server side only: a valid, unexpired ADMIN session token is
- * required. The legacy `x-admin-email` header is honoured exclusively when no
- * session signing secret is configured (local dev), because trusting a plain
- * header would let any supplier who knows the admin email call admin APIs.
+ * required. There is deliberately no header based fallback — trusting
+ * `x-admin-email` would let anyone who knows the admin email call admin APIs.
  */
 export function getAdminSession(request: AuthedRequest): Session | null {
   const session = getSession(request);
   if (session && session.role === "ADMIN") return session;
-
-  if (!sessionSecret()) {
-    const adminHeader = request.headers.get("x-admin-email");
-    if (!adminHeader) return null;
-    const adminEmail = process.env.ADMIN_EMAIL || "";
-    const email = adminHeader.toLowerCase();
-    if (!adminEmail || email === adminEmail.toLowerCase()) {
-      return {
-        sub: "admin-env",
-        role: "ADMIN",
-        email,
-        name: "Admin",
-        exp: Date.now() + 60_000,
-      };
-    }
-  }
-
   return null;
 }
 
@@ -39,12 +21,9 @@ export function isAdmin(request: AuthedRequest): boolean {
   return getAdminSession(request) !== null;
 }
 
-/** Admin identity for audit fields — never read from a raw header when a session secret is configured. */
+/** Admin identity for audit fields — always the session, never a raw header. */
 export function getAdminEmail(request: AuthedRequest): string {
-  const session = getAdminSession(request);
-  if (session) return session.email;
-  if (!sessionSecret()) return request.headers.get("x-admin-email") || "";
-  return "";
+  return getAdminSession(request)?.email || "";
 }
 
 export interface SupplierContext {

@@ -12,10 +12,9 @@ export function getAdminHeaders(): Record<string, string> {
   const user = getStoredAdminUser();
   if (!user) return {};
   const headers: Record<string, string> = {};
-  // Signed session token — the only credential the server trusts when an
-  // AUTH_SECRET/ADMIN_PASSWORD signing key is configured.
+  // Signed session token — the only credential the server trusts. A plain
+  // `x-admin-email` header is deliberately never sent: it is not a secret.
   if (user.token) headers["x-session-token"] = user.token;
-  else if (user.email) headers["x-admin-email"] = user.email;
   return headers;
 }
 

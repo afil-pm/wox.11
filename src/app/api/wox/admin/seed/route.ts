@@ -94,7 +94,6 @@ export async function POST(request: NextRequest) {
     });
   } catch (error) {
     console.error("Seed error:", error);
-    const message = error instanceof Error ? error.message : "Seed failed";
-    return NextResponse.json({ error: message }, { status: 500 });
+    return NextResponse.json({ error: "Seed failed" }, { status: 500 });
   }
 }

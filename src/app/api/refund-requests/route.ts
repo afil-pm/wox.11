@@ -5,6 +5,8 @@ import SavedBankDetails from "@/lib/models/saved-bank-details";
 import Order from "@/lib/models/order";
 import { encrypt, decrypt, maskAccountNumber } from "@/lib/encryption";
 import { isAdmin } from "@/lib/auth/guards";
+import { customerUserId } from "@/lib/auth/identity";
+import { clientIp, rateLimit } from "@/lib/security/rate-limit";
 
 
 const refundableStatuses = ["PENDING", "CONFIRMED", "PROCESSING", "PACKED", "SHIPPED", "OUT_FOR_DELIVERY", "DELIVERED"];
@@ -17,10 +19,18 @@ export async function POST(request: NextRequest) {
     await connectMongoDB();
     const body = await request.json();
     const { orderId, type, reason, saveBankDetails, useSavedBank } = body;
-    const userId = request.headers.get("x-user-id") || "";
+    const userId = await customerUserId(request, request.headers.get("x-user-id"));
 
     if (!userId) {
       return NextResponse.json({ error: "Authentication required" }, { status: 401 });
+    }
+
+    const rate = rateLimit("refund-request", `${clientIp(request)}:${userId}`, 10, 60 * 60 * 1000);
+    if (!rate.ok) {
+      return NextResponse.json(
+        { error: "Too many refund requests. Please try again later." },
+        { status: 429, headers: { "Retry-After": String(rate.retryAfterSeconds) } }
+      );
     }
 
     if (!orderId || !type || !reason) {
@@ -285,21 +295,21 @@ export async function POST(request: NextRequest) {
     }, { status: 201 });
   } catch (error) {
     console.error("POST /api/refund-requests error:", error);
-    const message = error instanceof Error ? error.message : "Failed to submit refund request";
-    return NextResponse.json({ error: message }, { status: 500 });
+    return NextResponse.json({ error: "Failed to submit refund request" }, { status: 500 });
   }
 }
 
 export async function GET(request: NextRequest) {
   try {
     await connectMongoDB();
-    const userId = request.headers.get("x-user-id") || "";
+    const admin = isAdmin(request);
+    const userId = admin ? "" : await customerUserId(request, request.headers.get("x-user-id"));
 
-    if (!userId && !isAdmin(request)) {
+    if (!admin && !userId) {
       return NextResponse.json({ error: "Authentication required" }, { status: 401 });
     }
 
-    if (isAdmin(request)) {
+    if (admin) {
       const { searchParams } = new URL(request.url);
       const status = searchParams.get("status");
       const filter: Record<string, unknown> = {};

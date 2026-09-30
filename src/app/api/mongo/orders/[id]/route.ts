@@ -5,6 +5,7 @@ import Notification from "@/lib/models/notification";
 import { adjustStock } from "@/lib/orders/stock";
 import { sendPushToUser } from "@/lib/push";
 import { isAdmin } from "@/lib/auth/guards";
+import { customerUserId } from "@/lib/auth/identity";
 import { notifyOrderSuppliers } from "@/lib/supplier/notify-suppliers";
 
 
@@ -15,14 +16,15 @@ export async function GET(
   try {
     await connectMongoDB();
     const { id } = await params;
-    const userId = request.headers.get("x-user-id") || "";
+    const admin = isAdmin(request);
+    const userId = admin ? "" : await customerUserId(request, request.headers.get("x-user-id"));
 
     const order = await Order.findById(id).lean();
     if (!order) {
       return NextResponse.json({ error: "Order not found" }, { status: 404 });
     }
 
-    if (!isAdmin(request) && order.userId !== userId) {
+    if (!admin && (!userId || order.userId !== userId)) {
       return NextResponse.json({ error: "Order not found" }, { status: 404 });
     }
 
@@ -40,8 +42,9 @@ export async function PATCH(
   try {
     await connectMongoDB();
     const { id } = await params;
-    const userId = request.headers.get("x-user-id") || "";
+    const userId = await customerUserId(request, request.headers.get("x-user-id"));
     const body = await request.json();
+    // Only these two fields are ever writable, and both are admin-only below.
     const { status, paymentStatus } = body;
 
     const order = await Order.findById(id).lean();
@@ -50,7 +53,7 @@ export async function PATCH(
     }
 
     const admin = isAdmin(request);
-    if (!admin && order.userId !== userId) {
+    if (!admin && (!userId || order.userId !== userId)) {
       return NextResponse.json({ error: "Order not found" }, { status: 404 });
     }
 
@@ -102,6 +105,13 @@ export async function PATCH(
     if (paymentStatus) {
       if (!admin) {
         return NextResponse.json({ error: "Only admin can change payment status" }, { status: 403 });
+      }
+      const allowedPaymentStatuses = [
+        "PENDING", "PAYMENT_PROCESSING", "PAID", "COMPLETED", "FAILED",
+        "CANCELLED", "REVIEW", "REFUNDED",
+      ];
+      if (typeof paymentStatus !== "string" || !allowedPaymentStatuses.includes(paymentStatus)) {
+        return NextResponse.json({ error: "Invalid payment status" }, { status: 400 });
       }
       update.paymentStatus = paymentStatus;
     }

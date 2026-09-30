@@ -68,7 +68,6 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ category }, { status: 201 });
   } catch (error) {
     console.error("POST /api/admin/categories error:", error);
-    const message = error instanceof Error ? error.message : "Failed to create category";
-    return NextResponse.json({ error: message }, { status: 500 });
+    return NextResponse.json({ error: "Failed to create category" }, { status: 500 });
   }
 }

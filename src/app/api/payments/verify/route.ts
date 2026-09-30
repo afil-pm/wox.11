@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { connectMongoDB } from "@/lib/mongodb";
 import { confirmOrderPayment } from "@/lib/payments/confirm";
 import { verifyPayment } from "@/lib/payments/razorpay";
+import { clientIp, rateLimit } from "@/lib/security/rate-limit";
 
 /**
  * Verifies a checkout callback: the signature is checked first, then the
@@ -10,6 +11,14 @@ import { verifyPayment } from "@/lib/payments/razorpay";
  */
 export async function POST(request: NextRequest) {
   try {
+    const rate = rateLimit("payment-verify", clientIp(request), 30, 60_000);
+    if (!rate.ok) {
+      return NextResponse.json(
+        { error: "Too many requests. Please try again later." },
+        { status: 429, headers: { "Retry-After": String(rate.retryAfterSeconds) } }
+      );
+    }
+
     const { razorpayOrderId, razorpayPaymentId, razorpaySignature } = await request.json();
 
     if (!razorpayOrderId || !razorpayPaymentId || !razorpaySignature) {
@@ -45,6 +54,13 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         { verified: false, error: "No order matches this payment yet." },
         { status: 404 }
+      );
+    }
+
+    if (result.status === "payment_already_used") {
+      return NextResponse.json(
+        { verified: false, error: "This payment is already linked to another order." },
+        { status: 409 }
       );
     }
 

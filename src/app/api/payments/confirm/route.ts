@@ -9,6 +9,7 @@ const STATUS_CODES: Record<string, number> = {
   not_captured: 202,
   order_not_found: 404,
   amount_mismatch: 409,
+  payment_already_used: 409,
   verification_error: 503,
 };
 

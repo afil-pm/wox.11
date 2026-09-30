@@ -26,6 +26,11 @@ export const useSignOutStore = create<SignOutState>((set) => ({
   },
   close: () => set({ isOpen: false }),
   logout: () => {
+    // Best effort: expire the HttpOnly session cookie server side too, so a
+    // stolen/copied token in localStorage is not the only thing being cleared.
+    try {
+      void fetch("/api/auth/logout", { method: "POST", keepalive: true });
+    } catch {}
     localStorage.removeItem("wox-user");
     window.dispatchEvent(new Event("auth-change"));
     set({ isOpen: false, userName: "" });

@@ -8,8 +8,11 @@ import {
 } from "@/lib/payments/razorpay";
 import { confirmOrderPayment, expirePendingPayments } from "@/lib/payments/confirm";
 import { notifyOrderSuppliers } from "@/lib/supplier/notify-suppliers";
+import { clientIp, rateLimit } from "@/lib/security/rate-limit";
+import { audit } from "@/lib/security/audit";
 
 const PAYMENT_SESSION_MINUTES = 30;
+const CHECKOUT_SESSION_PATTERN = /^co-\d{1,16}-\d{1,16}$/;
 
 function isDuplicateKey(error: unknown): boolean {
   return typeof error === "object" && error !== null && "code" in error && (error as { code?: number }).code === 11000;
@@ -38,6 +41,14 @@ function alreadyPaidResponse(orderNumber: string, orderId: string): NextResponse
  */
 export async function POST(request: NextRequest) {
   try {
+    const rate = rateLimit("payment-checkout", clientIp(request), 15, 60_000);
+    if (!rate.ok) {
+      return NextResponse.json(
+        { error: "Too many requests. Please try again later." },
+        { status: 429, headers: { "Retry-After": String(rate.retryAfterSeconds) } }
+      );
+    }
+
     await connectMongoDB();
     const body = await request.json();
 
@@ -67,6 +78,9 @@ export async function POST(request: NextRequest) {
 
     const checkoutSessionId =
       typeof body.checkoutSessionId === "string" ? body.checkoutSessionId.trim() : "";
+    if (checkoutSessionId && !CHECKOUT_SESSION_PATTERN.test(checkoutSessionId)) {
+      return NextResponse.json({ error: "Invalid checkout session" }, { status: 400 });
+    }
     const paymentAmountPaise = Math.round(data.total * 100);
     const paymentExpiresAt = new Date(Date.now() + PAYMENT_SESSION_MINUTES * 60 * 1000);
 
@@ -108,6 +122,17 @@ export async function POST(request: NextRequest) {
     let order = checkoutSessionId ? await Order.findOne({ checkoutSessionId }) : null;
     let createdOrder = false;
 
+    // A checkout session id is a bearer capability for one pending order: only
+    // the customer it was created for may refresh it.
+    if (order && data.userId && order.userId && order.userId !== data.userId) {
+      audit("checkout_session_ownership_denied", {
+        checkoutSessionId,
+        requestedUserId: data.userId,
+        orderNumber: order.orderNumber,
+      });
+      return NextResponse.json({ error: "Unknown checkout session" }, { status: 404 });
+    }
+
     if (order && isPaidStatus(order.paymentStatus)) {
       return alreadyPaidResponse(order.orderNumber, String(order._id));
     }
@@ -145,6 +170,15 @@ export async function POST(request: NextRequest) {
           order = await Order.findOne({ checkoutSessionId });
         }
         if (!order) throw error;
+      }
+
+      if (order && data.userId && order.userId && order.userId !== data.userId) {
+        audit("checkout_session_ownership_denied", {
+          checkoutSessionId,
+          requestedUserId: data.userId,
+          orderNumber: order.orderNumber,
+        });
+        return NextResponse.json({ error: "Unknown checkout session" }, { status: 404 });
       }
     }
 
@@ -224,7 +258,6 @@ export async function POST(request: NextRequest) {
     });
   } catch (error) {
     console.error("POST /api/payments/checkout error:", error);
-    const msg = error instanceof Error ? error.message : "Checkout could not be started";
-    return NextResponse.json({ error: msg }, { status: 500 });
+    return NextResponse.json({ error: "Checkout could not be started" }, { status: 500 });
   }
 }

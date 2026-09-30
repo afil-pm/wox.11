@@ -4,22 +4,12 @@ import Order from "@/lib/models/order";
 import Review from "@/lib/models/review";
 import Product from "@/lib/models/product";
 import mongoose from "mongoose";
+import { customerUserId } from "@/lib/auth/identity";
+import { clientIp, rateLimit } from "@/lib/security/rate-limit";
 
-const reviewAttempts = new Map<string, { count: number; resetAt: number }>();
 const MAX_REVIEW_ATTEMPTS = 10;
 const LOCKOUT_DURATION_MS = 60 * 60 * 1000;
-
-function checkRateLimit(key: string): boolean {
-  const now = Date.now();
-  const record = reviewAttempts.get(key);
-  if (!record || now > record.resetAt) {
-    reviewAttempts.set(key, { count: 1, resetAt: now + LOCKOUT_DURATION_MS });
-    return true;
-  }
-  if (record.count >= MAX_REVIEW_ATTEMPTS) return false;
-  record.count++;
-  return true;
-}
+const OBJECT_ID = /^[a-f0-9]{24}$/i;
 
 export async function POST(request: NextRequest) {
   try {
@@ -27,14 +17,22 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { orderId, productId, userName, userEmail, rating, comment } = body;
 
-    const userId = request.headers.get("x-user-id") || "";
+    const userId = await customerUserId(request, request.headers.get("x-user-id"));
     if (!userId) {
       return NextResponse.json({ error: "Authentication required" }, { status: 401 });
     }
 
-    const rateKey = userId;
-    if (!checkRateLimit(rateKey)) {
-      return NextResponse.json({ error: "Too many review attempts. Please try again later." }, { status: 429 });
+    const rate = rateLimit(
+      "review",
+      `${clientIp(request)}:${userId}`,
+      MAX_REVIEW_ATTEMPTS,
+      LOCKOUT_DURATION_MS
+    );
+    if (!rate.ok) {
+      return NextResponse.json(
+        { error: "Too many review attempts. Please try again later." },
+        { status: 429, headers: { "Retry-After": String(rate.retryAfterSeconds) } }
+      );
     }
 
     if (!orderId || !productId) {
@@ -42,6 +40,11 @@ export async function POST(request: NextRequest) {
         { error: "orderId and productId are required" },
         { status: 400 }
       );
+    }
+
+    // Reviews are keyed by the account's ObjectId; a visitor id cannot be one.
+    if (!OBJECT_ID.test(String(userId)) || !OBJECT_ID.test(String(orderId)) || !OBJECT_ID.test(String(productId))) {
+      return NextResponse.json({ error: "Invalid order or product reference" }, { status: 400 });
     }
 
     if (!rating || rating < 1 || rating > 5) {
@@ -56,6 +59,18 @@ export async function POST(request: NextRequest) {
         { error: "User info required" },
         { status: 400 }
       );
+    }
+
+    if (
+      typeof userName !== "string" || userName.trim().length < 2 || userName.trim().length > 100 ||
+      typeof userEmail !== "string" || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(userEmail.trim()) ||
+      (comment !== undefined && (typeof comment !== "string" || comment.length > 2000))
+    ) {
+      return NextResponse.json({ error: "Invalid review details" }, { status: 400 });
+    }
+
+    if (typeof rating !== "number" || !Number.isInteger(rating)) {
+      return NextResponse.json({ error: "Rating must be between 1 and 5" }, { status: 400 });
     }
 
     const order = await Order.findById(orderId).lean() as unknown as {

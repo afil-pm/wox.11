@@ -3,27 +3,14 @@ import bcrypt from "bcryptjs";
 import crypto from "crypto";
 import { connectMongoDB } from "@/lib/mongodb";
 import User from "@/lib/models/user";
+import { clientIp, rateLimit } from "@/lib/security/rate-limit";
 
-const resetAttempts = new Map<string, { count: number; resetAt: number }>();
 const MAX_RESET_ATTEMPTS = 5;
 const LOCKOUT_DURATION_MS = 60 * 60 * 1000;
 
-function checkRateLimit(key: string): boolean {
-  const now = Date.now();
-  const record = resetAttempts.get(key);
-  if (!record || now > record.resetAt) {
-    resetAttempts.set(key, { count: 1, resetAt: now + LOCKOUT_DURATION_MS });
-    return true;
-  }
-  if (record.count >= MAX_RESET_ATTEMPTS) return false;
-  record.count++;
-  return true;
-}
-
 export async function POST(request: NextRequest) {
   try {
-    const forwarded = request.headers.get("x-forwarded-for");
-    const ip = forwarded?.split(",")[0]?.trim() || "unknown";
+    const ip = clientIp(request);
 
     const { email, recoveryCode, newPassword } = await request.json();
 
@@ -34,15 +21,24 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    if (typeof email !== "string" || typeof recoveryCode !== "string" || typeof newPassword !== "string") {
+      return NextResponse.json({ error: "Invalid request" }, { status: 400 });
+    }
+
+    if (email.length > 254 || recoveryCode.length > 100) {
+      return NextResponse.json({ error: "Invalid request" }, { status: 400 });
+    }
+
     const rateKey = `${ip}:${email.toLowerCase()}`;
-    if (!checkRateLimit(rateKey)) {
+    const rate = rateLimit("password-reset", rateKey, MAX_RESET_ATTEMPTS, LOCKOUT_DURATION_MS);
+    if (!rate.ok) {
       return NextResponse.json(
         { error: "Too many reset attempts. Please try again later." },
-        { status: 429 }
+        { status: 429, headers: { "Retry-After": String(rate.retryAfterSeconds) } }
       );
     }
 
-    if (newPassword.length < 8) {
+    if (newPassword.length < 8 || newPassword.length > 200) {
       return NextResponse.json(
         { error: "Password must be at least 8 characters" },
         { status: 400 }

@@ -38,6 +38,52 @@ const statusLabels: Record<string, string> = {
 
 type PanelView = "menu" | "send" | "sent" | "check" | "results";
 
+const RECOVERY_TOKENS_KEY = "wox-recovery-tokens";
+
+interface RecoveryTokenEntry {
+  email: string;
+  token: string;
+}
+
+function readRecoveryTokens(): Record<string, RecoveryTokenEntry> {
+  try {
+    const raw = localStorage.getItem(RECOVERY_TOKENS_KEY);
+    const parsed = raw ? JSON.parse(raw) : {};
+    return parsed && typeof parsed === "object" ? (parsed as Record<string, RecoveryTokenEntry>) : {};
+  } catch {
+    return {};
+  }
+}
+
+function saveRecoveryToken(messageId: string, email: string, token: string) {
+  try {
+    const store = readRecoveryTokens();
+    store[messageId] = { email: email.trim().toLowerCase(), token };
+    localStorage.setItem(RECOVERY_TOKENS_KEY, JSON.stringify(store));
+  } catch {
+    // storage unavailable (private mode / quota) — the status endpoint can
+    // still fall back to the bound identity cookie for this browser
+  }
+}
+
+function recoveryTokenHeader(email: string, messageId?: string): string {
+  const store = readRecoveryTokens();
+  if (messageId && store[messageId]) return store[messageId].token;
+  const normalized = email.trim().toLowerCase();
+  return Object.values(store)
+    .filter((entry) => entry && entry.email === normalized && typeof entry.token === "string")
+    .map((entry) => entry.token)
+    .join(",");
+}
+
+function identityHeader(): string {
+  try {
+    return localStorage.getItem("wox-user-id") || "";
+  } catch {
+    return "";
+  }
+}
+
 function RecoveryPanel({ onClose, onFlowBlocked }: { onClose: () => void; onFlowBlocked?: (blocked: boolean) => void }) {
   const [view, setView] = useState<PanelView>("menu");
 
@@ -86,6 +132,10 @@ function RecoveryPanel({ onClose, onFlowBlocked }: { onClose: () => void; onFlow
         return;
       }
 
+      if (data.recoveryToken && data.messageId) {
+        saveRecoveryToken(data.messageId, senderEmail, data.recoveryToken);
+      }
+
       setView("sent");
     } catch {
       setSendError("Something went wrong. Please try again.");
@@ -100,11 +150,20 @@ function RecoveryPanel({ onClose, onFlowBlocked }: { onClose: () => void; onFlow
     setCheckLoading(true);
 
     try {
-      const res = await fetch(`/api/messages/status?email=${encodeURIComponent(checkEmail.trim())}`);
+      const res = await fetch(`/api/messages/status?email=${encodeURIComponent(checkEmail.trim())}`, {
+        headers: {
+          "x-user-id": identityHeader(),
+          "x-recovery-token": recoveryTokenHeader(checkEmail),
+        },
+      });
       const data = await res.json();
 
       if (!res.ok) {
-        setCheckError(data.error || "Failed to check status");
+        setCheckError(
+          res.status === 401
+            ? "We couldn't verify this browser for that email. Send the recovery request from this browser (or sign in to that account) to view admin replies."
+            : data.error || "Failed to check status"
+        );
         return;
       }
 
@@ -127,7 +186,11 @@ function RecoveryPanel({ onClose, onFlowBlocked }: { onClose: () => void; onFlow
     try {
       const res = await fetch("/api/messages/confirm-receipt", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          "x-user-id": identityHeader(),
+          "x-recovery-token": recoveryTokenHeader(checkEmail, msgId),
+        },
         body: JSON.stringify({ messageId: msgId, senderEmail: checkEmail.trim() }),
       });
 
@@ -146,7 +209,11 @@ function RecoveryPanel({ onClose, onFlowBlocked }: { onClose: () => void; onFlow
     try {
       const res = await fetch("/api/messages/submit-receipt", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          "x-user-id": identityHeader(),
+          "x-recovery-token": recoveryTokenHeader(checkEmail, msgId),
+        },
         body: JSON.stringify({ messageId: msgId, senderEmail: checkEmail.trim() }),
       });
 

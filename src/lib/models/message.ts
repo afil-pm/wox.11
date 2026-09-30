@@ -9,6 +9,8 @@ export interface IMessage extends Document {
   status: "pending" | "reviewing" | "resolved" | "rejected" | "received" | "complete";
   adminReply: string;
   keyDeliveredAt?: Date;
+  /** SHA-256 of the one-time lookup token handed to the requester. */
+  lookupTokenHash?: string;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -27,6 +29,7 @@ const MessageSchema = new Schema<IMessage>(
     },
     adminReply: { type: String, default: "" },
     keyDeliveredAt: { type: Date },
+    lookupTokenHash: { type: String, index: true },
   },
   { timestamps: true }
 );

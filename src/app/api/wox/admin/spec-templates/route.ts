@@ -46,7 +46,6 @@ export async function PUT(request: NextRequest) {
     return NextResponse.json({ templateId: String(doc._id), categoryType });
   } catch (error) {
     console.error("PUT /api/wox/admin/spec-templates error:", error);
-    const message = error instanceof Error ? error.message : "Failed to save template";
-    return NextResponse.json({ error: message }, { status: 500 });
+    return NextResponse.json({ error: "Failed to save template" }, { status: 500 });
   }
 }

@@ -17,6 +17,7 @@ import {
   updateReconciliation,
 } from "@/lib/payments/reconciliation";
 import { notifyOrderSuppliers } from "@/lib/supplier/notify-suppliers";
+import { audit } from "@/lib/security/audit";
 
 export type ConfirmStatus =
   | "confirmed"
@@ -24,6 +25,7 @@ export type ConfirmStatus =
   | "order_not_found"
   | "not_captured"
   | "amount_mismatch"
+  | "payment_already_used"
   | "verification_error";
 
 export interface ConfirmResult {
@@ -46,6 +48,43 @@ export interface ConfirmInput {
 }
 
 type OrderDoc = HydratedDocument<IOrder>;
+
+function isDuplicateKey(error: unknown): boolean {
+  return !!(error && typeof error === "object" && (error as { code?: number }).code === 11000);
+}
+
+/**
+ * Same payment id landing on a second order is the replay case: the unique
+ * index on `paymentId` rejects it, and the caller reports it instead of
+ * throwing a raw Mongo error.
+ */
+async function paymentAlreadyUsedError(
+  error: unknown,
+  paymentId: string,
+  order: { orderId: string; orderNumber: string; orderStatus?: string; paymentStatus?: string }
+): Promise<ConfirmResult | null> {
+  if (!isDuplicateKey(error)) return null;
+
+  const other = await Order.findOne({ paymentId, _id: { $ne: order.orderId } })
+    .select("orderNumber")
+    .lean();
+
+  audit("payment_replay_blocked", {
+    paymentId,
+    orderNumber: order.orderNumber,
+    conflictingOrder: other?.orderNumber || "unknown",
+  });
+
+  return {
+    ok: false,
+    status: "payment_already_used",
+    message: `Payment ${paymentId} is already linked to another order.`,
+    orderId: order.orderId,
+    orderNumber: order.orderNumber,
+    paymentStatus: order.paymentStatus,
+    orderStatus: order.orderStatus,
+  };
+}
 
 async function loadOrder(input: {
   razorpayOrderId?: string;
@@ -391,19 +430,26 @@ export async function confirmOrderPayment(input: ConfirmInput): Promise<ConfirmR
     };
   }
 
-  const claimed = await Order.findOneAndUpdate(
-    { _id: order._id, paymentStatus: { $nin: PAID_PAYMENT_STATUSES } },
-    {
-      $set: {
-        paymentStatus: "PAID",
-        paymentId: payment.id,
-        paymentConfirmedAt: new Date(),
-        paymentConfirmationMethod: "online",
-        paymentConfirmedBy: input.source,
+  let claimed: OrderDoc | null;
+  try {
+    claimed = await Order.findOneAndUpdate(
+      { _id: order._id, paymentStatus: { $nin: PAID_PAYMENT_STATUSES } },
+      {
+        $set: {
+          paymentStatus: "PAID",
+          paymentId: payment.id,
+          paymentConfirmedAt: new Date(),
+          paymentConfirmationMethod: "online",
+          paymentConfirmedBy: input.source,
+        },
       },
-    },
-    { new: true }
-  );
+      { new: true }
+    );
+  } catch (error) {
+    const replay = await paymentAlreadyUsedError(error, payment.id, base);
+    if (replay) return replay;
+    throw error;
+  }
 
   if (!claimed) {
     const fresh = (await Order.findById(order._id)) as OrderDoc | null;
@@ -459,19 +505,28 @@ export async function markOrderPaidManually(
     return { ok: true, status: "already_paid", ...base, paymentStatus: order.paymentStatus };
   }
 
-  const claimed = await Order.findOneAndUpdate(
-    { _id: order._id, paymentStatus: { $nin: PAID_PAYMENT_STATUSES } },
-    {
-      $set: {
-        paymentStatus: "PAID",
-        paymentConfirmedAt: new Date(),
-        paymentConfirmationMethod: "manual",
-        paymentConfirmedBy: confirmedBy,
-        ...(paymentId ? { paymentId } : {}),
+  let claimed: OrderDoc | null;
+  try {
+    claimed = await Order.findOneAndUpdate(
+      { _id: order._id, paymentStatus: { $nin: PAID_PAYMENT_STATUSES } },
+      {
+        $set: {
+          paymentStatus: "PAID",
+          paymentConfirmedAt: new Date(),
+          paymentConfirmationMethod: "manual",
+          paymentConfirmedBy: confirmedBy,
+          ...(paymentId ? { paymentId } : {}),
+        },
       },
-    },
-    { new: true }
-  );
+      { new: true }
+    );
+  } catch (error) {
+    const replay = paymentId
+      ? await paymentAlreadyUsedError(error, paymentId, base)
+      : null;
+    if (replay) return replay;
+    throw error;
+  }
 
   if (!claimed) {
     const fresh = (await Order.findById(order._id)) as OrderDoc | null;

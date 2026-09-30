@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { clientIp, rateLimit } from "@/lib/security/rate-limit";
 
 const INDIAN_STATES: Record<string, number> = {
   kerala: 0,
@@ -16,6 +17,16 @@ const INDIAN_STATES: Record<string, number> = {
 
 export async function GET(request: NextRequest) {
   try {
+    // Outbound lookup on the caller's behalf: cap it so the public endpoint
+    // cannot be used to amplify traffic at api.postalpincode.in.
+    const rate = rateLimit("pincode-lookup", clientIp(request), 30, 60_000);
+    if (!rate.ok) {
+      return NextResponse.json(
+        { shippingCost: -1, state: "", error: "Too many requests. Please try again later." },
+        { status: 429, headers: { "Retry-After": String(rate.retryAfterSeconds) } }
+      );
+    }
+
     const { searchParams } = new URL(request.url);
     const pincode = searchParams.get("pincode");
 

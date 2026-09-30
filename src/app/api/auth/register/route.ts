@@ -1,48 +1,53 @@
 import { NextRequest, NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import crypto from "crypto";
+import { cookies } from "next/headers";
 import { connectMongoDB } from "@/lib/mongodb";
 import User from "@/lib/models/user";
-import { createSessionToken } from "@/lib/auth/session";
+import { createSessionToken, sessionCookieOptions } from "@/lib/auth/session";
 import { notifyUser } from "@/lib/notify";
+import { clientIp, rateLimit } from "@/lib/security/rate-limit";
+import { audit } from "@/lib/security/audit";
 
 function generateRecoveryCode(): string {
   const bytes = crypto.randomBytes(16);
   return bytes.toString("hex").match(/.{1,4}/g)!.join("-").toUpperCase();
 }
 
-const registerAttempts = new Map<string, { count: number; resetAt: number }>();
 const MAX_REGISTER_ATTEMPTS = 5;
 const LOCKOUT_DURATION_MS = 60 * 60 * 1000;
 
-function checkRateLimit(ip: string): boolean {
-  const now = Date.now();
-  const record = registerAttempts.get(ip);
-  if (!record || now > record.resetAt) {
-    registerAttempts.set(ip, { count: 1, resetAt: now + LOCKOUT_DURATION_MS });
-    return true;
-  }
-  if (record.count >= MAX_REGISTER_ATTEMPTS) return false;
-  record.count++;
-  return true;
-}
-
 export async function POST(request: NextRequest) {
   try {
-    const forwarded = request.headers.get("x-forwarded-for");
-    const ip = forwarded?.split(",")[0]?.trim() || "unknown";
+    const ip = clientIp(request);
 
-    if (!checkRateLimit(ip)) {
-      return NextResponse.json({ error: "Too many registration attempts. Please try again later." }, { status: 429 });
+    if (!rateLimit("register-ip", ip, MAX_REGISTER_ATTEMPTS, LOCKOUT_DURATION_MS).ok) {
+      audit("register_rate_limited", { route: "/api/auth/register", ip });
+      return NextResponse.json(
+        { error: "Too many registration attempts. Please try again later." },
+        { status: 429, headers: { "Retry-After": String(Math.ceil(LOCKOUT_DURATION_MS / 1000)) } }
+      );
     }
 
     const { name, email, password, phone, role, supplierName } = await request.json();
 
-    if (!name || !email || !password) {
+    if (
+      !name || !email || !password ||
+      typeof name !== "string" || typeof email !== "string" || typeof password !== "string"
+    ) {
       return NextResponse.json({ error: "Name, email and password are required" }, { status: 400 });
     }
 
-    if (password.length < 8) {
+    const trimmedEmail = email.trim();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedEmail) || trimmedEmail.length > 254) {
+      return NextResponse.json({ error: "A valid email address is required" }, { status: 400 });
+    }
+
+    if (name.trim().length < 2 || name.trim().length > 100) {
+      return NextResponse.json({ error: "Name must be 2-100 characters" }, { status: 400 });
+    }
+
+    if (password.length < 8 || password.length > 200) {
       return NextResponse.json({ error: "Password must be at least 8 characters" }, { status: 400 });
     }
 
@@ -54,7 +59,7 @@ export async function POST(request: NextRequest) {
 
     await connectMongoDB();
 
-    const existingUser = await User.findOne({ email: email.toLowerCase() });
+    const existingUser = await User.findOne({ email: trimmedEmail.toLowerCase() });
     if (existingUser) {
       return NextResponse.json({ error: "Email already registered" }, { status: 409 });
     }
@@ -64,7 +69,7 @@ export async function POST(request: NextRequest) {
 
     const user = await User.create({
       name,
-      email: email.toLowerCase(),
+      email: trimmedEmail.toLowerCase(),
       password: passwordHash,
       phone: phone || undefined,
       role: requestedRole,
@@ -88,6 +93,7 @@ export async function POST(request: NextRequest) {
       email: user.email,
       name: user.name,
     });
+    if (token) (await cookies()).set("wox-session", token, sessionCookieOptions());
 
     // A new supplier account is waiting for review: tell the admin both in
     // the panel (durable row) and as a push. `dedupeKey` makes this idempotent,

@@ -126,7 +126,7 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     console.error("GET /api/admin/products error:", error);
     return NextResponse.json(
-      { products: [], total: 0, error: error instanceof Error ? error.message : "Unknown error" },
+      { products: [], total: 0, error: "Failed to load products" },
       { status: 200 }
     );
   }

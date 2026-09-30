@@ -1,15 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
 import { connectMongoDB } from "@/lib/mongodb";
-import Order from "@/lib/models/order";
+import Order, { PAID_PAYMENT_STATUSES } from "@/lib/models/order";
 import Coupon from "@/lib/models/coupon";
 import Notification from "@/lib/models/notification";
 import { adjustStock } from "@/lib/orders/stock";
 import { sendPushToUser } from "@/lib/push";
 import { sendNewOrderEmail } from "@/lib/email";
 import { prepareOrderPayload } from "@/lib/orders/prepare";
-import { getPaymentById } from "@/lib/payments/razorpay";
+import { getPaymentById, getOrderById } from "@/lib/payments/razorpay";
 import { recordPaymentReconciliation } from "@/lib/payments/reconciliation";
 import { isAdmin } from "@/lib/auth/guards";
+import { customerUserId } from "@/lib/auth/identity";
+import { audit } from "@/lib/security/audit";
+import { clientIp, rateLimit } from "@/lib/security/rate-limit";
 import { notifyOrderSuppliers } from "@/lib/supplier/notify-suppliers";
 
 
@@ -17,12 +20,19 @@ export async function GET(request: NextRequest) {
   try {
     await connectMongoDB();
     const { searchParams } = new URL(request.url);
-    const limit = parseInt(searchParams.get("limit") || "50", 10);
-    const skip = parseInt(searchParams.get("skip") || "0", 10);
+    const limit = Math.min(Math.max(parseInt(searchParams.get("limit") || "50", 10) || 50, 1), 100);
+    const skip = Math.max(parseInt(searchParams.get("skip") || "0", 10) || 0, 0);
     const status = searchParams.get("status");
-    const userId = request.headers.get("x-user-id") || searchParams.get("userId") || "";
+    const admin = isAdmin(request);
 
-    if (!userId && !isAdmin(request)) {
+    const userId = admin
+      ? ""
+      : await customerUserId(
+          request,
+          request.headers.get("x-user-id") || searchParams.get("userId") || ""
+        );
+
+    if (!admin && !userId) {
       return NextResponse.json({ orders: [], total: 0 });
     }
 
@@ -30,7 +40,7 @@ export async function GET(request: NextRequest) {
     if (status && status !== "ALL") {
       filter.status = status;
     }
-    if (!isAdmin(request) && userId) {
+    if (!admin) {
       filter.userId = userId;
     }
 
@@ -48,6 +58,14 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
+    const rate = rateLimit("order-create", clientIp(request), 10, 60_000);
+    if (!rate.ok) {
+      return NextResponse.json(
+        { error: "Too many requests. Please try again later." },
+        { status: 429, headers: { "Retry-After": String(rate.retryAfterSeconds) } }
+      );
+    }
+
     await connectMongoDB();
     const body = await request.json();
 
@@ -58,7 +76,6 @@ export async function POST(request: NextRequest) {
     const data = prepared.data;
     const {
       orderNumber,
-      userId,
       customerName,
       customerPhone,
       customerEmail,
@@ -77,41 +94,80 @@ export async function POST(request: NextRequest) {
       supplierIds,
     } = data;
 
+    // The owner of the order comes from the verified session/visitor identity,
+    // never from a `userId` field the client posted.
+    const userId =
+      (await customerUserId(request, data.userId || request.headers.get("x-user-id") || "")) || "";
 
     // A payment reference sent by the client is never trusted on its own: the
-    // payment is re-fetched from the gateway and must be captured for exactly
-    // the server computed amount before this order can be marked as paid.
+    // payment is re-fetched from the gateway, must be captured for exactly the
+    // server computed amount, must belong to a gateway order whose receipt is
+    // this order number, and may only ever settle a single order.
     let paymentStatus: "PENDING" | "PAID" | "REVIEW" = "PENDING";
     if (paymentId) {
       const expectedPaise = Math.round(total * 100);
       let verified = false;
       let reportedAmount = 0;
       let reportedCurrency = "";
-      try {
-        const payment = await getPaymentById(paymentId);
-        reportedAmount = payment.amount;
-        reportedCurrency = payment.currency;
-        verified =
-          payment.status === "captured" &&
-          payment.amount === expectedPaise &&
-          payment.currency.toUpperCase() === "INR";
-      } catch {
-        verified = false;
+      let reason = "";
+
+      const alreadySettled = await Order.exists({
+        paymentId,
+        paymentStatus: { $in: PAID_PAYMENT_STATUSES },
+      });
+
+      if (alreadySettled) {
+        reason = `Payment ${paymentId} has already been used to settle another order and cannot be reused for ${orderNumber}.`;
+        audit("payment_replay_blocked", { route: "/api/mongo/orders", orderId: orderNumber, reason });
+      } else {
+        try {
+          const payment = await getPaymentById(paymentId);
+          reportedAmount = payment.amount;
+          reportedCurrency = payment.currency;
+
+          let belongsToThisOrder = true;
+          if (payment.order_id) {
+            try {
+              const gatewayOrder = await getOrderById(payment.order_id);
+              belongsToThisOrder = gatewayOrder?.receipt === orderNumber;
+            } catch {
+              belongsToThisOrder = false;
+            }
+          } else {
+            belongsToThisOrder = false;
+          }
+
+          verified =
+            payment.status === "captured" &&
+            payment.amount === expectedPaise &&
+            payment.currency.toUpperCase() === "INR" &&
+            belongsToThisOrder;
+
+          if (!verified && belongsToThisOrder === false && payment.order_id) {
+            reason = `Payment ${paymentId} belongs to gateway order ${payment.order_id}, which is not the gateway order for ${orderNumber}.`;
+          }
+        } catch {
+          verified = false;
+        }
       }
 
       if (verified) {
         paymentStatus = "PAID";
       } else {
         paymentStatus = "REVIEW";
+        if (!reason) {
+          reason = reportedAmount
+            ? `Payment ${paymentId} is not a captured payment of the expected amount for ${orderNumber} (expected ${expectedPaise} paise, received ${reportedAmount} ${reportedCurrency}).`
+            : `Payment ${paymentId} could not be verified with the gateway for ${orderNumber}.`;
+        }
+        audit("payment_unverified", { route: "/api/mongo/orders", orderId: orderNumber, reason });
         recordPaymentReconciliation({
           paymentId,
           amountPaise: reportedAmount,
           currency: reportedCurrency,
           status: "UNMATCHED",
           orderNumber,
-          reason: reportedAmount
-            ? `Payment ${paymentId} is not a captured payment of the expected amount for ${orderNumber} (expected ${expectedPaise} paise, received ${reportedAmount} ${reportedCurrency}).`
-            : `Payment ${paymentId} could not be verified with the gateway for ${orderNumber}.`,
+          reason,
         }).catch(() => {});
       }
     }
@@ -245,7 +301,15 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ order }, { status: 201 });
   } catch (error) {
     console.error("POST /api/mongo/orders error:", error);
-    const msg = error instanceof Error ? error.message : "Failed to create order";
-    return NextResponse.json({ error: msg }, { status: 500 });
+    // The partial unique index on `paymentId` is the backstop for a payment
+    // being raced into two orders at once.
+    if (typeof error === "object" && error !== null && (error as { code?: number }).code === 11000) {
+      audit("payment_replay_blocked", { route: "/api/mongo/orders", reason: "duplicate_payment_or_order" });
+      return NextResponse.json(
+        { error: "That payment reference has already been used for another order." },
+        { status: 409 }
+      );
+    }
+    return NextResponse.json({ error: "Failed to create order" }, { status: 500 });
   }
 }

@@ -3,6 +3,7 @@ import { connectMongoDB } from "@/lib/mongodb";
 import Message from "@/lib/models/message";
 import Notification from "@/lib/models/notification";
 import { sendPushToUser } from "@/lib/push";
+import { clientIp, rateLimit } from "@/lib/security/rate-limit";
 
 function sanitize(str: string): string {
   return str.replace(/[<>&"']/g, (c) => {
@@ -11,23 +12,8 @@ function sanitize(str: string): string {
   });
 }
 
-const ipTimestamps: Map<string, number[]> = new Map();
 const IP_RATE_LIMIT = 10;
-const IP_RATE_WINDOW = 60 * 60 * 1000;
-
-function isIpRateLimited(ip: string): boolean {
-  const now = Date.now();
-  const timestamps = ipTimestamps.get(ip) || [];
-  const recent = timestamps.filter((t) => now - t < IP_RATE_WINDOW);
-  ipTimestamps.set(ip, recent);
-  return recent.length >= IP_RATE_LIMIT;
-}
-
-function recordIpRequest(ip: string) {
-  const timestamps = ipTimestamps.get(ip) || [];
-  timestamps.push(Date.now());
-  ipTimestamps.set(ip, timestamps);
-}
+const RATE_WINDOW = 60 * 60 * 1000;
 
 const VALID_TYPES = ["help-support", "feedback", "bug-report"] as const;
 
@@ -63,18 +49,17 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Name must be 2-100 characters" }, { status: 400 });
     }
 
-    const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || request.headers.get("x-real-ip") || "unknown";
+    const ip = clientIp(request);
 
-    if (isIpRateLimited(ip)) {
+    const rate = rateLimit("help-feedback-ip", ip, IP_RATE_LIMIT, RATE_WINDOW);
+    if (!rate.ok) {
       return NextResponse.json(
         { error: "Too many requests. Please try again later." },
-        { status: 429 }
+        { status: 429, headers: { "Retry-After": String(rate.retryAfterSeconds) } }
       );
     }
 
     await connectMongoDB();
-
-    recordIpRequest(ip);
 
     const typeLabels: Record<string, string> = {
       "help-support": "Help / Support",

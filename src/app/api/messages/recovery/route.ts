@@ -1,9 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
+import crypto from "crypto";
 import { connectMongoDB } from "@/lib/mongodb";
 import Message from "@/lib/models/message";
 import User from "@/lib/models/user";
 import Notification from "@/lib/models/notification";
 import { sendPushToUser } from "@/lib/push";
+import { customerUserId } from "@/lib/auth/identity";
+import { hashRecoveryToken } from "@/lib/auth/recovery-access";
+import { clientIp, rateLimit } from "@/lib/security/rate-limit";
+import { audit } from "@/lib/security/audit";
 
 function sanitize(str: string): string {
   return str.replace(/[<>&"']/g, (c) => {
@@ -16,29 +21,14 @@ function normalizeString(str: string): string {
   return str.trim().toLowerCase().replace(/\s+/g, " ");
 }
 
-const ipTimestamps: Map<string, number[]> = new Map();
 const IP_RATE_LIMIT = 5;
-const IP_RATE_WINDOW = 60 * 60 * 1000;
-
-function isIpRateLimited(ip: string): boolean {
-  const now = Date.now();
-  const timestamps = ipTimestamps.get(ip) || [];
-  const recent = timestamps.filter((t) => now - t < IP_RATE_WINDOW);
-  ipTimestamps.set(ip, recent);
-  return recent.length >= IP_RATE_LIMIT;
-}
-
-function recordIpRequest(ip: string) {
-  const timestamps = ipTimestamps.get(ip) || [];
-  timestamps.push(Date.now());
-  ipTimestamps.set(ip, timestamps);
-}
+const EMAIL_RATE_LIMIT = 3;
+const RATE_WINDOW = 60 * 60 * 1000;
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     const { senderEmail, senderName, message } = body;
-    const senderUserId = request.headers.get("x-user-id") || "";
 
     if (!senderEmail || !senderName || !message) {
       return NextResponse.json(
@@ -49,6 +39,10 @@ export async function POST(request: NextRequest) {
 
     if (typeof senderEmail !== "string" || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(senderEmail.trim())) {
       return NextResponse.json({ error: "Valid email is required" }, { status: 400 });
+    }
+
+    if (typeof senderName !== "string" || typeof message !== "string") {
+      return NextResponse.json({ error: "Invalid request" }, { status: 400 });
     }
 
     const normalizedEmail = senderEmail.trim().toLowerCase();
@@ -62,12 +56,15 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Message must be 10-2000 characters" }, { status: 400 });
     }
 
-    const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || request.headers.get("x-real-ip") || "unknown";
+    const ip = clientIp(request);
 
-    if (isIpRateLimited(ip)) {
+    const ipRate = rateLimit("recovery-send-ip", ip, IP_RATE_LIMIT, RATE_WINDOW);
+    const emailRate = rateLimit("recovery-send-email", normalizedEmail, EMAIL_RATE_LIMIT, RATE_WINDOW);
+    if (!ipRate.ok || !emailRate.ok) {
+      audit("recovery_status_rate_limited", { route: "/api/messages/recovery", ip, email: normalizedEmail });
       return NextResponse.json(
         { error: "Too many requests. Please try again later." },
-        { status: 429 }
+        { status: 429, headers: { "Retry-After": String(Math.max(ipRate.retryAfterSeconds, emailRate.retryAfterSeconds)) } }
       );
     }
 
@@ -80,6 +77,13 @@ export async function POST(request: NextRequest) {
         { status: 201 }
       );
     }
+
+    // The caller claims to be this account: prefer the proven identity (signed
+    // session or bound visitor cookie) and only fall back to the legacy header
+    // so a browser whose session merely expired can still ask for help.
+    const identity = await customerUserId(request, request.headers.get("x-user-id"));
+    const headerId = (request.headers.get("x-user-id") || "").trim();
+    const senderUserId = identity || headerId;
 
     if (senderUserId && senderUserId !== registeredUser._id.toString()) {
       return NextResponse.json(
@@ -115,14 +119,17 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    recordIpRequest(ip);
+    // One-time lookup token: only the holder of this response can read the
+    // admin's reply (which contains the recovery key) later.
+    const recoveryToken = crypto.randomBytes(24).toString("base64url");
 
-    await Message.create({
+    const created = await Message.create({
       type: "account-recovery",
       senderEmail: normalizedEmail,
       senderUserId: senderUserId,
       senderName: sanitize(senderName.trim()),
       message: sanitize(message.trim()),
+      lookupTokenHash: hashRecoveryToken(recoveryToken),
     });
 
     Notification.create({
@@ -139,7 +146,10 @@ export async function POST(request: NextRequest) {
       tag: "admin-new-message",
     }).catch(() => {});
 
-    return NextResponse.json({ message: "Recovery request sent successfully" }, { status: 201 });
+    return NextResponse.json(
+      { message: "Recovery request sent successfully", recoveryToken, messageId: created._id.toString() },
+      { status: 201 }
+    );
   } catch (error) {
     console.error("POST /api/messages/recovery error:", error);
     return NextResponse.json({ error: "Failed to send request" }, { status: 500 });
