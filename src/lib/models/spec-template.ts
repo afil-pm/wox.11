@@ -8,7 +8,6 @@ export interface ISpecField {
   options: string[];
   allowCustom: boolean;
   required: boolean;
-  supplierEditable: boolean;
   placeholder: string;
 }
 
@@ -17,7 +16,6 @@ export interface ISpecTemplate extends Document {
   categoryType: string;
   name: string;
   fields: ISpecField[];
-  allowSupplierCustom: boolean;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -34,7 +32,6 @@ const SpecFieldSchema = new Schema<ISpecField>(
     options: { type: [String], default: [] },
     allowCustom: { type: Boolean, default: false },
     required: { type: Boolean, default: false },
-    supplierEditable: { type: Boolean, default: true },
     placeholder: { type: String, default: "" },
   },
   { _id: false }
@@ -45,7 +42,6 @@ const SpecTemplateSchema = new Schema<ISpecTemplate>(
     categoryType: { type: String, required: true, lowercase: true, trim: true },
     name: { type: String, required: true, trim: true },
     fields: { type: [SpecFieldSchema], default: [] },
-    allowSupplierCustom: { type: Boolean, default: true },
   },
   { timestamps: true }
 );

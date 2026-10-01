@@ -95,8 +95,6 @@ export interface IOrder extends Document {
   notes: string;
   couponCode: string;
   couponDiscount: number;
-  /** Suppliers whose products this order contains ("" entries are store owned). */
-  supplierIds: string[];
   paymentConfirmedAt?: Date;
   paymentConfirmedBy?: string;
   paymentConfirmationMethod?: "online" | "manual";
@@ -210,7 +208,6 @@ const OrderSchema = new Schema<IOrder>(
     notes: { type: String, default: "" },
     couponCode: { type: String, default: "" },
     couponDiscount: { type: Number, default: 0 },
-    supplierIds: { type: [String], default: [] },
     paymentConfirmedAt: { type: Date },
     paymentConfirmedBy: { type: String, default: "" },
     paymentConfirmationMethod: {
@@ -227,9 +224,8 @@ OrderSchema.index({ userId: 1, createdAt: -1 });
 OrderSchema.index({ createdAt: -1 });
 OrderSchema.index({ razorpayOrderId: 1 });
 OrderSchema.index({ checkoutSessionId: 1 }, { unique: true, sparse: true });
-OrderSchema.index({ paymentStatus: 1, paymentExpiresAt: 1 });
-OrderSchema.index({ supplierIds: 1 });
-// One gateway payment may settle exactly one order. The partial filter keeps
+  OrderSchema.index({ paymentStatus: 1, paymentExpiresAt: 1 });
+  // One gateway payment may settle exactly one order. The partial filter keeps
 // the empty `paymentId` used by COD orders out of the uniqueness constraint.
 OrderSchema.index(
   { paymentId: 1 },

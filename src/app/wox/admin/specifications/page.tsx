@@ -40,7 +40,6 @@ function emptyField(): SpecField {
     options: [],
     allowCustom: false,
     required: false,
-    supplierEditable: true,
     placeholder: "",
   };
 }
@@ -135,8 +134,7 @@ function OptionsEditor({
         </Button>
       </div>
       <p className="mt-1.5 text-[11px] text-zinc-400">
-        Shown to {""}
-        admin and supplier forms. Values outside this list are rejected unless
+        Shown on the product forms. Values outside this list are rejected unless
         “accept custom values” is on.
       </p>
     </div>
@@ -226,7 +224,6 @@ export default function AdminSpecificationsPage() {
       id: "",
       categoryType: type,
       name: newType.trim(),
-      allowSupplierCustom: true,
       fields: [emptyField()],
     };
     setTemplates((prev) => [...prev, fresh]);
@@ -270,7 +267,7 @@ export default function AdminSpecificationsPage() {
         <h1 className="text-2xl font-bold text-zinc-900">Product Specifications</h1>
         <p className="mt-1 text-sm text-zinc-500">
           Define which specification fields each category exposes on the product forms and
-          product pages. Suppliers only see the fields you mark as editable.
+          product pages.
         </p>
       </div>
 
@@ -352,15 +349,6 @@ export default function AdminSpecificationsPage() {
                   </label>
                   <Input value={editing.categoryType} readOnly className="bg-zinc-50" />
                 </div>
-              </div>
-
-              <div className="rounded-lg border border-zinc-200 bg-zinc-50 p-3">
-                <Toggle
-                  checked={editing.allowSupplierCustom}
-                  onChange={(allowSupplierCustom) => updateEditing({ ...editing, allowSupplierCustom })}
-                  label="Suppliers may add their own custom specification rows"
-                  hint="Off = only the fields below can carry supplier values."
-                />
               </div>
 
               <div className="space-y-3">
@@ -457,12 +445,6 @@ export default function AdminSpecificationsPage() {
                           onChange={(required) => updateField(index, { required })}
                           label="Required"
                           hint="Must be filled before saving a product."
-                        />
-                        <Toggle
-                          checked={field.supplierEditable}
-                          onChange={(supplierEditable) => updateField(index, { supplierEditable })}
-                          label="Suppliers can edit"
-                          hint="Off = only admins set this value."
                         />
                         {(field.type === "text" || field.type === "number") && (
                           <div>

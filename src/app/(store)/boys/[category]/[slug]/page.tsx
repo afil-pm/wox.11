@@ -61,7 +61,6 @@ type ApiProduct = {
   store?: string;
   /** Live name from the store record; falls back to `store` when absent. */
   storeName?: string;
-  supplierName?: string;
   variants: (ColorVariant & { sizes: SizeOption[] })[];
   reviews: Review[];
   specifications?: { label: string; value: string }[];
@@ -253,7 +252,7 @@ export default function ProductDetailPage({ params }: { params: Promise<{ catego
       )
       .filter((idx) => idx >= 0)
   );
-  const storeName = (product.storeName || product.store || product.supplierName || "").trim();
+  const storeName = (product.storeName || product.store || "").trim();
   // A product only needs selector controls when there is something to choose.
   const showColorSelector =
     product.variants.length > 1 ||

@@ -13,7 +13,6 @@ import { isAdmin } from "@/lib/auth/guards";
 import { customerUserId } from "@/lib/auth/identity";
 import { audit } from "@/lib/security/audit";
 import { clientIp, rateLimit } from "@/lib/security/rate-limit";
-import { notifyOrderSuppliers } from "@/lib/supplier/notify-suppliers";
 
 
 export async function GET(request: NextRequest) {
@@ -91,7 +90,6 @@ export async function POST(request: NextRequest) {
       tax,
       taxDetails,
       items: serverItems,
-      supplierIds,
     } = data;
 
     // The owner of the order comes from the verified session/visitor identity,
@@ -193,7 +191,6 @@ export async function POST(request: NextRequest) {
       tax,
       total,
       taxDetails,
-      supplierIds,
       paymentMethod: paymentMethod || "cod",
       paymentId: paymentId || "",
       paymentStatus,
@@ -263,26 +260,6 @@ export async function POST(request: NextRequest) {
       url: `/wox/admin/orders`,
       tag: `admin-order-${order._id}`,
     }).catch(() => {});
-
-    // The suppliers whose products are in this order are told about it — each
-    // of them, and none of the others.
-    await notifyOrderSuppliers({
-      order: { _id: order._id, orderNumber, supplierIds, items: serverItems },
-      event: "new",
-      title: "New order received",
-      body: `New order ${orderNumber} received from ${customerName || address.name}.`,
-      url: "/wox/supplier/orders",
-    });
-
-    if (paymentStatus === "PAID") {
-      await notifyOrderSuppliers({
-        order: { _id: order._id, orderNumber, supplierIds, items: serverItems },
-        event: "payment",
-        title: "Payment confirmed",
-        body: `Payment received for order ${orderNumber}.`,
-        url: "/wox/supplier/orders",
-      });
-    }
 
     if (paymentStatus !== "REVIEW") {
       sendNewOrderEmail({

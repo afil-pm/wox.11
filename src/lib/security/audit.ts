@@ -9,7 +9,6 @@
  */
 export type AuditEvent =
   | "admin_denied"
-  | "supplier_denied"
   | "customer_identity_rejected"
   | "login_failed"
   | "login_success"

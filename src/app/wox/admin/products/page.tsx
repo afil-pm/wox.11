@@ -32,11 +32,7 @@ type ApiProduct = {
   category: { name: string; slug: string; gender: string; type: string };
   categoryId: string | null;
   store: string;
-  /** Current store name, resolved live from the store record. */
   storeName: string;
-  storeId: string;
-  supplierId: string;
-  supplierName: string;
   images: { url: string; alt: string | null; position?: number }[];
   variants: ProductVariant[];
   source: "static" | "mongo";
@@ -58,7 +54,6 @@ export default function AdminProductsPage() {
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<FilterStatus>("all");
   const [storeFilter, setStoreFilter] = useState("all");
-  const [supplierFilter, setSupplierFilter] = useState("all");
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [apiError, setApiError] = useState<string | null>(null);
 
@@ -118,24 +113,15 @@ export default function AdminProductsPage() {
     [products]
   );
 
-  const supplierOptions = useMemo(
-    () =>
-      [...new Set(products.map((p) => p.supplierName).filter(Boolean))].sort((a, b) =>
-        a.localeCompare(b)
-      ).map((name) => ({ label: name, value: name })),
-    [products]
-  );
-
   const filtered = products.filter((p) => {
     const query = search.trim().toLowerCase();
     const matchesSearch =
       !query ||
-      [p.name, p.sku, p.storeName, p.supplierName].some((value) =>
+      [p.name, p.sku, p.storeName].some((value) =>
         (value || "").toLowerCase().includes(query)
       );
     if (!matchesSearch) return false;
     if (storeFilter !== "all" && p.storeName !== storeFilter) return false;
-    if (supplierFilter !== "all" && p.supplierName !== supplierFilter) return false;
     if (filter === "active") return p.isActive;
     if (filter === "inactive") return !p.isActive;
     if (filter === "low-stock") return totalStock(p) < 10;
@@ -284,7 +270,7 @@ export default function AdminProductsPage() {
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
           <Input
-            placeholder="Search by product, SKU, store or supplier..."
+            placeholder="Search by product, SKU or store..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="pl-9"
@@ -296,13 +282,6 @@ export default function AdminProductsPage() {
             onValueChange={setStoreFilter}
             options={[{ label: "All stores", value: "all" }, ...storeOptions]}
             placeholder="All stores"
-            className="w-full sm:w-44"
-          />
-          <PremiumSelect
-            value={supplierFilter}
-            onValueChange={setSupplierFilter}
-            options={[{ label: "All suppliers", value: "all" }, ...supplierOptions]}
-            placeholder="All suppliers"
             className="w-full sm:w-44"
           />
           {(Object.keys(filterLabels) as FilterStatus[]).map((key) => (
@@ -352,7 +331,6 @@ export default function AdminProductsPage() {
                 <th className="p-4">SKU</th>
                 <th className="p-4">Category</th>
                 <th className="p-4">Store</th>
-                <th className="p-4">Supplier</th>
                 <th className="p-4">Price</th>
                 <th className="p-4">Stock</th>
                 <th className="p-4">Source</th>
@@ -404,7 +382,6 @@ export default function AdminProductsPage() {
                         {product.storeName || "—"}
                       </span>
                     </td>
-                    <td className="p-4 text-gray-600">{product.supplierName || "—"}</td>
                     <td className="p-4">
                       {product.salePrice && product.salePrice > 0 ? (
                         <div>

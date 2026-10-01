@@ -56,6 +56,27 @@ const nextConfig: NextConfig = {
         { key: "Service-Worker-Allowed", value: "/" },
       ],
     },
+    {
+      // Marketing/product artwork is content-addressed by the deploy, so a
+      // browser can hold it for a day and a CDN longer without ever showing a
+      // stale banner on a repeat visit.
+      source: "/images/:path*",
+      headers: [
+        {
+          key: "Cache-Control",
+          value: "public, max-age=86400, stale-while-revalidate=604800",
+        },
+      ],
+    },
+    {
+      source: "/icons/:path*",
+      headers: [
+        {
+          key: "Cache-Control",
+          value: "public, max-age=86400, stale-while-revalidate=604800",
+        },
+      ],
+    },
   ],
 };
 

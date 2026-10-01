@@ -64,7 +64,13 @@ export async function GET(request: Request) {
       };
     });
 
-    return NextResponse.json({ products, total: products.length });
+    return NextResponse.json(
+      { products, total: products.length },
+      // Catalogue reads dominate the storefront; a few seconds of shared-cache
+      // freshness removes most repeat round trips. Stock and price changes
+      // still land inside the window.
+      { headers: { "Cache-Control": "public, max-age=15, stale-while-revalidate=60" } }
+    );
   } catch (error) {
     console.error("Products all error:", error);
     return NextResponse.json({ products: [], total: 0 }, { status: 500 });

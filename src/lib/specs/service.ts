@@ -8,7 +8,6 @@ function fromDoc(doc: ISpecTemplate): SpecTemplateShape {
     id: String(doc._id),
     categoryType: doc.categoryType,
     name: doc.name,
-    allowSupplierCustom: doc.allowSupplierCustom !== false,
     fields: (doc.fields ?? []).map((f) => ({
       key: f.key,
       label: f.label,
@@ -16,7 +15,6 @@ function fromDoc(doc: ISpecTemplate): SpecTemplateShape {
       options: [...(f.options ?? [])],
       allowCustom: !!f.allowCustom,
       required: !!f.required,
-      supplierEditable: f.supplierEditable !== false,
       placeholder: f.placeholder ?? "",
     })),
   };

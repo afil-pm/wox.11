@@ -24,7 +24,7 @@ type SpecEditorProps = {
   /** Free-form label/value rows for anything the template does not cover. */
   customRows: SpecRowInput[];
   onCustomRowsChange: (next: SpecRowInput[]) => void;
-  /** Suppliers only see this when the admin allowed custom rows. */
+  /** Custom rows are only offered where the caller allows them. */
   canAddCustom?: boolean;
   loading?: boolean;
   /** Shown when the chosen category has no template yet. */
@@ -47,7 +47,7 @@ function optionChipClass(active: boolean) {
 /**
  * The category specific specification editor. Renders one input per template
  * field (text / dropdown / multi-select / number / yes-no) plus the free-form
- * rows, so admins and suppliers fill in exactly the fields the admin configured
+ * rows, so the form fills in exactly the fields the admin configured
  * — nothing more.
  */
 export default function SpecEditor({

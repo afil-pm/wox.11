@@ -86,8 +86,6 @@ export interface PreparedOrderPayload {
   paymentMethod: "razorpay" | "cod";
   paymentId: string;
   notes: string;
-  /** Suppliers whose products appear in this order ("" = store owned, excluded). */
-  supplierIds: string[];
 }
 
 export type PrepareResult =
@@ -185,9 +183,6 @@ export async function prepareOrderPayload(body: Record<string, unknown>): Promis
   const slugs = items.map((item) => item.slug).filter(Boolean) as string[];
   const products = await Product.find({ slug: { $in: slugs } }).lean();
   const productMap = new Map(products.map((p) => [p.slug, p]));
-  const supplierIds = [
-    ...new Set(products.map((p) => p.supplierId || "").filter(Boolean)),
-  ] as string[];
 
   let serverSubtotal = 0;
   const taxInputs: TaxInput[] = [];
@@ -350,7 +345,6 @@ export async function prepareOrderPayload(body: Record<string, unknown>): Promis
       paymentMethod,
       paymentId,
       notes,
-      supplierIds,
     },
   };
 }

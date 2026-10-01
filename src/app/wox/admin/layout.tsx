@@ -13,8 +13,9 @@ import {
   X,
   LogOut,
   Search,
+  SearchX,
+  Images,
   Tag,
-  Truck,
   ListChecks,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -29,10 +30,11 @@ const navItems = [
   { label: "Dashboard", icon: LayoutDashboard, href: "/wox/admin", section: "" },
   { label: "Products", icon: Package, href: "/wox/admin/products", section: "" },
   { label: "Specifications", icon: ListChecks, href: "/wox/admin/specifications", section: "" },
+  { label: "Hero Slides", icon: Images, href: "/wox/admin/hero-slides", section: "" },
   { label: "Orders", icon: ShoppingCart, href: "/wox/admin/orders", section: "orders" },
-  { label: "Suppliers", icon: Truck, href: "/wox/admin/suppliers", section: "" },
   { label: "Messages", icon: MessageSquare, href: "/wox/admin/messages", section: "messages" },
   { label: "Coupons", icon: Tag, href: "/wox/admin/coupons", section: "" },
+  { label: "404 Search Results", icon: SearchX, href: "/wox/admin/search-logs", section: "" },
   { label: "SEO", icon: Search, href: "/wox/admin/seo", section: "" },
 ];
 

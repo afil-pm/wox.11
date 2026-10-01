@@ -10,7 +10,6 @@ function field(partial: Partial<SpecField> & Pick<SpecField, "key" | "label" | "
     options: [],
     allowCustom: false,
     required: false,
-    supplierEditable: true,
     placeholder: "",
     ...partial,
   };
@@ -58,7 +57,6 @@ export const DEFAULT_SPEC_TEMPLATES: SpecTemplate[] = [
     id: "",
     categoryType: "pants",
     name: "Pants",
-    allowSupplierCustom: true,
     fields: [
       field({
         key: "fit",
@@ -106,7 +104,6 @@ export const DEFAULT_SPEC_TEMPLATES: SpecTemplate[] = [
     id: "",
     categoryType: "shirts",
     name: "Shirts",
-    allowSupplierCustom: true,
     fields: [
       field({
         key: "fit",
@@ -159,7 +156,6 @@ export const DEFAULT_SPEC_TEMPLATES: SpecTemplate[] = [
     id: "",
     categoryType: "t-shirts",
     name: "T-Shirts",
-    allowSupplierCustom: true,
     fields: [
       field({
         key: "fit",
@@ -205,7 +201,6 @@ export const DEFAULT_SPEC_TEMPLATES: SpecTemplate[] = [
     id: "",
     categoryType: "shoes",
     name: "Shoes",
-    allowSupplierCustom: true,
     fields: [
       field({
         key: "size",

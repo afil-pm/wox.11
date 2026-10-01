@@ -5,7 +5,6 @@ import { cookies } from "next/headers";
 import { connectMongoDB } from "@/lib/mongodb";
 import User from "@/lib/models/user";
 import { createSessionToken, sessionCookieOptions } from "@/lib/auth/session";
-import { notifyUser } from "@/lib/notify";
 import { clientIp, rateLimit } from "@/lib/security/rate-limit";
 import { validateNewPassword } from "@/lib/auth/password-policy";
 import { audit } from "@/lib/security/audit";
@@ -30,7 +29,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { name, email, password, phone, role, supplierName } = await request.json();
+    const { name, email, password, phone } = await request.json();
 
     if (
       !name || !email || !password ||
@@ -53,12 +52,6 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: passwordCheck.error }, { status: 400 });
     }
 
-    // Self-registration only ever creates CUSTOMER or pending SUPPLIER accounts.
-    const requestedRole = role === "SUPPLIER" ? "SUPPLIER" : "CUSTOMER";
-    if (requestedRole === "SUPPLIER" && (!supplierName || !String(supplierName).trim())) {
-      return NextResponse.json({ error: "Supplier name is required" }, { status: 400 });
-    }
-
     await connectMongoDB();
 
     const existingUser = await User.findOne({ email: trimmedEmail.toLowerCase() });
@@ -74,19 +67,8 @@ export async function POST(request: NextRequest) {
       email: trimmedEmail.toLowerCase(),
       password: passwordHash,
       phone: phone || undefined,
-      role: requestedRole,
+      role: "CUSTOMER",
       recoveryCode,
-      ...(requestedRole === "SUPPLIER"
-        ? {
-            supplierName: String(supplierName).trim(),
-            // Server-side verification state: stays PENDING_VERIFICATION until
-            // an admin verifies the account. Persisted in the database, so it
-            // survives browser close/reopen, new tabs/devices and re-login.
-            verificationStatus: "PENDING_VERIFICATION",
-            supplierStatus: "PENDING",
-            supplierPermissions: { canUpdateOrderStatus: false },
-          }
-        : {}),
     });
 
     const token = createSessionToken({
@@ -98,30 +80,12 @@ export async function POST(request: NextRequest) {
     });
     if (token) (await cookies()).set("wox-session", token, sessionCookieOptions());
 
-    // A new supplier account is waiting for review: tell the admin both in
-    // the panel (durable row) and as a push. `dedupeKey` makes this idempotent,
-    // and notifyUser never throws so registration cannot fail because of it.
-    if (requestedRole === "SUPPLIER") {
-      await notifyUser({
-        userId: "admin-env",
-        title: "New supplier verification pending",
-        body: `${user.supplierName} (${user.email}) registered and is awaiting verification.`,
-        type: "supplier_verification",
-        url: "/wox/admin/suppliers",
-        tag: `supplier-verification-${user._id}`,
-        dedupeKey: `supplier:${user._id}:pending`,
-      });
-    }
-
     return NextResponse.json({
       user: {
         id: user._id,
         name: user.name,
         email: user.email,
         role: user.role,
-        supplierName: user.supplierName || "",
-        verificationStatus: user.verificationStatus,
-        supplierStatus: user.supplierStatus,
         token,
       },
       recoveryCode,

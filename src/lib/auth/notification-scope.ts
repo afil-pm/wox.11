@@ -4,7 +4,6 @@ import { resolveCustomerIdentity } from "@/lib/auth/identity";
  * The notification user id a caller is allowed to act on.
  *
  * Resolution order:
- *  - a signed SUPPLIER session is pinned to that supplier's own account;
  *  - an ADMIN session keeps the requested id (the admin bell listens on the
  *    `admin-env` pseudo user);
  *  - everyone else must prove possession of the visitor identity, so a plain

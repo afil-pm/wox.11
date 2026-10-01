@@ -40,6 +40,22 @@ export default function SearchModal({ isOpen, onClose }: SearchModalProps) {
   const [recentSearches, setRecentSearches] = useState<string[]>([]);
   const inputRef = useRef<HTMLInputElement>(null);
   const modalRef = useRef<HTMLDivElement>(null);
+  /** One record per distinct empty query per session — no double counting on re-render. */
+  const recordedRef = useRef<string | null>(null);
+
+  function recordZeroResult(term: string) {
+    const trimmed = term.trim();
+    if (trimmed.length < 2) return;
+    const key = trimmed.toLowerCase();
+    if (recordedRef.current === key) return;
+    recordedRef.current = key;
+    fetch("/api/search/log", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ query: trimmed }),
+      keepalive: true,
+    }).catch(() => {});
+  }
 
   useEffect(() => {
     const stored = localStorage.getItem("recentSearches");
@@ -86,6 +102,7 @@ export default function SearchModal({ isOpen, onClose }: SearchModalProps) {
           categorySlug: p.category?.type || "shirts",
         }));
         setResults(mapped);
+        if (mapped.length === 0) recordZeroResult(debouncedQuery);
       })
       .catch(() => {
         if (!cancelled) setResults([]);

@@ -54,7 +54,7 @@ export interface RawVariantInput {
 }
 
 /**
- * Single place where every product write route (admin/supplier, create/update)
+ * Single place where every product write route (admin, create/update)
  * turns request JSON into a stored variant, so the colour specific fields can
  * never be stripped by one of the four normalizers.
  */

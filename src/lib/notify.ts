@@ -12,7 +12,7 @@ export interface NotifyInput {
   /** OS level coalescing tag so repeated pushes stack as one. */
   tag?: string;
   /**
-   * Stable key of the logical event (`supplier:<id>:verified`). The first
+   * Stable key of the logical event (`order:<id>:delivered`). The first
    * delivery wins: later calls with the same key are no-ops, so retries,
    * double clicks and repeated admin actions can never create duplicates.
    */

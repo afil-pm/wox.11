@@ -1,5 +1,4 @@
 import Product from "@/lib/models/product";
-import { notifySupplierOutOfStock } from "@/lib/supplier/notify-suppliers";
 
 export interface StockAdjustItem {
   slug?: string;
@@ -18,7 +17,6 @@ type RawVariant = {
 type RawProduct = {
   slug?: string;
   name?: string;
-  supplierId?: string;
   variants?: RawVariant[];
 };
 
@@ -71,23 +69,6 @@ export async function adjustStock(
     );
     const updated = (res.modifiedCount ?? 0) > 0;
     if (!updated) return false;
-
-    // The last unit just left the shelf: the supplier is told about it (deduped
-    // per product per day), which is what the out-of-stock card reports on.
-    if (delta < 0) {
-      const remaining = (product.variants || []).reduce(
-        (sum, variant) =>
-          sum + (variant.sizes || []).reduce((s, size) => s + (size.quantity || 0), 0),
-        0
-      ) - item.quantity;
-      if (remaining <= 0) {
-        await notifySupplierOutOfStock({
-          slug: String(product.slug || item.slug),
-          name: product.name,
-          supplierId: product.supplierId,
-        });
-      }
-    }
 
     return true;
   } catch {

@@ -1,7 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
-import { connectMongoDB } from "@/lib/mongodb";
-import User from "@/lib/models/user";
 import {
   createSessionToken,
   sessionCookieOptions,
@@ -90,18 +88,6 @@ export async function POST(request: NextRequest) {
       role: challenge.role,
       token,
     };
-
-    if (challenge.role === "SUPPLIER") {
-      await connectMongoDB();
-      const row = await User.findById(challenge.sub).lean();
-      if (row) {
-        user.name = row.name;
-        user.email = row.email;
-        user.supplierName = row.supplierName || row.name;
-        user.verificationStatus = row.verificationStatus;
-        user.supplierStatus = row.supplierStatus;
-      }
-    }
 
     return NextResponse.json({ user }, { status: 200 });
   } catch (error) {

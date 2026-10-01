@@ -45,7 +45,6 @@ export async function GET(request: NextRequest) {
         { name: { $regex: safeSearch, $options: "i" } },
         { sku: { $regex: safeSearch, $options: "i" } },
         { store: { $regex: safeSearch, $options: "i" } },
-        { supplierName: { $regex: safeSearch, $options: "i" } },
       ];
     }
 
@@ -62,36 +61,10 @@ export async function GET(request: NextRequest) {
       catMap[String(c._id)] = { name: c.name as string, slug: c.slug as string, gender: c.gender as string, type: c.type as string };
     }
 
-    // Resolve the owning store/supplier for every row so the admin list can
-    // show (and filter by) them. The store name always comes from the store
-    // record, never from a copy stored on the product.
     const rows = products as unknown as Record<string, unknown>[];
-    const supplierIds = [...new Set(rows.map((p) => String(p.supplierId || "")).filter(Boolean))];
-    const [supplierDocs, { loadStoresBySupplier }] = await Promise.all([
-      supplierIds.length > 0
-        ? (await import("@/lib/models/user")).default
-            .find({ _id: { $in: supplierIds } })
-            .select("supplierName name")
-            .lean()
-        : Promise.resolve([]),
-      import("@/lib/stores"),
-    ]);
-    const supplierNameOf = (id: string, fallback: string) => {
-      const doc = (supplierDocs as unknown as Record<string, unknown>[]).find(
-        (u) => String(u._id) === id
-      );
-      return String(doc?.supplierName || doc?.name || fallback || "");
-    };
-    const storesBySupplier = await loadStoresBySupplier(supplierIds);
 
     const formatted = rows.map((obj) => {
-      const supplierId = String(obj.supplierId || "");
-      const supplierName = supplierId
-        ? supplierNameOf(supplierId, String(obj.supplierName || ""))
-        : String(obj.supplierName || "");
-      const linkedStore = storesBySupplier.get(supplierId);
-      const storeId = linkedStore?.id || String(obj.storeId || "");
-      const storeName = linkedStore?.name || String(obj.store || "") || supplierName;
+      const storeName = String(obj.store || "");
       const cat = obj.categoryId ? catMap[String(obj.categoryId)] : null;
       return {
         id: String(obj._id),
@@ -102,10 +75,7 @@ export async function GET(request: NextRequest) {
         salePrice: obj.salePrice ?? 0,
         sku: obj.sku,
         store: obj.store ?? "",
-        storeId,
         storeName,
-        supplierId,
-        supplierName,
         category: cat ?? { name: "Uncategorized", slug: "uncategorized", gender: "men", type: "shirts" },
         categoryId: obj.categoryId ? String(obj.categoryId) : null,
         images: (obj.images ?? []) as { url: string; alt: string; position: number }[],
@@ -161,7 +131,7 @@ export async function POST(request: NextRequest) {
     // Structured specs are validated against the category's template so only
     // known fields (correctly typed, required ones filled) reach the database.
     const template = await loadSpecTemplate(existingCategory.type);
-    const normalizedSpecs = normalizeSpecValues(specValues, template?.fields ?? [], { role: "admin" });
+    const normalizedSpecs = normalizeSpecValues(specValues, template?.fields ?? []);
     if (normalizedSpecs.errors.length > 0) {
       return NextResponse.json({ error: normalizedSpecs.errors.join("; ") }, { status: 400 });
     }
@@ -250,6 +220,19 @@ export async function POST(request: NextRequest) {
       body: `New product "${name}" has been added to the store. Check it out!`,
       url: `/`,
       tag: `new-product-${product.slug}`,
+    }).catch(() => {});
+
+    // Shoppers who searched for this and came up empty get told it landed.
+    const { notifySearchMatches } = await import("@/lib/search-log");
+    notifySearchMatches({
+      name,
+      sku: String(sku).toUpperCase(),
+      isActive: isActive !== false,
+      category: {
+        name: existingCategory.name,
+        type: existingCategory.type,
+        gender: existingCategory.gender,
+      },
     }).catch(() => {});
 
     return NextResponse.json({ product }, { status: 201 });
@@ -351,7 +334,6 @@ export async function PUT(request: NextRequest) {
       const targetCategory = await Category.findById(data.categoryId ?? existingProduct.categoryId);
       const template = targetCategory ? await loadSpecTemplate(targetCategory.type) : null;
       const normalizedSpecs = normalizeSpecValues(data.specValues, template?.fields ?? [], {
-        role: "admin",
         previous: existingProduct.specValues ?? [],
       });
       if (normalizedSpecs.errors.length > 0) {
@@ -369,6 +351,20 @@ export async function PUT(request: NextRequest) {
       salePrice: data.salePrice !== undefined && data.salePrice !== null && data.salePrice !== "" ? Number(data.salePrice) : 0,
     }, { new: true })
       .populate("categoryId", "name slug gender type");
+
+    // A renamed, re-categorised or newly activated product may now answer a
+    // search that used to come back empty.
+    const { notifySearchMatches } = await import("@/lib/search-log");
+    const updatedCategory =
+      product && product.categoryId && typeof product.categoryId === "object" && !Array.isArray(product.categoryId)
+        ? (product.categoryId as unknown as { name?: string; type?: string; gender?: string })
+        : null;
+    notifySearchMatches({
+      name: product?.name || "",
+      sku: product?.sku,
+      isActive: product?.isActive !== false,
+      category: updatedCategory,
+    }).catch(() => {});
 
     return NextResponse.json({ product });
   } catch (error) {

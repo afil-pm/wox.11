@@ -4,9 +4,8 @@ export type NotificationType =
   | "order_update"
   | "message_reply"
   | "new_product"
+  | "search_match"
   | "coupon"
-  | "supplier_verification"
-  | "supplier_alert"
   | "general";
 
 export interface INotification extends Document {
@@ -19,8 +18,8 @@ export interface INotification extends Document {
   url?: string;
   /**
    * Stable key of the logical event that produced this notification
-   * (e.g. `supplier:<id>:verified`). Used to guarantee a verification event
-   * is recorded — and pushed — exactly once.
+   * (e.g. `order:<id>:delivered`). Used to guarantee an event is recorded —
+   * and pushed — exactly once.
    */
   dedupeKey?: string;
   read: boolean;
@@ -39,9 +38,8 @@ const NotificationSchema = new Schema<INotification>(
         "order_update",
         "message_reply",
         "new_product",
+        "search_match",
         "coupon",
-        "supplier_verification",
-        "supplier_alert",
         "general",
       ],
       default: "general",

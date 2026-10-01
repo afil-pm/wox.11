@@ -2,7 +2,7 @@ import crypto from "crypto";
 import fs from "fs";
 import path from "path";
 
-export type SessionRole = "CUSTOMER" | "ADMIN" | "SUPPLIER";
+export type SessionRole = "CUSTOMER" | "ADMIN";
 
 export interface Session {
   sub: string;
@@ -213,7 +213,7 @@ function verifySignedToken(token: string | null | undefined, purpose: string | u
     const payload = JSON.parse(Buffer.from(body, "base64url").toString("utf8")) as Session;
     if (!payload?.sub || !payload?.role || typeof payload.exp !== "number") return null;
     if (payload.exp < Date.now()) return null;
-    if (payload.role !== "CUSTOMER" && payload.role !== "ADMIN" && payload.role !== "SUPPLIER") {
+    if (payload.role !== "CUSTOMER" && payload.role !== "ADMIN") {
       return null;
     }
     // Purpose must match exactly: a pending-challenge token is not a session,
@@ -271,7 +271,7 @@ export function sessionCookieOptions(): {
 
 /**
  * Reads the session from `Authorization: Bearer …`, the `x-session-token`
- * header (the admin/supplier panels use it) or the `wox-session` cookie that
+ * header (the admin panel uses it) or the `wox-session` cookie that
  * browser clients get on login.
  */
 export function getSession(request: SessionRequest): Session | null {

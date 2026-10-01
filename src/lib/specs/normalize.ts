@@ -1,7 +1,6 @@
 import type {
   SpecField,
   SpecFieldType,
-  SpecRole,
   SpecRow,
   SpecTemplate,
   SpecValue,
@@ -81,7 +80,6 @@ export function normalizeSpecField(raw: unknown, usedKeys: Set<string>): SpecFie
     options,
     allowCustom: asBool(input.allowCustom, false),
     required: asBool(input.required, false),
-    supplierEditable: asBool(input.supplierEditable, true),
     placeholder: cleanText(input.placeholder, 120),
   };
 }
@@ -119,7 +117,6 @@ export function normalizeSpecTemplate(raw: unknown): SpecTemplateResult {
       categoryType,
       name,
       fields,
-      allowSupplierCustom: asBool(input.allowSupplierCustom, true),
     },
   };
 }
@@ -188,15 +185,14 @@ export interface NormalizeSpecValuesResult {
 /**
  * Turns the raw form payload into the stored `{key, value}` list.
  *
- * - suppliers only ever touch fields the admin marked `supplierEditable`;
- *   every other stored value is carried over untouched from `previous`,
- * - unknown keys are ignored so a supplier cannot invent template fields,
+ * - unknown keys are ignored so a form cannot invent template fields,
+ * - a field the caller did not send keeps its stored value from `previous`,
  * - required fields (that the caller may edit) must hold a value.
  */
 export function normalizeSpecValues(
   raw: unknown,
   fields: SpecField[],
-  options: { role: SpecRole; previous?: SpecValue[] }
+  options: { previous?: SpecValue[] } = {}
 ): NormalizeSpecValuesResult {
   const input: SpecValuesInput =
     raw && typeof raw === "object" && !Array.isArray(raw)
@@ -210,14 +206,6 @@ export function normalizeSpecValues(
   const specValues: SpecValue[] = [];
 
   for (const field of fields) {
-    const editable = options.role === "admin" || field.supplierEditable;
-
-    if (!editable) {
-      const kept = previous.get(field.key);
-      if (kept) specValues.push({ key: field.key, value: kept });
-      continue;
-    }
-
     const present = Object.prototype.hasOwnProperty.call(input, field.key);
     if (!present) {
       const kept = previous.get(field.key);
@@ -289,10 +277,4 @@ export function resolveSpecRows(
   }
 
   return rows;
-}
-
-/** Fields a given role is allowed to see/edit — used when serving templates. */
-export function visibleSpecFields(fields: SpecField[], role: SpecRole): SpecField[] {
-  if (role === "admin") return fields;
-  return fields.filter((field) => field.supplierEditable);
 }

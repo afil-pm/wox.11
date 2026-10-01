@@ -58,7 +58,7 @@ export function ProductCard({ product, className }: ProductCardProps) {
     >
       <div className="relative aspect-[3/4] overflow-hidden bg-zinc-100">
         {product.images[0] ? (
-          <img src={product.images[0].url} alt={product.images[0].alt || product.name} className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105" />
+          <img src={product.images[0].url} alt={product.images[0].alt || product.name} className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105" loading="lazy" decoding="async" />
         ) : (
           <div className="flex h-full w-full items-center justify-center bg-zinc-200 text-zinc-500">
             <span className="text-xs font-medium uppercase tracking-wider">

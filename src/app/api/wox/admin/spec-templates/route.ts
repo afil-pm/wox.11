@@ -36,10 +36,10 @@ export async function PUT(request: NextRequest) {
     const { default: SpecTemplate } = await import("@/lib/models/spec-template");
     await connectMongoDB();
 
-    const { categoryType, name, fields, allowSupplierCustom } = result.template;
+    const { categoryType, name, fields } = result.template;
     const doc = await SpecTemplate.findOneAndUpdate(
       { categoryType },
-      { $set: { name, fields, allowSupplierCustom } },
+      { $set: { name, fields } },
       { new: true, upsert: true, setDefaultsOnInsert: true }
     );
 

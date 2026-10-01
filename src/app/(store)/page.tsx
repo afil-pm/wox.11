@@ -6,6 +6,7 @@ import { Shield, Truck, RotateCcw, Headphones } from "lucide-react";
 import { ProductCard, type Product } from "@/components/product/product-card";
 import RecentlyViewed from "@/components/product/recently-viewed";
 import CategorySection from "@/components/category/CategorySection";
+import HeroSlider from "@/components/home/hero-slider";
 import WoxLoader from "@/components/ui/wox-loader";
 
 const trustItems = [
@@ -42,39 +43,8 @@ export default function Home() {
 
   return (
     <div className="flex flex-col">
-      {/* Hero Section */}
-      <section className="relative flex min-h-[80vh] items-center justify-center overflow-hidden px-4 py-20 text-center">
-        <img
-          src="/images/hero.jpg"
-          alt="Men's Fashion"
-          className="absolute inset-0 h-full w-full object-cover"
-        />
-        <div className="absolute inset-0 bg-black/50" />
-        <div className="relative mx-auto max-w-3xl">
-          <h1 className="text-4xl font-bold uppercase tracking-tight text-white sm:text-5xl md:text-6xl lg:text-7xl">
-            Define Your Everyday.
-          </h1>
-          <p className="mt-4 text-lg font-light text-zinc-300 sm:text-xl">
-            Modern essentials for men and boys.
-          </p>
-          <div className="mt-8 flex flex-col items-center justify-center gap-4 sm:flex-row">
-            <Link
-              href="/men"
-              className="group inline-flex h-13 w-48 items-center justify-center gap-2 rounded-full bg-white px-8 text-sm font-semibold uppercase tracking-wider text-zinc-900 whitespace-nowrap transition-all hover:scale-105 hover:shadow-lg"
-            >
-              Shop Men
-              <span className="transition-transform group-hover:translate-x-0.5">&rarr;</span>
-            </Link>
-            <Link
-              href="/boys"
-              className="group inline-flex h-13 w-48 items-center justify-center gap-2 rounded-full border-2 border-white px-8 text-sm font-semibold uppercase tracking-wider text-white whitespace-nowrap transition-all hover:scale-105 hover:bg-white hover:text-zinc-900 hover:shadow-lg"
-            >
-              Shop Boys
-              <span className="transition-transform group-hover:translate-x-0.5">&rarr;</span>
-            </Link>
-          </div>
-        </div>
-      </section>
+      {/* Hero Section — admin managed, auto-advancing slides */}
+      <HeroSlider />
 
       {/* Category Section */}
       <CategorySection />

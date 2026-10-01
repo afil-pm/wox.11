@@ -27,8 +27,6 @@ export interface SpecField {
   allowCustom: boolean;
   /** Admin marked the field as mandatory. */
   required: boolean;
-  /** Suppliers may fill this field; off = admin only. */
-  supplierEditable: boolean;
   placeholder: string;
 }
 
@@ -39,8 +37,6 @@ export interface SpecTemplate {
   categoryType: string;
   name: string;
   fields: SpecField[];
-  /** Suppliers may add free-form label/value rows of their own. */
-  allowSupplierCustom: boolean;
 }
 
 /** One stored product value: the field key plus its normalised string value. */
@@ -57,5 +53,3 @@ export interface SpecRow {
 
 /** Raw product input, keyed by field key. */
 export type SpecValuesInput = Record<string, unknown>;
-
-export type SpecRole = "admin" | "supplier";

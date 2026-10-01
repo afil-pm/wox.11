@@ -10,7 +10,7 @@ type BackButtonProps = {
   href: string;
   /** Optional caption shown next to the icon; icon-only when omitted. */
   label?: string;
-  /** `bare` matches the storefront links, `outline` the admin/supplier panels. */
+  /* * `bare` matches the storefront links, `outline` the admin panel. */
   variant?: "bare" | "outline";
   className?: string;
   title?: string;

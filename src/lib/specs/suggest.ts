@@ -2,7 +2,7 @@ import type { SpecField } from "./types";
 
 /**
  * "Quick Choose": turns (category + product name) into a relevant set of
- * specification rows so suppliers/admins do not have to type every field.
+ * specification rows so admins do not have to type every field.
  *
  * The labels deliberately mirror the default category templates in
  * `./defaults.ts` (Fit, Fabric, Sleeve Type…) so a generated value lands in the
