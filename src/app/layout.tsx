@@ -7,6 +7,8 @@ import BackNavTracker from "@/components/ui/back-nav-tracker";
 import EnterKeyNavigation from "@/components/ui/enter-key-navigation";
 import PwaSplash from "@/components/ui/pwa-splash";
 import StoredUserSanitizer from "@/components/ui/stored-user-sanitizer";
+import { getSeoSettings } from "@/lib/seo-settings-server";
+import { resolveOgImageMeta } from "@/lib/seo-settings";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -18,61 +20,72 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
-export const metadata: Metadata = {
-  metadataBase: new URL("https://wox11.vercel.app"),
-  title: "WOX.11 | Modern Essentials for Men & Boys",
-  description:
-    "Premium men's and boys fashion. Shop shirts, t-shirts, and pants crafted for the modern wardrobe.",
-  keywords: [
-    "men's fashion",
-    "boys fashion",
-    "shirts",
-    "t-shirts",
-    "pants",
-    "premium clothing",
-  ],
-  openGraph: {
+// The og:image/twitter:image come from the admin-managed SEO settings, so a
+// saved (or removed) image is reflected on the next request without a rebuild.
+// Everything else stays static — and when nothing is saved the output matches
+// the original hardcoded `/opengraph-image.png` metadata exactly.
+export async function generateMetadata(): Promise<Metadata> {
+  const settings = await getSeoSettings();
+  const og = resolveOgImageMeta(settings);
+  const dimensions = {
+    ...(og.width ? { width: og.width } : {}),
+    ...(og.height ? { height: og.height } : {}),
+  };
+
+  return {
+    metadataBase: new URL("https://wox11.vercel.app"),
     title: "WOX.11 | Modern Essentials for Men & Boys",
     description:
       "Premium men's and boys fashion. Shop shirts, t-shirts, and pants crafted for the modern wardrobe.",
-    siteName: "WOX.11",
-    url: "https://wox11.vercel.app",
-    type: "website",
-    locale: "en_US",
-    images: [
-      {
-        url: "/opengraph-image.png",
-        width: 1024,
-        height: 1024,
-        alt: "WOX.11 - Modern Essentials for Men & Boys",
-        type: "image/png",
-      },
+    keywords: [
+      "men's fashion",
+      "boys fashion",
+      "shirts",
+      "t-shirts",
+      "pants",
+      "premium clothing",
     ],
-  },
-  twitter: {
-    card: "summary_large_image",
-    title: "WOX.11 | Modern Essentials for Men & Boys",
-    description:
-      "Premium men's and boys fashion. Shop shirts, t-shirts, and pants crafted for the modern wardrobe.",
-    images: [
-      {
-        url: "/opengraph-image.png",
-        width: 1024,
-        height: 1024,
-        alt: "WOX.11 - Modern Essentials for Men & Boys",
-      },
-    ],
-  },
-  manifest: "/manifest.json",
-  appleWebApp: {
-    capable: true,
-    statusBarStyle: "black-translucent",
-    title: "WOX.11",
-  },
-  formatDetection: {
-    telephone: false,
-  },
-};
+    openGraph: {
+      title: "WOX.11 | Modern Essentials for Men & Boys",
+      description:
+        "Premium men's and boys fashion. Shop shirts, t-shirts, and pants crafted for the modern wardrobe.",
+      siteName: "WOX.11",
+      url: "https://wox11.vercel.app",
+      type: "website",
+      locale: "en_US",
+      images: [
+        {
+          url: og.url,
+          ...dimensions,
+          alt: og.alt,
+          ...(og.type ? { type: og.type } : {}),
+        },
+      ],
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: "WOX.11 | Modern Essentials for Men & Boys",
+      description:
+        "Premium men's and boys fashion. Shop shirts, t-shirts, and pants crafted for the modern wardrobe.",
+      images: [
+        {
+          url: og.url,
+          ...dimensions,
+          alt: og.alt,
+        },
+      ],
+    },
+    manifest: "/manifest.json",
+    appleWebApp: {
+      capable: true,
+      statusBarStyle: "black-translucent",
+      title: "WOX.11",
+    },
+    formatDetection: {
+      telephone: false,
+    },
+  };
+}
 
 export const viewport: Viewport = {
   themeColor: "#18181b",

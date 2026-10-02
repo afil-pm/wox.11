@@ -1,8 +1,9 @@
-import { Metadata } from "next";
+import { Metadata, ResolvingMetadata } from "next";
 import { connectMongoDB } from "@/lib/mongodb";
 import Product from "@/lib/models/product";
 import Category from "@/lib/models/category";
 import { generateProductMetadata, generateProductSchema, generateBreadcrumbSchema, SITE_URL, ProductSeoData } from "@/lib/seo";
+import { parentOgImage } from "@/lib/seo-settings";
 import JsonLd from "@/components/seo/json-ld";
 
 const SITE_NAME = "WOX.11";
@@ -30,29 +31,34 @@ async function getProduct(slug: string) {
 }
 
 export async function generateMetadata(
-  { params }: { params: Promise<{ category: string; slug: string }> }
+  { params }: { params: Promise<{ category: string; slug: string }> },
+  parent: ResolvingMetadata
 ): Promise<Metadata> {
+  const fallbackOg = parentOgImage(await parent);
   const { slug } = await params;
   const product = await getProduct(slug);
   if (!product) {
     return { title: "Product Not Found | WOX.11" };
   }
 
-  return generateProductMetadata({
-    name: product.name,
-    slug: product.slug,
-    description: product.description,
-    basePrice: product.basePrice,
-    salePrice: product.salePrice,
-    sku: product.sku,
-    images: product.images,
-    averageRating: product.averageRating,
-    reviewCount: product.reviewCount,
-    categoryName: product.category?.name || "Products",
-    categorySlug: product.category?.slug || "products",
-    gender: product.category?.gender || "boys",
-    seo: product.seo as ProductSeoData["seo"],
-  });
+  return generateProductMetadata(
+    {
+      name: product.name,
+      slug: product.slug,
+      description: product.description,
+      basePrice: product.basePrice,
+      salePrice: product.salePrice,
+      sku: product.sku,
+      images: product.images,
+      averageRating: product.averageRating,
+      reviewCount: product.reviewCount,
+      categoryName: product.category?.name || "Products",
+      categorySlug: product.category?.slug || "products",
+      gender: product.category?.gender || "boys",
+      seo: product.seo as ProductSeoData["seo"],
+    },
+    fallbackOg
+  );
 }
 
 export default async function ProductLayout({

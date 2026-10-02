@@ -1,8 +1,26 @@
 import { Metadata } from "next";
+import type { ResolvedOgImage } from "@/lib/seo-settings";
 
 const SITE_URL = process.env.NEXT_PUBLIC_APP_URL || "https://wox11.vercel.app";
 const SITE_NAME = "WOX.11";
 const DEFAULT_OG_IMAGE = `${SITE_URL}/opengraph-image.png`;
+
+type OgImageMeta = { url: string; width?: number; height?: number; alt?: string };
+
+/**
+ * Image emitted when a page has no image of its own. Callers pass the og:image
+ * the parent segment already resolved (which follows the admin-configured
+ * default); without it the built-in defaults keep the original output.
+ */
+function siteDefaultOg(fallbackOg?: ResolvedOgImage | null, alt?: string): OgImageMeta {
+  if (!fallbackOg) return { url: DEFAULT_OG_IMAGE, width: 1200, height: 630, alt };
+  return {
+    url: fallbackOg.url,
+    ...(fallbackOg.width ? { width: fallbackOg.width } : {}),
+    ...(fallbackOg.height ? { height: fallbackOg.height } : {}),
+    alt: fallbackOg.alt || alt,
+  };
+}
 
 export interface ProductSeoData {
   name: string;
@@ -69,7 +87,10 @@ export function generateProductUrl(product: { gender: string; categorySlug: stri
   return `${SITE_URL}/${product.gender}/${product.categorySlug}/${product.slug}`;
 }
 
-export function generateProductMetadata(product: ProductSeoData): Metadata {
+export function generateProductMetadata(
+  product: ProductSeoData,
+  fallbackOg?: ResolvedOgImage | null
+): Metadata {
   const title = generateProductMetaTitle(product);
   const description = generateProductMetaDescription(product);
   const keywords = generateProductKeywords(product);
@@ -78,7 +99,10 @@ export function generateProductMetadata(product: ProductSeoData): Metadata {
     categorySlug: product.categorySlug,
     slug: product.slug,
   });
-  const ogImage = product.seo?.ogImage || product.images[0]?.url || DEFAULT_OG_IMAGE;
+  const ownOgImage = product.seo?.ogImage || product.images[0]?.url;
+  const ogImage: OgImageMeta = ownOgImage
+    ? { url: ownOgImage, width: 1200, height: 630, alt: product.name }
+    : siteDefaultOg(fallbackOg, product.name);
   const ogTitle = product.seo?.ogTitle || title;
   const ogDescription = product.seo?.ogDescription || description;
 
@@ -97,21 +121,14 @@ export function generateProductMetadata(product: ProductSeoData): Metadata {
       description: ogDescription,
       url,
       siteName: SITE_NAME,
-      images: [
-        {
-          url: ogImage,
-          width: 1200,
-          height: 630,
-          alt: product.name,
-        },
-      ],
+      images: [ogImage],
       type: "website",
     },
     twitter: {
       card: "summary_large_image",
       title: ogTitle,
       description: ogDescription,
-      images: [ogImage],
+      images: [ogImage.url],
     },
   };
 }
@@ -130,7 +147,10 @@ export interface CategorySeoData {
   };
 }
 
-export function generateCategoryMetadata(category: CategorySeoData): Metadata {
+export function generateCategoryMetadata(
+  category: CategorySeoData,
+  fallbackOg?: ResolvedOgImage | null
+): Metadata {
   const title = category.seo?.metaTitle || `${category.gender === "men" ? "Men's" : "Boys'"} ${category.name} | ${SITE_NAME}`;
   const description =
     category.seo?.metaDescription ||
@@ -139,7 +159,9 @@ export function generateCategoryMetadata(category: CategorySeoData): Metadata {
     ? category.seo.keywords
     : [`${category.gender} ${category.name}`, "fashion", "online shopping", "wox11"];
   const url = `${SITE_URL}/${category.gender}/${category.slug}`;
-  const ogImage = category.seo?.ogImage || DEFAULT_OG_IMAGE;
+  const ogImage: OgImageMeta = category.seo?.ogImage
+    ? { url: category.seo.ogImage, width: 1200, height: 630, alt: title }
+    : siteDefaultOg(fallbackOg, title);
 
   return {
     title,
@@ -151,23 +173,36 @@ export function generateCategoryMetadata(category: CategorySeoData): Metadata {
       description,
       url,
       siteName: SITE_NAME,
-      images: [{ url: ogImage, width: 1200, height: 630, alt: title }],
+      images: [ogImage],
       type: "website",
     },
     twitter: {
       card: "summary_large_image",
       title,
       description,
-      images: [ogImage],
+      images: [ogImage.url],
     },
   };
 }
 
-export function generateGenderMetadata(gender: "men" | "boys"): Metadata {
+export function generateGenderMetadata(
+  gender: "men" | "boys",
+  fallbackOg?: ResolvedOgImage | null
+): Metadata {
   const label = gender === "men" ? "Men's" : "Boys'";
+  const description = `Explore our curated collection of ${label.toLowerCase()} fashion at ${SITE_NAME}. Shirts, t-shirts, pants and more. Premium quality at affordable prices.`;
+  const ogImage: OgImageMeta = fallbackOg
+    ? {
+        url: fallbackOg.url,
+        ...(fallbackOg.width ? { width: fallbackOg.width } : {}),
+        ...(fallbackOg.height ? { height: fallbackOg.height } : {}),
+        alt: fallbackOg.alt || `${label} Fashion`,
+      }
+    : { url: DEFAULT_OG_IMAGE, width: 1200, height: 630, alt: `${label} Fashion` };
+
   return {
     title: `${label} Fashion Collection | ${SITE_NAME}`,
-    description: `Explore our curated collection of ${label.toLowerCase()} fashion at ${SITE_NAME}. Shirts, t-shirts, pants and more. Premium quality at affordable prices.`,
+    description,
     keywords: [`${label.toLowerCase()} fashion`, "clothing", "shirts", "t-shirts", "pants", "wox11"],
     alternates: { canonical: `${SITE_URL}/${gender}` },
     openGraph: {
@@ -175,14 +210,14 @@ export function generateGenderMetadata(gender: "men" | "boys"): Metadata {
       description: `Explore our curated collection of ${label.toLowerCase()} fashion at ${SITE_NAME}.`,
       url: `${SITE_URL}/${gender}`,
       siteName: SITE_NAME,
-      images: [{ url: DEFAULT_OG_IMAGE, width: 1200, height: 630, alt: `${label} Fashion` }],
+      images: [ogImage],
       type: "website",
     },
     twitter: {
       card: "summary_large_image",
       title: `${label} Fashion Collection | ${SITE_NAME}`,
       description: `Explore our curated collection of ${label.toLowerCase()} fashion at ${SITE_NAME}.`,
-      images: [DEFAULT_OG_IMAGE],
+      images: [ogImage.url],
     },
   };
 }

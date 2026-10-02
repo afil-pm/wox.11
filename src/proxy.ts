@@ -23,13 +23,17 @@ const isProd = process.env.NODE_ENV === "production";
  * attributes (progress bars, charts, the splash overlay) and those cannot
  * carry a nonce. CSS injection is not a script-execution primitive and every
  * sink that emits user data is escaped separately.
+ *
+ * `img-src` accepts any https image because the admin panels let the operator
+ * point at image URLs hosted anywhere (product photos, banners, the og:image).
+ * Images cannot execute script; script execution stays gated by `script-src`.
  */
 function contentSecurityPolicy(nonce: string): string {
   return [
     "default-src 'self'",
     `script-src 'self' 'nonce-${nonce}' 'strict-dynamic'${isProd ? "" : " 'unsafe-eval'"} https://checkout.razorpay.com`,
     "style-src 'self' 'unsafe-inline'",
-    "img-src 'self' data: blob: https://res.cloudinary.com https://placehold.co",
+    "img-src 'self' data: blob: https:",
     "font-src 'self' data:",
     "connect-src 'self' https://api.razorpay.com https://ifsc.razorpay.com https://api.postalpincode.in",
     "frame-src https://api.razorpay.com https://checkout.razorpay.com",

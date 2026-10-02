@@ -1,7 +1,8 @@
-import { Metadata } from "next";
+import { Metadata, ResolvingMetadata } from "next";
 import { connectMongoDB } from "@/lib/mongodb";
 import Category from "@/lib/models/category";
 import { generateCategoryMetadata, generateBreadcrumbSchema, SITE_URL } from "@/lib/seo";
+import { parentOgImage } from "@/lib/seo-settings";
 import JsonLd from "@/components/seo/json-ld";
 
 async function getCategory(gender: string, type: string) {
@@ -17,19 +18,26 @@ async function getCategory(gender: string, type: string) {
 }
 
 export function createCategoryMetadata(gender: string, type: string) {
-  return async function generateMetadata(): Promise<Metadata> {
+  return async function generateMetadata(
+    _props: unknown,
+    parent: ResolvingMetadata
+  ): Promise<Metadata> {
+    const fallbackOg = parentOgImage(await parent);
     const category = await getCategory(gender, type);
     if (!category) {
       return { title: `${gender === "men" ? "Men's" : "Boys'"} ${type} | WOX.11` };
     }
-    return generateCategoryMetadata({
-      name: category.name,
-      slug: category.slug,
-      gender: category.gender,
-      type: category.type,
-      description: category.description,
-      seo: category.seo as any,
-    });
+    return generateCategoryMetadata(
+      {
+        name: category.name,
+        slug: category.slug,
+        gender: category.gender,
+        type: category.type,
+        description: category.description,
+        seo: category.seo as any,
+      },
+      fallbackOg
+    );
   };
 }
 
