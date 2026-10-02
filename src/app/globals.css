@@ -574,3 +574,15 @@ body {
     scroll-behavior: auto !important;
   }
 }
+
+/* Hero slider indicator: the active pill fills over one auto-advance cycle. */
+@keyframes hero-slide-progress {
+  from { transform: scaleX(0); }
+  to { transform: scaleX(1); }
+}
+
+.hero-slide-progress {
+  animation-name: hero-slide-progress;
+  animation-timing-function: linear;
+  animation-fill-mode: forwards;
+}

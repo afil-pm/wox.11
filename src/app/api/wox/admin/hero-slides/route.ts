@@ -2,13 +2,12 @@ import { NextRequest, NextResponse } from "next/server";
 import { connectMongoDB } from "@/lib/mongodb";
 import HeroSlide from "@/lib/models/hero-slide";
 import { isAdmin } from "@/lib/auth/guards";
-import { validateProductImageUrl } from "@/lib/images";
-import { safeHeroHref } from "@/lib/hero-slides";
+import { safeHeroHref, validateHeroImageUrl } from "@/lib/hero-slides";
 
 function normalizeBody(body: Record<string, unknown>) {
   const title = String(body.title ?? "").trim();
   const image = String(body.image ?? "").trim();
-  const imageCheck = validateProductImageUrl(image);
+  const imageCheck = validateHeroImageUrl(image);
 
   return {
     error: !title

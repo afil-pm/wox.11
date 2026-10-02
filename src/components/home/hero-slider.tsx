@@ -1,150 +1,331 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  useEffect,
+  useRef,
+  useState,
+  type AnimationEvent,
+  type CSSProperties,
+  type KeyboardEvent,
+  type TouchEvent as ReactTouchEvent,
+} from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { isExternalImageUrl } from "@/lib/images";
-import { DEFAULT_HERO_SLIDES, type HeroSlideData } from "@/lib/hero-slides";
+import type { HeroSlideData } from "@/lib/hero-slides";
 
 /** Long enough to read a slide, short enough to feel alive. */
-const AUTO_ADVANCE_MS = 6000;
+const AUTO_ADVANCE_MS = 4500;
+const TRANSITION_MS = 700;
+const SWIPE_THRESHOLD_PX = 48;
+const AXIS_DEAD_ZONE_PX = 10;
 
-export default function HeroSlider() {
-  const [slides, setSlides] = useState<HeroSlideData[]>(DEFAULT_HERO_SLIDES);
-  const [index, setIndex] = useState(0);
+type DragState = {
+  startX: number;
+  startY: number;
+  dx: number;
+  axis: "x" | "y" | null;
+};
+
+type TrackEntry = {
+  key: string;
+  slide: HeroSlideData;
+  clone: boolean;
+  realIndex: number;
+};
+
+/**
+ * Horizontal sliding carousel for the storefront hero.
+ *
+ * - `slides` arrive server-rendered (see `app/(store)/page.tsx`), so the first
+ *   paint already shows the admin-managed banners — nothing to fetch, nothing
+ *   flashes.
+ * - The track holds a clone of the last slide at the front and a clone of the
+ *   first at the end; after a wrap transition finishes the track silently
+ *   unwraps to the real slide, which is how the loop stays seamless.
+ * - Auto-advance is driven by the active pill's progress animation ending, so
+ *   indicator and rotation can never drift apart. Hover/focus/swipe pause both.
+ */
+export default function HeroSlider({ slides }: { slides: HeroSlideData[] }) {
+  const n = slides.length;
+  const loop = n > 1;
+
+  // Track slot: 0 = clone of the last slide, 1..n = real slides, n+1 = clone
+  // of the first slide. Single-slide heroes sit at 0 with no clones at all.
+  const [pos, setPos] = useState(loop ? 1 : 0);
+  const [animate, setAnimate] = useState(false);
+  const [dragDx, setDragDx] = useState(0);
+  const [dragging, setDragging] = useState(false);
   const [paused, setPaused] = useState(false);
   const [reducedMotion, setReducedMotion] = useState(false);
+  const [motionReady, setMotionReady] = useState(false);
+
+  const dragRef = useRef<DragState | null>(null);
+  const animatingRef = useRef(false);
+  const settleTimeoutRef = useRef<number | null>(null);
+
+  const logical = loop ? (((pos - 1) % n) + n) % n : 0;
 
   useEffect(() => {
-    let cancelled = false;
-    fetch("/api/hero-slides")
-      .then((res) => res.json())
-      .then((data) => {
-        if (cancelled) return;
-        const list = Array.isArray(data.slides) && data.slides.length > 0 ? data.slides : DEFAULT_HERO_SLIDES;
-        setSlides(list);
-        setIndex(0);
-      })
-      .catch(() => {
-        // Keep the built-in hero.
-      });
-    return () => {
-      cancelled = true;
-    };
+    if (typeof window === "undefined" || !window.matchMedia) {
+      setMotionReady(true);
+      return;
+    }
+    const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const apply = () => setReducedMotion(mq.matches);
+    apply();
+    setMotionReady(true);
+    mq.addEventListener("change", apply);
+    return () => mq.removeEventListener("change", apply);
   }, []);
 
+  // After sliding onto a cloned edge, jump to the matching real slide with the
+  // transition disabled — the visitor never sees the swap.
   useEffect(() => {
-    if (typeof window === "undefined" || !window.matchMedia) return;
-    setReducedMotion(window.matchMedia("(prefers-reduced-motion: reduce)").matches);
-  }, []);
+    if (!loop || (pos !== 0 && pos !== n + 1)) return;
+    const timeout = window.setTimeout(
+      () => {
+        animatingRef.current = false;
+        setAnimate(false);
+        setPos(pos === 0 ? n : 1);
+      },
+      reducedMotion ? 10 : TRANSITION_MS + 60
+    );
+    return () => window.clearTimeout(timeout);
+  }, [pos, n, loop, reducedMotion]);
 
-  const goTo = useCallback(
-    (next: number) => {
-      setIndex(((next % slides.length) + slides.length) % slides.length);
+  useEffect(
+    () => () => {
+      if (settleTimeoutRef.current) window.clearTimeout(settleTimeoutRef.current);
     },
-    [slides.length]
+    []
   );
 
-  const next = useCallback(() => goTo(index + 1), [goTo, index]);
-  const previous = useCallback(() => goTo(index - 1), [goTo, index]);
+  function step(dir: 1 | -1) {
+    if (!loop || animatingRef.current) return;
+    const current = (((pos - 1) % n) + n) % n;
+    const target =
+      dir === 1
+        ? current === n - 1
+          ? n + 1
+          : current + 2
+        : current === 0
+          ? 0
+          : current;
+    animatingRef.current = true;
+    setAnimate(!reducedMotion);
+    setPos(target);
+    if (settleTimeoutRef.current) window.clearTimeout(settleTimeoutRef.current);
+    settleTimeoutRef.current = window.setTimeout(
+      () => {
+        animatingRef.current = false;
+      },
+      reducedMotion ? 10 : TRANSITION_MS + 80
+    );
+  }
 
-  // Auto-advance, but never while the visitor is interacting with the banner
-  // or has asked the system to cut down on motion.
-  useEffect(() => {
-    if (slides.length < 2 || paused || reducedMotion) return;
-    const timer = setTimeout(() => {
-      setIndex((i) => (i + 1) % slides.length);
-    }, AUTO_ADVANCE_MS);
-    return () => clearTimeout(timer);
-  }, [index, slides.length, paused, reducedMotion]);
+  function goTo(nextIndex: number) {
+    if (nextIndex < 0 || nextIndex >= n || nextIndex === logical) return;
+    if (nextIndex === (logical + 1) % n) return step(1);
+    if (nextIndex === (logical - 1 + n) % n) return step(-1);
+    // Distant indicator: jump without animating through the slides between.
+    animatingRef.current = false;
+    if (settleTimeoutRef.current) window.clearTimeout(settleTimeoutRef.current);
+    setAnimate(false);
+    setPos(nextIndex + 1);
+  }
 
-  // Warm the next image so the swap never shows a blank frame.
-  useEffect(() => {
-    if (slides.length < 2) return;
-    const upcoming = slides[(index + 1) % slides.length];
-    if (!upcoming?.image) return;
-    const img = new window.Image();
-    img.src = upcoming.image;
-  }, [index, slides]);
+  function handleProgressEnd(e: AnimationEvent<HTMLSpanElement>) {
+    if (e.target !== e.currentTarget) return;
+    step(1);
+  }
 
-  const active = slides[index] || DEFAULT_HERO_SLIDES[0];
-  const showControls = slides.length > 1;
+  function handleTouchStart(e: ReactTouchEvent<HTMLElement>) {
+    if (!loop || e.touches.length !== 1) {
+      dragRef.current = null;
+      return;
+    }
+    const touch = e.touches[0];
+    dragRef.current = {
+      startX: touch.clientX,
+      startY: touch.clientY,
+      dx: 0,
+      axis: null,
+    };
+  }
+
+  function handleTouchMove(e: ReactTouchEvent<HTMLElement>) {
+    const drag = dragRef.current;
+    if (!drag || e.touches.length !== 1) return;
+    const touch = e.touches[0];
+    const dx = touch.clientX - drag.startX;
+    const dy = touch.clientY - drag.startY;
+    if (!drag.axis) {
+      if (Math.abs(dx) < AXIS_DEAD_ZONE_PX && Math.abs(dy) < AXIS_DEAD_ZONE_PX) return;
+      if (Math.abs(dy) > Math.abs(dx)) {
+        // Vertical gesture: hand the page scroll back to the browser.
+        dragRef.current = null;
+        setDragging(false);
+        return;
+      }
+      drag.axis = "x";
+      setDragging(true);
+      setAnimate(false);
+    }
+    if (drag.axis !== "x") return;
+    drag.dx = dx;
+    setDragDx(dx);
+  }
+
+  function endDrag() {
+    const drag = dragRef.current;
+    dragRef.current = null;
+    if (!drag) {
+      setDragging(false);
+      return;
+    }
+    const swiped = drag.axis === "x";
+    const dx = drag.dx;
+    setDragging(false);
+    if (!swiped) return;
+    setDragDx(0);
+    if (Math.abs(dx) >= SWIPE_THRESHOLD_PX) {
+      step(dx < 0 ? 1 : -1);
+    } else {
+      // Not far enough — glide back under the finger.
+      setAnimate(!reducedMotion);
+    }
+  }
+
+  function handleKeyDown(e: KeyboardEvent<HTMLElement>) {
+    if (e.key === "ArrowLeft") {
+      e.preventDefault();
+      step(-1);
+    } else if (e.key === "ArrowRight") {
+      e.preventDefault();
+      step(1);
+    }
+  }
+
+  if (n === 0) return null;
+
+  const track: TrackEntry[] = loop
+    ? [
+        {
+          key: `${slides[n - 1].id}--wrap-prev`,
+          slide: slides[n - 1],
+          clone: true,
+          realIndex: n - 1,
+        },
+        ...slides.map((slide, i) => ({ key: slide.id, slide, clone: false, realIndex: i })),
+        {
+          key: `${slides[0].id}--wrap-next`,
+          slide: slides[0],
+          clone: true,
+          realIndex: 0,
+        },
+      ]
+    : slides.map((slide, i) => ({ key: slide.id, slide, clone: false, realIndex: i }));
+
+  const trackStyle: CSSProperties = {
+    transform: `translate3d(calc(${-pos * 100}% + ${dragDx}px), 0, 0)`,
+    transition:
+      animate && !reducedMotion
+        ? `transform ${TRANSITION_MS}ms cubic-bezier(0.65, 0.05, 0.36, 1)`
+        : "none",
+  };
+
+  const showControls = n > 1;
 
   return (
     <section
-      className="relative flex min-h-[80vh] items-center justify-center overflow-hidden px-4 py-20 text-center"
+      className="relative min-h-[80vh] touch-pan-y overflow-hidden bg-zinc-950 px-4 py-20 text-center select-none"
       onMouseEnter={() => setPaused(true)}
       onMouseLeave={() => setPaused(false)}
       onFocusCapture={() => setPaused(true)}
       onBlurCapture={() => setPaused(false)}
+      onTouchStart={handleTouchStart}
+      onTouchMove={handleTouchMove}
+      onTouchEnd={endDrag}
+      onTouchCancel={endDrag}
+      onKeyDown={handleKeyDown}
       aria-roledescription="carousel"
       aria-label="Featured collections"
     >
-      {slides.map((slide, i) => {
-        const isActive = i === index;
-        return (
-          <div
-            key={slide.id}
-            className={cn(
-              "absolute inset-0 transition-opacity duration-700 ease-in-out",
-              isActive ? "opacity-100" : "pointer-events-none opacity-0"
-            )}
-            aria-hidden={!isActive}
-          >
-            <Image
-              src={slide.image}
-              alt={slide.imageAlt || slide.title}
-              fill
-              sizes="100vw"
-              // Local artwork goes through the optimizer (AVIF/WebP, cached for
-              // a month); links and data URLs render straight from source.
-              unoptimized={isExternalImageUrl(slide.image) || slide.image.startsWith("data:")}
-              priority={i === 0}
-              loading={i === 0 ? "eager" : "lazy"}
-              className="object-cover"
-            />
-            <div className="absolute inset-0 bg-black/50" />
-            <div className="relative mx-auto flex h-full max-w-3xl flex-col items-center justify-center">
-              <h1 className="text-4xl font-bold uppercase tracking-tight text-white sm:text-5xl md:text-6xl lg:text-7xl">
-                {slide.title}
-              </h1>
-              {slide.subtitle ? (
-                <p className="mt-4 text-lg font-light text-zinc-300 sm:text-xl">{slide.subtitle}</p>
-              ) : null}
-              {(slide.ctaLabel || slide.secondaryCtaLabel) && (
-                <div className="mt-8 flex flex-col items-center justify-center gap-4 sm:flex-row">
-                  {slide.ctaLabel ? (
-                    <Link
-                      href={slide.ctaHref || "/"}
-                      className="group inline-flex h-13 w-48 items-center justify-center gap-2 rounded-full bg-white px-8 text-sm font-semibold uppercase tracking-wider text-zinc-900 whitespace-nowrap transition-all hover:scale-105 hover:shadow-lg"
-                    >
-                      {slide.ctaLabel}
-                      <span className="transition-transform group-hover:translate-x-0.5">&rarr;</span>
-                    </Link>
+      <div className="absolute inset-0 overflow-hidden">
+        <div className="flex h-full" style={trackStyle}>
+          {track.map((entry) => {
+            const { slide, clone, realIndex } = entry;
+            const isActive = !clone && realIndex === logical;
+            const Heading = clone ? "div" : "h1";
+            return (
+              <div
+                key={entry.key}
+                className={cn(
+                  "relative h-full w-full flex-none bg-zinc-900",
+                  !isActive && "pointer-events-none"
+                )}
+                aria-hidden={!isActive}
+              >
+                <Image
+                  src={slide.image}
+                  alt={slide.imageAlt || slide.title}
+                  fill
+                  sizes="100vw"
+                  // Local artwork goes through the optimizer (AVIF/WebP, cached
+                  // for a month); links and data URLs render straight from
+                  // source. Every slide loads eagerly — a half-swiped-into
+                  // banner must never show a blank frame.
+                  unoptimized={isExternalImageUrl(slide.image) || slide.image.startsWith("data:")}
+                  priority={!clone && realIndex === 0}
+                  loading="eager"
+                  draggable={false}
+                  className="object-cover"
+                />
+                <div className="absolute inset-0 bg-black/50" />
+                <div className="absolute inset-0 mx-auto flex max-w-3xl flex-col items-center justify-center">
+                  <Heading className="text-4xl font-bold uppercase tracking-tight text-white sm:text-5xl md:text-6xl lg:text-7xl">
+                    {slide.title}
+                  </Heading>
+                  {slide.subtitle ? (
+                    <p className="mt-4 text-lg font-light text-zinc-300 sm:text-xl">{slide.subtitle}</p>
                   ) : null}
-                  {slide.secondaryCtaLabel ? (
-                    <Link
-                      href={slide.secondaryCtaHref || "/"}
-                      className="group inline-flex h-13 w-48 items-center justify-center gap-2 rounded-full border-2 border-white px-8 text-sm font-semibold uppercase tracking-wider text-white whitespace-nowrap transition-all hover:scale-105 hover:bg-white hover:text-zinc-900 hover:shadow-lg"
-                    >
-                      {slide.secondaryCtaLabel}
-                      <span className="transition-transform group-hover:translate-x-0.5">&rarr;</span>
-                    </Link>
-                  ) : null}
+                  {(slide.ctaLabel || slide.secondaryCtaLabel) && (
+                    <div className="mt-8 flex flex-col items-center justify-center gap-4 sm:flex-row">
+                      {slide.ctaLabel ? (
+                        <Link
+                          href={slide.ctaHref || "/"}
+                          className="group inline-flex h-13 w-48 items-center justify-center gap-2 rounded-full bg-white px-8 text-sm font-semibold uppercase tracking-wider text-zinc-900 whitespace-nowrap transition-all hover:scale-105 hover:shadow-lg"
+                        >
+                          {slide.ctaLabel}
+                          <span className="transition-transform group-hover:translate-x-0.5">&rarr;</span>
+                        </Link>
+                      ) : null}
+                      {slide.secondaryCtaLabel ? (
+                        <Link
+                          href={slide.secondaryCtaHref || "/"}
+                          className="group inline-flex h-13 w-48 items-center justify-center gap-2 rounded-full border-2 border-white px-8 text-sm font-semibold uppercase tracking-wider text-white whitespace-nowrap transition-all hover:scale-105 hover:bg-white hover:text-zinc-900 hover:shadow-lg"
+                        >
+                          {slide.secondaryCtaLabel}
+                          <span className="transition-transform group-hover:translate-x-0.5">&rarr;</span>
+                        </Link>
+                      ) : null}
+                    </div>
+                  )}
                 </div>
-              )}
-            </div>
-          </div>
-        );
-      })}
+              </div>
+            );
+          })}
+        </div>
+      </div>
 
       {showControls && (
         <>
           <button
             type="button"
-            onClick={previous}
+            onClick={() => step(-1)}
             className="absolute left-4 top-1/2 z-10 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full bg-black/30 text-white transition-colors hover:bg-black/50"
             aria-label="Previous slide"
           >
@@ -152,33 +333,48 @@ export default function HeroSlider() {
           </button>
           <button
             type="button"
-            onClick={next}
+            onClick={() => step(1)}
             className="absolute right-4 top-1/2 z-10 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full bg-black/30 text-white transition-colors hover:bg-black/50"
             aria-label="Next slide"
           >
             <ChevronRight className="h-6 w-6" strokeWidth={1.5} />
           </button>
 
-          <div className="absolute bottom-6 left-1/2 z-10 flex -translate-x-1/2 gap-2">
+          {/* Indicators: the active slide wears an elongated dark pill whose
+              fill is the auto-advance progress; the rest are light-grey dots. */}
+          <div className="absolute bottom-6 left-1/2 z-10 flex -translate-x-1/2 items-center gap-2">
             {slides.map((slide, i) => (
               <button
                 key={slide.id}
                 type="button"
                 onClick={() => goTo(i)}
                 aria-label={`Go to slide ${i + 1}: ${slide.title}`}
-                aria-current={i === index}
+                aria-current={i === logical}
                 className={cn(
-                  "h-2 rounded-full transition-all duration-300",
-                  i === index ? "w-8 bg-white" : "w-2 bg-white/50 hover:bg-white/80"
+                  "relative h-2.5 overflow-hidden rounded-full shadow-[0_1px_5px_rgba(0,0,0,0.45)] transition-all duration-300",
+                  i === logical
+                    ? "w-9 bg-zinc-950"
+                    : "w-2.5 bg-zinc-300/90 hover:bg-zinc-200"
                 )}
-              />
+              >
+                {i === logical && motionReady && !reducedMotion ? (
+                  <span
+                    className="hero-slide-progress absolute inset-0 origin-left rounded-full bg-white/70"
+                    style={{
+                      animationDuration: `${AUTO_ADVANCE_MS}ms`,
+                      animationPlayState: paused || dragging ? "paused" : "running",
+                    }}
+                    onAnimationEnd={handleProgressEnd}
+                  />
+                ) : null}
+              </button>
             ))}
           </div>
         </>
       )}
 
       <span className="sr-only" aria-live="polite">
-        {active.title}
+        {slides[logical]?.title ?? ""}
       </span>
     </section>
   );
