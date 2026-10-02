@@ -42,6 +42,8 @@ export default function SearchModal({ isOpen, onClose }: SearchModalProps) {
   const modalRef = useRef<HTMLDivElement>(null);
   /** One record per distinct empty query per session — no double counting on re-render. */
   const recordedRef = useRef<string | null>(null);
+  /** Result of the last search that actually finished fetching. */
+  const lastSearchRef = useRef<{ key: string; count: number } | null>(null);
 
   function recordZeroResult(term: string) {
     const trimmed = term.trim();
@@ -55,6 +57,38 @@ export default function SearchModal({ isOpen, onClose }: SearchModalProps) {
       body: JSON.stringify({ query: trimmed }),
       keepalive: true,
     }).catch(() => {});
+  }
+
+  /**
+   * Logs a 404 search ONLY from an explicit submit. The live-search effect
+   * above must never record anything — typing alone may not create records.
+   * When the debounced search for this exact term already settled, its result
+   * is trusted; otherwise (submit raced the debounce) one lookup decides.
+   */
+  async function recordZeroResultOnSubmit(term: string) {
+    const trimmed = term.trim();
+    if (trimmed.length < 2) return;
+    const key = trimmed.toLowerCase();
+    if (recordedRef.current === key) return;
+    const settled =
+      !loading &&
+      debouncedQuery.trim().toLowerCase() === key &&
+      lastSearchRef.current?.key === key;
+    if (settled) {
+      if (lastSearchRef.current!.count === 0) recordZeroResult(trimmed);
+      return;
+    }
+    try {
+      const res = await fetch(
+        `/api/products/all?search=${encodeURIComponent(trimmed)}&limit=1`
+      );
+      const data = await res.json();
+      if (!Array.isArray(data.products) || data.products.length === 0) {
+        recordZeroResult(trimmed);
+      }
+    } catch {
+      // Unknown result — never record an unverified query.
+    }
   }
 
   useEffect(() => {
@@ -102,7 +136,7 @@ export default function SearchModal({ isOpen, onClose }: SearchModalProps) {
           categorySlug: p.category?.type || "shirts",
         }));
         setResults(mapped);
-        if (mapped.length === 0) recordZeroResult(debouncedQuery);
+        lastSearchRef.current = { key: debouncedQuery.trim().toLowerCase(), count: mapped.length };
       })
       .catch(() => {
         if (!cancelled) setResults([]);
@@ -135,9 +169,10 @@ export default function SearchModal({ isOpen, onClose }: SearchModalProps) {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (debouncedQuery.trim()) {
-      saveRecentSearch(debouncedQuery);
-    }
+    const term = query.trim();
+    if (!term) return;
+    saveRecentSearch(term);
+    void recordZeroResultOnSubmit(term);
   };
 
   const handleResultClick = (term: string) => {
@@ -202,7 +237,13 @@ export default function SearchModal({ isOpen, onClose }: SearchModalProps) {
         aria-label="Search"
       >
         <form onSubmit={handleSubmit} className="flex items-center gap-3 border-b border-zinc-200 px-5 py-4">
-          <Search className="h-5 w-5 shrink-0 text-zinc-400" strokeWidth={1.5} />
+          <button
+            type="submit"
+            aria-label="Search"
+            className="shrink-0 cursor-pointer"
+          >
+            <Search className="h-5 w-5 text-zinc-400" strokeWidth={1.5} />
+          </button>
           <input
             ref={inputRef}
             type="text"

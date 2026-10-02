@@ -32,9 +32,22 @@ export default function AdminSeoPage() {
   const [uploadNote, setUploadNote] = useState("");
   const [previewBroken, setPreviewBroken] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
+  const urlAutoTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     loadSettings();
+  }, []);
+
+  // Whenever the chosen image changes (upload, URL apply, remove, reload),
+  // retry the preview instead of keeping a stale "could not be loaded" state.
+  useEffect(() => {
+    setPreviewBroken(false);
+  }, [settings.defaultOgImage]);
+
+  useEffect(() => {
+    return () => {
+      if (urlAutoTimer.current) clearTimeout(urlAutoTimer.current);
+    };
   }, []);
 
   async function loadSettings() {
@@ -93,40 +106,67 @@ export default function AdminSeoPage() {
     }
   }
 
-  async function handleApplyUrl() {
-    const raw = urlInput.trim();
+  async function applyUrl(raw: string, silent: boolean) {
     if (!raw) return;
-    setUrlError("");
     const check = validateOgImageUrl(raw);
     if (!check.ok) {
-      setUrlError(check.error);
+      if (!silent) setUrlError(check.error);
       return;
     }
     if (check.kind === "upload") {
-      setUrlError("That looks like an uploaded file — use the Upload image button instead.");
+      if (!silent) {
+        setUrlError("That looks like an uploaded file — use the Upload image button instead.");
+      }
       return;
     }
     if (check.kind === "default") return;
+    if (check.url === settings.defaultOgImage) return;
 
-    setUrlChecking(true);
+    if (!silent) {
+      setUrlError("");
+      setUrlChecking(true);
+    }
     try {
       await checkImageUrlLoads(check.url);
       update({ defaultOgImage: check.url, ogImageWidth: 0, ogImageHeight: 0 });
-      setUrlInput("");
+      if (!silent) setUrlInput("");
       setUrlError("");
-      setPreviewBroken(false);
       setUploadNote("");
     } catch (err) {
-      setUrlError(err instanceof Error ? err.message : "Image could not be loaded from this URL.");
+      // Silent (auto) probes stay quiet — the explicit Apply URL path reports.
+      if (!silent) {
+        setUrlError(err instanceof Error ? err.message : "Image could not be loaded from this URL.");
+      }
     } finally {
-      setUrlChecking(false);
+      if (!silent) setUrlChecking(false);
     }
+  }
+
+  function handleApplyUrl() {
+    if (urlAutoTimer.current) clearTimeout(urlAutoTimer.current);
+    void applyUrl(urlInput.trim(), false);
+  }
+
+  /**
+   * Typing a URL also updates the preview (after a short pause) so the admin
+   * sees the image before pressing Apply URL. Values that fail validation or
+   * cannot load are ignored silently until applied explicitly.
+   */
+  function scheduleUrlPreview(value: string) {
+    if (urlAutoTimer.current) clearTimeout(urlAutoTimer.current);
+    const raw = value.trim();
+    if (!raw || raw === settings.defaultOgImage) return;
+    urlAutoTimer.current = setTimeout(() => {
+      urlAutoTimer.current = null;
+      void applyUrl(raw, true);
+    }, 800);
   }
 
   async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     e.target.value = "";
     if (!file) return;
+    if (urlAutoTimer.current) clearTimeout(urlAutoTimer.current);
     setUploading(true);
     setUploadError("");
     try {
@@ -152,6 +192,7 @@ export default function AdminSeoPage() {
   }
 
   function handleRemove() {
+    if (urlAutoTimer.current) clearTimeout(urlAutoTimer.current);
     update({ defaultOgImage: "", ogImageWidth: 0, ogImageHeight: 0, ogImageAlt: "" });
     setUrlInput("");
     setUrlError("");
@@ -161,6 +202,7 @@ export default function AdminSeoPage() {
   }
 
   const handleSave = async () => {
+    if (urlAutoTimer.current) clearTimeout(urlAutoTimer.current);
     setSaving(true);
     setSaveError("");
     try {
@@ -277,6 +319,7 @@ export default function AdminSeoPage() {
                         onChange={(e) => {
                           setUrlInput(e.target.value);
                           setUrlError("");
+                          scheduleUrlPreview(e.target.value);
                         }}
                         onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), handleApplyUrl())}
                         placeholder={
