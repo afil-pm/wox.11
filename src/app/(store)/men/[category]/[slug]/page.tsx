@@ -31,6 +31,7 @@ import { useRecentlyViewed } from "@/lib/hooks/use-recently-viewed";
 import BuyNowModal from "@/components/product/buy-now-modal";
 import ImageZoom from "@/components/product/image-zoom";
 import RelatedProducts from "@/components/product/related-products";
+import { TryOnButton } from "@/components/product/try-on-button";
 
 type ProductImage = { url: string; alt: string | null };
 type ColorVariant = {
@@ -619,6 +620,21 @@ export default function ProductDetailPage({ params }: { params: Promise<{ catego
                 <Share2 className="h-4 w-4" /> Share
               </button>
             </div>
+
+            {/* Virtual Try-On — the camera is requested only when this is clicked */}
+            {product.images.length > 0 && (
+              <div className="mt-3">
+                <TryOnButton
+                  product={{
+                    name: displayTitle,
+                    imageUrl: allImages[0].url,
+                    categorySlug: product.category.slug,
+                    categoryName: product.category.name,
+                    color: currentVariant.color ?? currentVariant.name ?? null,
+                  }}
+                />
+              </div>
+            )}
 
             {/* Delivery Check */}
             <div className="mt-5 rounded-lg border border-zinc-200 p-4">

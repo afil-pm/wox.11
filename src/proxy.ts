@@ -27,6 +27,11 @@ const isProd = process.env.NODE_ENV === "production";
  * `img-src` accepts any https image because the admin panels let the operator
  * point at image URLs hosted anywhere (product photos, banners, the og:image).
  * Images cannot execute script; script execution stays gated by `script-src`.
+ * `connect-src` additionally trusts res.cloudinary.com (the catalogue image
+ * host mirrored in next.config remotePatterns, so try-on can fetch garment
+ * bytes) and the Decart realtime hosts. LiveKit sessions land on per-region
+ * hosts ({region}.lkc.decart.ai, assigned inside the ephemeral token), so the
+ * region subdomain is wildcarded — still strictly Decart-owned.
  */
 function contentSecurityPolicy(nonce: string): string {
   return [
@@ -35,7 +40,7 @@ function contentSecurityPolicy(nonce: string): string {
     "style-src 'self' 'unsafe-inline'",
     "img-src 'self' data: blob: https:",
     "font-src 'self' data:",
-    "connect-src 'self' https://api.razorpay.com https://ifsc.razorpay.com https://api.postalpincode.in",
+    "connect-src 'self' https://api.razorpay.com https://ifsc.razorpay.com https://api.postalpincode.in https://res.cloudinary.com https://api3.decart.ai wss://api3.decart.ai https://*.lkc.decart.ai wss://*.lkc.decart.ai https://platform.decart.ai",
     "frame-src https://api.razorpay.com https://checkout.razorpay.com",
     "base-uri 'self'",
     "object-src 'none'",
@@ -60,8 +65,23 @@ export function proxy(request: NextRequest) {
     request: { headers: requestHeaders },
   });
   response.headers.set("Content-Security-Policy", csp);
+  response.headers.set("Permissions-Policy", permissionsPolicy(request.nextUrl.pathname));
 
   return response;
+}
+
+/**
+ * Permissions-Policy lives here instead of `next.config.ts` because it must
+ * vary by route: virtual try-on needs camera access on product detail pages,
+ * and nowhere else. Everywhere else the camera stays disabled at the policy
+ * level, so no other page can even trigger a permission prompt. Note the
+ * policy only *allows* the request — the browser still asks the user, and
+ * the Try On Wear button is the only code path that ever asks.
+ */
+function permissionsPolicy(pathname: string): string {
+  const isProductPage =
+    /^\/men\/[^/]+\/[^/]+\/?$/.test(pathname) || /^\/boys\/[^/]+\/[^/]+\/?$/.test(pathname);
+  return `camera=${isProductPage ? "(self)" : "()"}, microphone=(), geolocation=()`;
 }
 
 export const config = {

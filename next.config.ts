@@ -6,14 +6,15 @@ import type { NextConfig } from "next";
  * The Content-Security-Policy lives in `src/proxy.ts` instead: it needs a
  * per-request nonce so `script-src` can run without `'unsafe-inline'`, and a
  * static header cannot mint one. Setting CSP in both places would send two
- * policies, which browsers enforce as their intersection.
+ * policies, which browsers enforce as their intersection. Permissions-Policy
+ * lives there too: camera access must be scoped to product detail pages,
+ * which a static header cannot express.
  */
 const securityHeaders = [
   { key: "X-Content-Type-Options", value: "nosniff" },
   { key: "X-Frame-Options", value: "DENY" },
   { key: "X-XSS-Protection", value: "1; mode=block" },
   { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
-  { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=()" },
   { key: "Strict-Transport-Security", value: "max-age=63072000; includeSubDomains; preload" },
   { key: "X-DNS-Prefetch-Control", value: "on" },
   { key: "X-Permitted-Cross-Domain-Policies", value: "none" },
