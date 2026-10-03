@@ -4,7 +4,6 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { Shield, Truck, RotateCcw, Headphones } from "lucide-react";
 import { ProductCard, type Product } from "@/components/product/product-card";
-import RecentlyViewed from "@/components/product/recently-viewed";
 import CategorySection from "@/components/category/CategorySection";
 import HeroSlider from "@/components/home/hero-slider";
 import WoxLoader from "@/components/ui/wox-loader";
@@ -122,9 +121,6 @@ export default function StoreHome({ heroSlides }: { heroSlides: HeroSlideData[] 
           )}
         </div>
       </section>
-
-      {/* Recently Viewed */}
-      <RecentlyViewed />
 
       {/* Trust Section */}
       <section className="border-t border-zinc-200 bg-white py-16 sm:py-20">

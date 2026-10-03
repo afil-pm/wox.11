@@ -3,7 +3,7 @@
 import Link from "next/link";
 import dynamic from "next/dynamic";
 import { usePathname } from "next/navigation";
-import { Home, Package, ShoppingBag, User } from "lucide-react";
+import { Home, History, Package, ShoppingBag, User } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const CartBadge = dynamic(
@@ -28,6 +28,7 @@ const navItems = [
   { label: "Orders", href: "/account/orders", icon: Package },
   { label: "Cart", href: "/cart", icon: ShoppingBag },
   { label: "Account", href: "/account", icon: User },
+  { label: "History", href: "/history", icon: History },
 ];
 
 function isActiveRoute(href: string, pathname: string): boolean {

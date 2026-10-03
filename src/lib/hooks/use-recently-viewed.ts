@@ -3,9 +3,9 @@
 import { useState, useEffect, useCallback } from "react";
 
 const STORAGE_KEY = "wox-recently-viewed";
-const MAX_ITEMS = 10;
+const MAX_ITEMS = 20;
 
-type RecentProduct = {
+export type RecentProduct = {
   slug: string;
   name: string;
   image: string;
@@ -18,6 +18,9 @@ type RecentProduct = {
 
 export function useRecentlyViewed() {
   const [items, setItems] = useState<RecentProduct[]>([]);
+  /** True once localStorage has been read — lets pages avoid flashing the
+   *  empty state before the stored history arrives. */
+  const [hydrated, setHydrated] = useState(false);
 
   useEffect(() => {
     try {
@@ -26,12 +29,23 @@ export function useRecentlyViewed() {
         setItems(JSON.parse(stored));
       }
     } catch {}
+    setHydrated(true);
   }, []);
 
   const addView = useCallback((product: Omit<RecentProduct, "viewedAt">) => {
     setItems((prev) => {
       const filtered = prev.filter((item) => item.slug !== product.slug);
       const updated = [{ ...product, viewedAt: Date.now() }, ...filtered].slice(0, MAX_ITEMS);
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+      } catch {}
+      return updated;
+    });
+  }, []);
+
+  const removeItem = useCallback((slug: string) => {
+    setItems((prev) => {
+      const updated = prev.filter((item) => item.slug !== slug);
       try {
         localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
       } catch {}
@@ -46,5 +60,5 @@ export function useRecentlyViewed() {
     } catch {}
   }, []);
 
-  return { items, addView, clearRecent };
+  return { items, hydrated, addView, removeItem, clearRecent };
 }

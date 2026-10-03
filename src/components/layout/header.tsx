@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import Link from "next/link";
 import dynamic from "next/dynamic";
 import { usePathname } from "next/navigation";
-import { Search, User, Heart, ShoppingBag, Menu, X, LogOut, Package, Settings, ChevronRight } from "lucide-react";
+import { Search, User, Heart, ShoppingBag, Menu, X, LogOut, Package, Settings, ChevronRight, History } from "lucide-react";
 import { cn } from "@/lib/utils";
 import SearchModal from "@/components/search/search-modal";
 import NotificationBell from "@/components/notifications/notification-bell";
@@ -185,6 +185,14 @@ export default function Header() {
               aria-label="Orders"
             >
               <Package className="h-5 w-5" strokeWidth={1.5} />
+            </Link>
+
+            <Link
+              href="/history"
+              className="flex h-10 w-10 items-center justify-center text-zinc-900 transition-all duration-150 hover:text-zinc-600 active:scale-90"
+              aria-label="History"
+            >
+              <History className="h-5 w-5" strokeWidth={1.5} />
             </Link>
 
             <Link
@@ -381,6 +389,22 @@ export default function Header() {
             <ul className="space-y-1">
               <li>
                 <Link
+                  href="/history"
+                  className={cn(
+                    "drawer-item-hover nav-press-effect flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium transition-all duration-200 active:scale-[0.97] tap-highlight-none animate-drawer-in",
+                    pathname === "/history"
+                      ? "bg-zinc-900 text-white shadow-sm"
+                      : "text-zinc-700 hover:bg-zinc-50 hover:text-zinc-900"
+                  )}
+                  style={{ animationDelay: `${navLinks.length * 40}ms` }}
+                  onClick={() => setMobileOpen(false)}
+                >
+                  <History className="h-4 w-4" strokeWidth={1.5} />
+                  History
+                </Link>
+              </li>
+              <li>
+                <Link
                   href="/wishlist"
                   className={cn(
                     "drawer-item-hover nav-press-effect flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium transition-all duration-200 active:scale-[0.97] tap-highlight-none animate-drawer-in",
@@ -388,7 +412,7 @@ export default function Header() {
                       ? "bg-zinc-900 text-white shadow-sm"
                       : "text-zinc-700 hover:bg-zinc-50 hover:text-zinc-900"
                   )}
-                  style={{ animationDelay: `${navLinks.length * 40}ms` }}
+                  style={{ animationDelay: `${(navLinks.length + 1) * 40}ms` }}
                   onClick={() => setMobileOpen(false)}
                 >
                   <Heart className="h-4 w-4" strokeWidth={1.5} />
@@ -404,7 +428,7 @@ export default function Header() {
                       ? "bg-zinc-900 text-white shadow-sm"
                       : "text-zinc-700 hover:bg-zinc-50 hover:text-zinc-900"
                   )}
-                  style={{ animationDelay: `${(navLinks.length + 1) * 40}ms` }}
+                  style={{ animationDelay: `${(navLinks.length + 2) * 40}ms` }}
                   onClick={() => setMobileOpen(false)}
                 >
                   <ShoppingBag className="h-4 w-4" strokeWidth={1.5} />
@@ -427,7 +451,7 @@ export default function Header() {
                           ? "bg-zinc-900 text-white shadow-sm"
                           : "text-zinc-700 hover:bg-zinc-50 hover:text-zinc-900"
                       )}
-                      style={{ animationDelay: `${(navLinks.length + 2) * 40}ms` }}
+                      style={{ animationDelay: `${(navLinks.length + 3) * 40}ms` }}
                       onClick={() => setMobileOpen(false)}
                     >
                       <span className="relative">
@@ -445,7 +469,7 @@ export default function Header() {
                         <Link
                           href="/wox/admin"
                           className="drawer-item-hover nav-press-effect flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium transition-all duration-200 active:scale-[0.97] tap-highlight-none animate-drawer-in"
-                          style={{ animationDelay: `${(navLinks.length + 3) * 40}ms` }}
+                          style={{ animationDelay: `${(navLinks.length + 4) * 40}ms` }}
                           onClick={() => setMobileOpen(false)}
                         >
                           <Settings className="h-4 w-4" strokeWidth={1.5} />
@@ -457,7 +481,7 @@ export default function Header() {
                       type="button"
                       onClick={() => { handleLogoutClick(); setMobileOpen(false); }}
                       className="nav-press-effect flex w-full items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium text-red-600 transition-all duration-200 hover:bg-red-50 active:scale-[0.97] tap-highlight-none animate-drawer-in"
-                      style={{ animationDelay: `${(navLinks.length + 4) * 40}ms` }}
+                      style={{ animationDelay: `${(navLinks.length + 5) * 40}ms` }}
                     >
                       <LogOut className="h-4 w-4" strokeWidth={1.5} />
                       Sign Out
@@ -472,7 +496,7 @@ export default function Header() {
                         ? "bg-zinc-900 text-white shadow-sm"
                         : "text-zinc-700 hover:bg-zinc-50 hover:text-zinc-900"
                     )}
-                    style={{ animationDelay: `${(navLinks.length + 2) * 40}ms` }}
+                    style={{ animationDelay: `${(navLinks.length + 3) * 40}ms` }}
                     onClick={() => setMobileOpen(false)}
                   >
                     <User className="h-4 w-4" strokeWidth={1.5} />
