@@ -27,8 +27,8 @@ const navItems = [
   { label: "Home", href: "/", icon: Home },
   { label: "Orders", href: "/account/orders", icon: Package },
   { label: "Cart", href: "/cart", icon: ShoppingBag },
-  { label: "Account", href: "/account", icon: User },
   { label: "History", href: "/history", icon: History },
+  { label: "Account", href: "/account", icon: User },
 ];
 
 function isActiveRoute(href: string, pathname: string): boolean {
