@@ -30,6 +30,8 @@ export function TryOnButton({ product }: { product: TryOnButtonProduct }) {
   const [stream, setStream] = useState<MediaStream | null>(null);
   const [attempt, setAttempt] = useState(0);
   const streamRef = useRef<MediaStream | null>(null);
+  // Mirrors `open` for the popstate handler, which cannot see fresh state.
+  const openRef = useRef(false);
 
   const stopStream = useCallback(() => {
     streamRef.current?.getTracks().forEach((track) => {
@@ -42,8 +44,20 @@ export function TryOnButton({ product }: { product: TryOnButtonProduct }) {
   }, []);
 
   const close = useCallback(() => {
+    if (!openRef.current) return;
+    openRef.current = false;
     stopStream();
     setOpen(false);
+    // Undo our own history entry so Back/forward stay clean. The resulting
+    // popstate re-enters close() but openRef is already false, so it no-ops.
+    // With no history to go back to, strip the hash in place instead.
+    if (typeof window !== "undefined" && window.location.hash === "#try-on") {
+      if (window.history.length > 1) {
+        window.history.back();
+      } else {
+        window.history.replaceState(null, "", window.location.pathname + window.location.search);
+      }
+    }
   }, [stopStream]);
 
   useEffect(() => {
@@ -51,8 +65,18 @@ export function TryOnButton({ product }: { product: TryOnButtonProduct }) {
     function onKeyDown(event: KeyboardEvent) {
       if (event.key === "Escape") close();
     }
+    // Device/browser back while the modal is open must land back on the
+    // product page — not leave it. The entry was pushed on open, so a back
+    // press pops it and arrives here with the hash already gone.
+    function onPopState() {
+      close();
+    }
     window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
+    window.addEventListener("popstate", onPopState);
+    return () => {
+      window.removeEventListener("keydown", onKeyDown);
+      window.removeEventListener("popstate", onPopState);
+    };
   }, [open, close]);
 
   // Runs ONLY from explicit clicks. Never from effects, timers, or page load.
@@ -93,7 +117,14 @@ export function TryOnButton({ product }: { product: TryOnButtonProduct }) {
   }, [stopStream]);
 
   const handleOpen = useCallback(() => {
+    if (openRef.current) return;
+    openRef.current = true;
     setOpen(true);
+    try {
+      // Same-tab history entry: lets the browser/device back button close
+      // the modal and stay on the product page. Never a new tab or window.
+      window.history.pushState({ woxTryOn: true }, "", "#try-on");
+    } catch {}
     void requestCamera();
   }, [requestCamera]);
 
